@@ -520,7 +520,7 @@ classdef imtool3D < handle
 
             %Create maskinterp button
             tool.handles.Tools.maskinterp             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+7*w w w],'TooltipString','Interp Mask');
-            icon_profile = makeToolbarIconFromPNG([fileparts(mfilename('fullpath')) '/interpmask.png']);
+            icon_profile = makeToolbarIconFromPNG([fileparts(mfilename('fullpath')) '/interpmask/interpmask.png']);
             set(tool.handles.Tools.maskinterp ,'Cdata',icon_profile)
             fun=@(hObject,evnt) maskinterpImageCallback(hObject,evnt,tool);
             set(tool.handles.Tools.maskinterp ,'Callback',fun)
