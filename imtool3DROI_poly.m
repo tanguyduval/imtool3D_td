@@ -77,7 +77,7 @@ classdef imtool3DROI_poly < imtool3DROI
             %Define the context menu options (i.e., what happens when you
             %right click on the ROI)
             menuLabels = {'Export stats','Hide Text','Delete','poly2mask'};
-            if ~exist('tool','var'), menuLabels(end) = []; end
+            if ~exist('tool','var'), menuLabels(end) = []; tool = []; end
             menuFunction = @contextMenuCallback;
             
             %create the ROI object from the superclass

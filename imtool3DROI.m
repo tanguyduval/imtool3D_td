@@ -24,7 +24,7 @@ classdef imtool3DROI < handle
     methods
         
         %Constructor
-        function ROI = imtool3DROI(imageHandle,graphicsHandles,menuLabels,menuFunction,tool)
+        function ROI = imtool3DROI(imageHandle,graphicsHandles,menuLabels,menuFunction,varargin)
             
             %Set the properties
             ROI.imageHandle = imageHandle;
@@ -61,7 +61,7 @@ classdef imtool3DROI < handle
             
             %create each of the menu items and set their callback
             %functions
-            menuFunction = @(source,callbackdata) menuFunction(source,callbackdata,ROI,tool);
+            menuFunction = @(source,callbackdata) menuFunction(source,callbackdata,ROI,varargin{:});
             for i=1:length(menuLabels)
                 ROI.menuHandles(i) = uimenu('Parent',c,'Label',menuLabels{i},'Callback',menuFunction);
             end

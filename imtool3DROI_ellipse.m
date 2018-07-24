@@ -45,10 +45,23 @@ classdef imtool3DROI_ellipse < imtool3DROI_rect
                 case 2 %user inputs both the parent handle and a position
                     imageHandle = varargin{1};
                     position = varargin{2};
+                case 3
+                    imageHandle = varargin{1};
+                    position = varargin{2};
+                    if isempty(position)
+                        parent = get(imageHandle,'Parent');
+                        h = imellipse(parent);
+                        pos = getPosition(h);
+                        position = [pos(1)+pos(3)/2 pos(2)+pos(4)/2 pos(3) pos(4)];
+                        delete(h);
+                    end
+                    tool = varargin{3};
+
             end
             
             %contruct the rect ROI
-            ROI@imtool3DROI_rect(imageHandle,position)
+            if ~exist('tool','var'), tool=[]; end
+            ROI@imtool3DROI_rect(imageHandle,position, tool)
             
             %make the rectangle an ellipse
             set(ROI.graphicsHandles(1),'Curvature',[1 1]);
@@ -102,7 +115,7 @@ classdef imtool3DROI_ellipse < imtool3DROI_rect
             notify(ROI,'newROIPosition');
         end
         
-        function stats = getMeasurements(ROI)
+        function [x, y] = getPoly(ROI)
             %get the position
             position = ROI.position;
             
@@ -111,7 +124,10 @@ classdef imtool3DROI_ellipse < imtool3DROI_rect
             
             %make the polygon
             [x,y] = getEllipsePoints(position,ROI.nPoints,'nPoints');
-            
+        end
+
+        function stats = getMeasurements(ROI)
+            [x, y] = getPoly(ROI);
             im = double(get(ROI.imageHandle,'CData'));
             
             m = size(im,1);
@@ -130,7 +146,7 @@ classdef imtool3DROI_ellipse < imtool3DROI_rect
             stats.min = min(im);
             stats.max = max(im);
             stats.mask = mask;
-            stats.position = position;
+            stats.position = ROI.position;
             
         end
         

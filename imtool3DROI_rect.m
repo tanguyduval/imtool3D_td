@@ -53,6 +53,17 @@ classdef imtool3DROI_rect < imtool3DROI
                 case 2 %user inputs both the parent handle and a position
                     imageHandle = varargin{1};
                     position = varargin{2};
+                case 3
+                    imageHandle = varargin{1};
+                    position = varargin{2};
+                    if isempty(position)
+                        parent = get(imageHandle,'Parent');
+                        h = imrect(parent);
+                        pos = getPosition(h);
+                        position = [pos(1)+pos(3)/2 pos(2)+pos(4)/2 pos(3) pos(4)];
+                        delete(h);
+                    end
+                    tool = varargin{3};
             end
             
             %get the parent axis handle
@@ -81,11 +92,12 @@ classdef imtool3DROI_rect < imtool3DROI
             
             %Define the context menu options (i.e., what happens when you
             %right click on the ROI)
-            menuLabels = {'Export stats','Fix Aspect Ratio','Hide Text','Delete'};
+            menuLabels = {'Export stats','Fix Aspect Ratio','Hide Text','Delete','poly2mask'};
+            if ~exist('tool','var'), menuLabels(end) = []; tool = []; end
             menuFunction = @contextMenuCallback;
             
             %create the ROI object from the superclass
-            ROI@imtool3DROI(imageHandle,graphicsHandles,menuLabels,menuFunction);
+            ROI@imtool3DROI(imageHandle,graphicsHandles,menuLabels,menuFunction, tool);
             
             %Create the text box
             I = get(ROI.imageHandle,'CData');
@@ -161,7 +173,7 @@ classdef imtool3DROI_rect < imtool3DROI
             newPosition(ROI,position);
         end
         
-        function stats = getMeasurements(ROI)
+        function [x, y] = getPoly(ROI)
             %get the position
             position = ROI.position;
             
@@ -171,7 +183,10 @@ classdef imtool3DROI_rect < imtool3DROI
             %make the polygon
             x = [pos(1) pos(1)+pos(3) pos(1)+pos(3) pos(1) pos(1)];
             y = [pos(2) pos(2) pos(2)+pos(4) pos(2)+pos(4) pos(2)];
-            
+        end
+        
+        function stats = getMeasurements(ROI)
+            [x, y] = getPoly(ROI);
             im = double(get(ROI.imageHandle,'CData'));
             
             m = size(im,1);
@@ -191,7 +206,7 @@ classdef imtool3DROI_rect < imtool3DROI
             stats.min = min(im);
             stats.max = max(im);
             stats.mask = mask;
-            stats.position = position;
+            stats.position = ROI.position;
             
         end
         
@@ -457,7 +472,7 @@ fig = ROI.figureHandle;
 set(fig,'WindowButtonMotionFcn',WBMF_old,'WindowButtonUpFcn',WBUF_old);
 end
 
-function contextMenuCallback(source,callbackdata,ROI)
+function contextMenuCallback(source,callbackdata,ROI, tool)
 
 switch get(source,'Label')
     case 'Delete'
@@ -483,6 +498,23 @@ switch get(source,'Label')
                 set(source,'Checked','off');
                 ROI.textVisible = true;
         end
+    case 'poly2mask'
+        mask = tool.getMask;
+        
+        [x, y] = getPoly(ROI);
+        
+        m = size(mask,1);
+        n = size(mask,2);
+        %Scale the polygon to match the size of the displayed image (in
+        %the case that the displayed image is being upsampled to match
+        %the screen resolution).
+        x = x*n/ROI.imageHandle.XData(2);
+        y = y*m/ROI.imageHandle.YData(2);
+        
+        masknew = poly2mask(x,y,m,n);
+        mask(:,:,tool.getCurrentSlice) = mask(:,:,tool.getCurrentSlice) | masknew;
+        tool.setMask(mask)
+
 end
 
 

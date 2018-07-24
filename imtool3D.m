@@ -1050,10 +1050,10 @@ function measureImageCallback(hObject,evnt,tool,type)
 switch type
     case 'ellipse'
         h = getHandles(tool);
-        ROI = imtool3DROI_ellipse(h.I);
+        ROI = imtool3DROI_ellipse(h.I,[],tool);
     case 'rectangle'
         h = getHandles(tool);
-        ROI = imtool3DROI_rect(h.I);
+        ROI = imtool3DROI_rect(h.I,[],tool);
     case 'polygon'
         h = getHandles(tool);
         ROI = imtool3DROI_poly(h.I,[],tool);
