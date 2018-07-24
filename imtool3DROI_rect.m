@@ -166,7 +166,7 @@ classdef imtool3DROI_rect < imtool3DROI
             position = ROI.position;
             
             %find the top left corner of the box
-            pos = [position(1)-position(3)/2 position(2)-position(3)/2 position(3) position(4)];
+            pos = [position(1)-position(3)/2 position(2)-position(4)/2 position(3) position(4)];
             
             %make the polygon
             x = [pos(1) pos(1)+pos(3) pos(1)+pos(3) pos(1) pos(1)];
