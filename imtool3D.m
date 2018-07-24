@@ -1021,8 +1021,9 @@ if any(mask(:))
     [labels,num] = bwlabel(mask);
     for ilab=1:num
         P = mask2poly(labels==ilab,'EXACT','CW');
+        if size(P,1)>11, P = reduce_poly(P(2:end,:)',10); end
         if ~isempty(P)
-            imtool3DROI_poly(h.I,reduce_poly(P(2:end,:)',10)',tool);
+            imtool3DROI_poly(h.I,P',tool);
         end
     end
 end
