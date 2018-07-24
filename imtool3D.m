@@ -523,6 +523,7 @@ classdef imtool3D < handle
             
             %Smart Paint brush tool button
             tool.handles.Tools.SmartBrush        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','String','','Position',[buff buff+7*w w w],'TooltipString','Smart Brush Tool');
+            icon_profile = makeToolbarIconFromPNG([fileparts(mfilename('fullpath')) '/tool_data_brush_smart.png']);
             set(tool.handles.Tools.SmartBrush ,'Cdata',icon_profile)
             fun=@(hObject,evnt) PaintBrushCallback(hObject,evnt,tool,'Smart');
             set(tool.handles.Tools.SmartBrush ,'Callback',fun)
