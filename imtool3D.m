@@ -470,34 +470,51 @@ classdef imtool3D < handle
             set(tool.handles.Tools.Save,'Callback',fun)
             set(tool.handles.Tools.Save,'TooltipString','Save image as slice or tiff stack')
             
+            %Create mask2poly button
+            tool.handles.Tools.mask2poly             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff w w],'TooltipString','Mask2Poly');
+            icon_profile = makeToolbarIconFromPNG([MATLABdir '/linkproduct.png']);
+            set(tool.handles.Tools.mask2poly ,'Cdata',icon_profile)
+            fun=@(hObject,evnt) mask2polyImageCallback(hObject,evnt,tool);
+            set(tool.handles.Tools.mask2poly ,'Callback',fun)
+            addlistener(tool,'newSlice',@tool.SliceEvents);
+
             %Create Circle ROI button
-            tool.handles.Tools.CircleROI           =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff w w],'TooltipString','Create Elliptical ROI');
+            tool.handles.Tools.CircleROI           =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+w w w],'TooltipString','Create Elliptical ROI');
             icon_ellipse = makeToolbarIconFromPNG([MATLABdir '/tool_shape_ellipse.png']);
             set(tool.handles.Tools.CircleROI,'Cdata',icon_ellipse)
             fun=@(hObject,evnt) measureImageCallback(hObject,evnt,tool,'ellipse');
             set(tool.handles.Tools.CircleROI,'Callback',fun)
             
             %Create Square ROI button
-            tool.handles.Tools.SquareROI           =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+w w w],'TooltipString','Create Rectangular ROI');
+            tool.handles.Tools.SquareROI           =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+2*w w w],'TooltipString','Create Rectangular ROI');
             icon_rect = makeToolbarIconFromPNG([MATLABdir '/tool_shape_rectangle.png']);
             set(tool.handles.Tools.SquareROI,'Cdata',icon_rect)
             fun=@(hObject,evnt) measureImageCallback(hObject,evnt,tool,'rectangle');
             set(tool.handles.Tools.SquareROI,'Callback',fun)
             
             %Create Polygon ROI button
-            tool.handles.Tools.PolyROI             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','\_/','Position',[buff buff+2*w w w],'TooltipString','Create Polygon ROI');
+            tool.handles.Tools.PolyROI             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','\_/','Position',[buff buff+3*w w w],'TooltipString','Create Polygon ROI');
             fun=@(hObject,evnt) measureImageCallback(hObject,evnt,tool,'polygon');
             set(tool.handles.Tools.PolyROI,'Callback',fun)
             
             %Create line profile button
-            tool.handles.Tools.Ruler             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+3*w w w],'TooltipString','Measure Distance');
+            tool.handles.Tools.Ruler             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+4*w w w],'TooltipString','Measure Distance');
             icon_distance = makeToolbarIconFromPNG([MATLABdir '/tool_line.png']);
             set(tool.handles.Tools.Ruler,'CData',icon_distance);
             fun=@(hObject,evnt) measureImageCallback(hObject,evnt,tool,'profile');
             set(tool.handles.Tools.Ruler,'Callback',fun)
             
+            %Create maskinterp button
+            tool.handles.Tools.maskinterp             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+5*w w w],'TooltipString','Interp Mask');
+            icon_profile = makeToolbarIconFromPNG([fileparts(mfilename('fullpath')) '/interpmask/interpmask.png']);
+            set(tool.handles.Tools.maskinterp ,'Cdata',icon_profile)
+            fun=@(hObject,evnt) maskinterpImageCallback(hObject,evnt,tool);
+            set(tool.handles.Tools.maskinterp ,'Callback',fun)
+            tool.maskEvents;
+            addlistener(tool,'maskChanged',@tool.maskEvents);
+
             %Paint brush tool button
-            tool.handles.Tools.PaintBrush        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','String','','Position',[buff buff+4*w w w],'TooltipString','Paint Brush Tool');
+            tool.handles.Tools.PaintBrush        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','String','','Position',[buff buff+6*w w w],'TooltipString','Paint Brush Tool');
             icon_profile = makeToolbarIconFromPNG([MATLABdir '/tool_data_brush.png']);
             set(tool.handles.Tools.PaintBrush ,'Cdata',icon_profile)
             fun=@(hObject,evnt) PaintBrushCallback(hObject,evnt,tool,'Normal');
@@ -505,28 +522,13 @@ classdef imtool3D < handle
             tool.handles.PaintBrushObject=[];
             
             %Smart Paint brush tool button
-            tool.handles.Tools.SmartBrush        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','String','','Position',[buff buff+5*w w w],'TooltipString','Smart Brush Tool');
+            tool.handles.Tools.SmartBrush        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','String','','Position',[buff buff+7*w w w],'TooltipString','Smart Brush Tool');
             set(tool.handles.Tools.SmartBrush ,'Cdata',icon_profile)
             fun=@(hObject,evnt) PaintBrushCallback(hObject,evnt,tool,'Smart');
             set(tool.handles.Tools.SmartBrush ,'Callback',fun)
-            
-            
-            %Create mask2poly button
-            tool.handles.Tools.mask2poly             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+6*w w w],'TooltipString','Mask2Poly');
-            icon_profile = makeToolbarIconFromPNG([MATLABdir '/linkproduct.png']);
-            set(tool.handles.Tools.mask2poly ,'Cdata',icon_profile)
-            fun=@(hObject,evnt) mask2polyImageCallback(hObject,evnt,tool);
-            set(tool.handles.Tools.mask2poly ,'Callback',fun)
-
-            %Create maskinterp button
-            tool.handles.Tools.maskinterp             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+7*w w w],'TooltipString','Interp Mask');
-            icon_profile = makeToolbarIconFromPNG([fileparts(mfilename('fullpath')) '/interpmask/interpmask.png']);
-            set(tool.handles.Tools.maskinterp ,'Cdata',icon_profile)
-            fun=@(hObject,evnt) maskinterpImageCallback(hObject,evnt,tool);
-            set(tool.handles.Tools.maskinterp ,'Callback',fun)
-
+                        
 %             %Create poly tool button
-%             tool.handles.Tools.mask2poly             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+7*w w w],'TooltipString','mask2poly');
+%             tool.handles.Tools.mask2poly             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+8*w w w],'TooltipString','mask2poly');
 %             icon_profile = makeToolbarIconFromPNG([MATLABdir '/linkproduct.png']);
 %             set(tool.handles.Tools.mask2poly ,'Cdata',icon_profile)
 %             fun=@(hObject,evnt) CropImageCallback(hObject,evnt,tool);
@@ -971,7 +973,24 @@ classdef imtool3D < handle
                 set(tool.handles.Histrange(3),'XData',[L L L])
             end
         end
-                                                    
+             
+        function maskEvents(tool,src,evnt)
+            [~,~,z] = find3d(tool.mask);
+            z = unique(z);
+            if length(z)>1 && length(z)<(max(z)-min(z)+1)% if more than mask on more than 2 slices and holes
+                set(tool.handles.Tools.maskinterp,'Enable','on')
+            else
+                set(tool.handles.Tools.maskinterp,'Enable','off')
+            end
+        end
+        function SliceEvents(tool,src,evnt)
+            mask = tool.mask(:,:,tool.getCurrentSlice);
+            if any(mask(:))
+                set(tool.handles.Tools.mask2poly,'Enable','on')
+            else
+                set(tool.handles.Tools.mask2poly,'Enable','off')
+            end
+        end
     end
 
     
