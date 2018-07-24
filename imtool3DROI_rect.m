@@ -35,6 +35,8 @@ classdef imtool3DROI_rect < imtool3DROI
                                 imageHandle = hi(i);
                             end
                         end
+                    else
+                        imageHandle = hi;
                     end
                     
                     %get the position
@@ -93,7 +95,7 @@ classdef imtool3DROI_rect < imtool3DROI
             %Define the context menu options (i.e., what happens when you
             %right click on the ROI)
             menuLabels = {'Export stats','Fix Aspect Ratio','Hide Text','Delete','poly2mask'};
-            if ~exist('tool','var'), menuLabels(end) = []; tool = []; end
+            if ~exist('tool','var') || isempty(tool), menuLabels(end) = []; tool = []; end
             menuFunction = @contextMenuCallback;
             
             %create the ROI object from the superclass

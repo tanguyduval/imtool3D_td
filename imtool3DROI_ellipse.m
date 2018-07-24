@@ -27,6 +27,8 @@ classdef imtool3DROI_ellipse < imtool3DROI_rect
                                 imageHandle = hi(i);
                             end
                         end
+                    else
+                        imageHandle = hi;
                     end
                     
                     %get the position

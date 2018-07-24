@@ -30,6 +30,8 @@ classdef imtool3DROI_poly < imtool3DROI
                                 imageHandle = hi(i);
                             end
                         end
+                    else
+                        imageHandle = hi;
                     end
                     
                     %get the position

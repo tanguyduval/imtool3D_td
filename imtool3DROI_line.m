@@ -33,6 +33,8 @@ classdef imtool3DROI_line < imtool3DROI
                                 imageHandle = hi(i);
                             end
                         end
+                    else
+                        imageHandle = hi;
                     end
                     
                     
