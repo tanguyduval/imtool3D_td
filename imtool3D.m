@@ -176,12 +176,14 @@ classdef imtool3D < handle
     %   Requires the image processing toolbox
     
     properties (SetAccess = private, GetAccess = private)
-        I           %Image data (MxNxK) matrix of image data   
-        mask        %Binary mask that can be overlaid on the image data
-        maskColor   %1x3 vector specifying the RGB color of the overlaid mask. Default is red (i.e., [1 0 0]);
-        handles     %Structured variable with all the handles
-        centers     %list of bin centers for histogram
-        alpha       %transparency of the overlaid mask (default is .2)
+        I            %Image data (MxNxKxTxV) matrix of image data
+        Nvol         % Current volume
+        mask         %Indexed mask that can be overlaid on the image data
+        maskSelected %Index of the selected mask color
+        maskColor    %Nx3 vector specifying the RGB color of the overlaid mask. Default is red (i.e., [1 0 0]);
+        handles      %Structured variable with all the handles
+        centers      %list of bin centers for histogram
+        alpha        %transparency of the overlaid mask (default is .2)
         aspectRatio = [1 1];
         
         
@@ -212,7 +214,7 @@ classdef imtool3D < handle
             %Check the inputs and set things appropriately
             switch nargin
                 case 0  %tool = imtool3d()
-                    I=random('unif',-50,50,[100 100 3]);
+                    I=rand([100 100 3])*100-50;
                     position=[0 0 1 1]; h=[];
                     range=[-50 50]; tools=[]; mask=false(size(I));
                 case 1  %tool = imtool3d(I)
@@ -270,11 +272,12 @@ classdef imtool3D < handle
             end
             
             if isempty(range)
-                range=[min(I(:)) max(I(:))];
+                Ivol = I(:,:,:,:,1);
+                range=[min(Ivol(:)) max(Ivol(:))];
             end
             
             if isempty(mask)
-                mask=logical(zeros(size(I)));
+                mask=logical(zeros([size(I,1) size(I,2) size(I,3)]));
             end
             
             %find the parent figure handle if the given parent is not a
@@ -287,11 +290,19 @@ classdef imtool3D < handle
             
             %--------------------------------------------------------------
             tool.I      = I;
-            tool.mask   =mask;
+            tool.mask   =uint8(mask);
             tool.handles.fig=fig;
             tool.handles.parent = h;
-            tool.maskColor = [1 0 0];
+            tool.maskColor = [  0     0     0;
+                                1     0     0;
+                                1     1     0;
+                                0     1     0;
+                                0     1     1;
+                                0     0     1;
+                                1     0     1];
+            tool.maskSelected = max(mask(:));
             tool.alpha = .2;
+            tool.Nvol = 1;
             
             %Create the panels and slider
             w=30; %Pixel width of the side panels
@@ -322,15 +333,14 @@ classdef imtool3D < handle
             
             %Create image axis
             tool.handles.Axes           =   axes('Position',[0 0 1 1],'Parent',tool.handles.Panels.Image,'Color','none');
-            tool.handles.I              =   imshow(I(:,:,1),range,'Parent',tool.handles.Axes); hold on; set(tool.handles.I,'Clipping','off')
+            tool.handles.I              =   imshow(I(:,:,1,:,tool.Nvol),range,'Parent',tool.handles.Axes); hold on; set(tool.handles.I,'Clipping','off')
             set(tool.handles.Axes,'XLimMode','manual','YLimMode','manual','Clipping','off');
             
             
             %Set up the binary mask viewer
-            im=zeros(size(I,1),size(I,2),3);
-            im(:,:,1)=tool.maskColor(1); im(:,:,2)=tool.maskColor(2); im(:,:,3)=tool.maskColor(3);
+            im = ind2rgb(tool.mask(:,:,1),tool.maskColor);
             tool.handles.mask           =   imshow(im);
-            set(tool.handles.mask,'AlphaData',.3*tool.mask(:,:,1))
+            set(tool.handles.mask,'AlphaData',.3*(logical(tool.mask(:,:,1))))
             set(tool.handles.Axes,'Position',[0 0 1 1],'Color','none','XColor','r','YColor','r','GridLineStyle','--','LineWidth',1.5,'XTickLabel','','YTickLabel','');
             axis off
             grid off
@@ -356,7 +366,7 @@ classdef imtool3D < handle
             
             %Create the histogram plot
             tool.handles.HistAxes           =   axes('Position',[.025 .15 .95 .55],'Parent',tool.handles.Panels.Hist);
-            im=tool.I(:,:,1);
+            im=tool.I(:,:,1,:,tool.Nvol);
             centers=linspace(double(min(I(:))),double(max(I(:))),256); 
             nelements=hist(im(:),centers); nelements=nelements./max(nelements);
             tool.handles.HistLine=plot(centers,nelements,'-w','LineWidth',1);
@@ -527,7 +537,7 @@ classdef imtool3D < handle
             set(tool.handles.Tools.SmartBrush ,'Cdata',icon_profile)
             fun=@(hObject,evnt) PaintBrushCallback(hObject,evnt,tool,'Smart');
             set(tool.handles.Tools.SmartBrush ,'Callback',fun)
-                        
+                       
 %             %Create poly tool button
 %             tool.handles.Tools.mask2poly             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+8*w w w],'TooltipString','mask2poly');
 %             icon_profile = makeToolbarIconFromPNG([MATLABdir '/linkproduct.png']);
@@ -541,6 +551,12 @@ classdef imtool3D < handle
             fun=@(hObject,evnt) displayHelp(hObject,evnt,tool);
             set(tool.handles.Tools.Help,'Callback',fun)
             
+            % mask selection
+            for islct=1:5
+                tool.handles.Tools.maskSelected(islct)        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','String',num2str(islct),'Position',[buff pos(4)-w-buff-islct*w w w]);
+                set(tool.handles.Tools.maskSelected(islct) ,'Cdata',repmat(permute(tool.maskColor(islct+1,:)*tool.alpha+(1-tool.alpha)*[.4 .4 .4],[3 1 2]),w,w))
+                set(tool.handles.Tools.maskSelected(islct) ,'Callback',@(hObject,evnt) setmaskSelected(tool,islct))
+            end
             %Set font size of all the tool objects
             try
                 set(cell2mat(struct2cell(tool.handles.Tools)),'FontSize',9,'Units','Pixels')
@@ -551,6 +567,9 @@ classdef imtool3D < handle
             end
             
             set(tool.handles.fig,'NextPlot','new')
+            
+            % add shortcuts
+            set(tool.handles.parent,'Windowkeypressfcn', @(hobject, event) tool.shortcutCallback(hobject, event))
             
             %run the reset view callback
             resetViewCallback([],[],tool)
@@ -574,13 +593,27 @@ classdef imtool3D < handle
         end
         
         function setMask(tool,mask)
+            if islogical(mask)
+                maskOld = tool.mask;
+                maskOld(mask) = tool.maskSelected;
+                mask=maskOld;
+            end
             tool.mask=mask;
             showSlice(tool)
             notify(tool,'maskChanged')
         end
         
-        function mask = getMask(tool)
-            mask = tool.mask;
+        function mask = getMask(tool,all)
+            if nargin<2, all=false; end
+            if all
+                mask = tool.mask;
+            else
+                mask = tool.mask==tool.maskSelected;
+            end
+        end
+        
+        function setmaskSelected(tool,islct)
+            tool.maskSelected = islct;
         end
         
         function setMaskColor(tool,maskColor)
@@ -647,7 +680,8 @@ classdef imtool3D < handle
             
             
             %Update the histogram
-            im=tool.I(:,:,1);
+            im=tool.I(:,:,1,1,1);
+            tool.Nvol = 1;
             tool.centers=linspace(min(I(:)),max(I(:)),256);
             nelements=hist(im(:),tool.centers); nelements=nelements./max(nelements);
             set(tool.handles.HistLine,'XData',tool.centers,'YData',nelements);
@@ -717,7 +751,7 @@ classdef imtool3D < handle
         end
         
         function I = getImage(tool)
-            I=tool.I;
+            I=tool.I(:,:,:,:,tool.Nvol);
         end
         
         function m = max(tool)
@@ -729,7 +763,7 @@ classdef imtool3D < handle
         end
         
         function r = range(tool)
-            r = range(tool.I(:));
+            r = max(tool.I(:)) - min(tool.I(:));
         end
         
         function handles=getHandles(tool)
@@ -769,21 +803,26 @@ classdef imtool3D < handle
         function slice = getCurrentSlice(tool)
             slice=round(get(tool.handles.Slider,'value'));
         end
-        
+                
         function mask = getCurrentMaskSlice(tool)
             slice = getCurrentSlice(tool);
-            mask=tool.mask(:,:,slice);
+            mask=tool.mask(:,:,slice)==tool.maskSelected;
         end
         
         function setCurrentMaskSlice(tool,mask)
             slice = getCurrentSlice(tool);
-            tool.mask(:,:,slice)=mask;
+            % combine mask
+            maskOld = tool.mask(:,:,slice);
+            maskOld(maskOld==tool.maskSelected)=0;
+            maskOld(mask) = tool.maskSelected;
+            % update mask
+            tool.mask(:,:,slice) = maskOld;
             showSlice(tool,slice)
         end
         
         function im = getCurrentImageSlice(tool)
             slice = getCurrentSlice(tool);
-            im = tool.I(:,:,slice);
+            im = tool.I(:,:,slice,:,tool.Nvol);
         end
         
         function setAlpha(tool,alpha)
@@ -809,8 +848,8 @@ classdef imtool3D < handle
             %lims . Lims defines the box in which the new data, im, will be
             %inserted. lims = [ymin ymax; xmin xmax; zmin zmax];
             
-            tool.I(lims(1,1):lims(1,2),lims(2,1):lims(2,2),lims(3,1):lims(3,2))=...
-                tool.I(lims(1,1):lims(1,2),lims(2,1):lims(2,2),lims(3,1):lims(3,2))+im;
+            tool.I(lims(1,1):lims(1,2),lims(2,1):lims(2,2),lims(3,1):lims(3,2),:,tool.Nvol)=...
+                tool.I(lims(1,1):lims(1,2),lims(2,1):lims(2,2),lims(3,1):lims(3,2),:,tool.Nvol)+im;
             showSlice(tool);
         end
         
@@ -818,7 +857,7 @@ classdef imtool3D < handle
             %this function replaces pixel values with im at location specified by
             %lims . Lims defines the box in which the new data, im, will be
             %inserted. lims = [ymin ymax; xmin xmax; zmin zmax];
-            tool.I(lims(1,1):lims(1,2),lims(2,1):lims(2,2),lims(3,1):lims(3,2))=im;
+            tool.I(lims(1,1):lims(1,2),lims(2,1):lims(2,2),lims(3,1):lims(3,2),:,tool.Nvol)=im;
             showSlice(tool);
         end
         
@@ -932,15 +971,17 @@ classdef imtool3D < handle
             
             set(tool.handles.I,'AlphaData',1)
             if ~tool.upsample
-                set(tool.handles.I,'CData',tool.I(:,:,n))
+                set(tool.handles.I,'CData',tool.I(:,:,n,:,tool.Nvol))
             else
-                set(tool.handles.I,'CData',imresize(tool.I(:,:,n),tool.rescaleFactor,tool.upsampleMethod),'XData',get(tool.handles.I,'XData'),'YData',get(tool.handles.I,'YData'))
+                set(tool.handles.I,'CData',imresize(tool.I(:,:,n,:,tool.Nvol),tool.rescaleFactor,tool.upsampleMethod),'XData',get(tool.handles.I,'XData'),'YData',get(tool.handles.I,'YData'))
             end
             
-            set(tool.handles.mask,'AlphaData',tool.alpha*tool.mask(:,:,n))
+            im = ind2rgb(tool.mask(:,:,n),tool.maskColor);
+            set(tool.handles.mask,'CData',im);
+            set(tool.handles.mask,'AlphaData',tool.alpha*logical(tool.mask(:,:,n)))
             set(tool.handles.SliceText,'String',[num2str(n) '/' num2str(size(tool.I,3))])
             if get(tool.handles.Tools.Hist,'value')
-                im=tool.I(:,:,n);
+                im=tool.I(:,:,n,:,tool.Nvol);
                 nelements=hist(im(:),tool.centers); nelements=nelements./max(nelements);
                 set(tool.handles.HistLine,'YData',nelements);
             end
@@ -976,7 +1017,7 @@ classdef imtool3D < handle
         end
              
         function maskEvents(tool,src,evnt)
-            [~,~,z] = find3d(tool.mask);
+            [~,~,z] = find3d(tool.getMask);
             z = unique(z);
             if length(z)>1 && length(z)<(max(z)-min(z)+1)% if more than mask on more than 2 slices and holes
                 set(tool.handles.Tools.maskinterp,'Enable','on')
@@ -984,6 +1025,7 @@ classdef imtool3D < handle
                 set(tool.handles.Tools.maskinterp,'Enable','off')
             end
         end
+        
         function SliceEvents(tool,src,evnt)
             mask = tool.mask(:,:,tool.getCurrentSlice);
             if any(mask(:))
@@ -991,6 +1033,34 @@ classdef imtool3D < handle
             else
                 set(tool.handles.Tools.mask2poly,'Enable','off')
             end
+        end
+        
+        function shortcutCallback(tool,hobject,evnt)
+            switch evnt.Key
+                case 'space'
+                    togglebutton(tool.handles.Tools.Mask)
+                case 'b'
+                    togglebutton(tool.handles.Tools.PaintBrush)
+                case 's'
+                    togglebutton(tool.handles.Tools.SmartBrush)
+                case 'uparrow'
+                    tool.Nvol = min(tool.Nvol+1,size(tool.I,5));
+                    showSlice(tool);
+                case 'downarrow'
+                    tool.Nvol = max(tool.Nvol-1,1);
+                    showSlice(tool);
+                case '1'
+                    togglebutton(tool.handles.Tools.maskSelected(1))
+                case '2'
+                    togglebutton(tool.handles.Tools.maskSelected(2))
+                case '3'
+                    togglebutton(tool.handles.Tools.maskSelected(3))
+                case '4'
+                    togglebutton(tool.handles.Tools.maskSelected(4))
+                case '5'
+                    togglebutton(tool.handles.Tools.maskSelected(5))
+            end
+            disp(evnt.Key)
         end
     end
 
@@ -1015,15 +1085,18 @@ end
 
 function mask2polyImageCallback(hObject,evnt,tool)
 h = getHandles(tool);
-mask = getMask(tool); mask = mask(:,:,h.Slider.Value);
+mask = getMask(tool); mask = mask(:,:,tool.getCurrentSlice);
 mask = imfill(mask,'holes');
 if any(mask(:))
     [labels,num] = bwlabel(mask);
     for ilab=1:num
-        P = mask2poly(labels==ilab,'EXACT','CW');
-        if size(P,1)>11, P = reduce_poly(P(2:end,:)',10); end
-        if ~isempty(P)
-            imtool3DROI_poly(h.I,P',tool);
+        labelilab = labels==ilab;
+        if sum(labelilab(:))>15
+            P = bwboundaries(labelilab); P = P{1}; P = P(:,[2 1]);
+            if size(P,1)>16, P = reduce_poly(P(2:end,:)',max(16,round(size(P,1)/5))); end
+            if ~isempty(P)
+                imtool3DROI_poly(h.I,P',tool);
+            end
         end
     end
 end
@@ -1354,7 +1427,7 @@ if n==0
 end
 
 if pos(1)>0 && pos(1)<=size(tool.I,2) && pos(1)>=Xlim(1) && pos(1) <=Xlim(2) && pos(2)>0 && pos(2)<=size(tool.I,1) && pos(2)>=Ylim(1) && pos(2) <=Ylim(2)
-    set(tool.handles.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I(pos(2),pos(1),n))])
+    set(tool.handles.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I(pos(2),pos(1),n,:,tool.Nvol))])
     notify(tool,'newMousePos')
 else
     set(tool.handles.Info,'String','(x,y) val')
@@ -1385,6 +1458,11 @@ try
     buff=(w-wbutt)/2;
     pos=get(tool.handles.Panels.ROItools,'Position');
     set(tool.handles.Tools.Help,'Position',[buff pos(4)-wbutt-buff wbutt wbutt]);
+    
+    for islct=1:5
+        set(tool.handles.Tools.maskSelected(islct),'Position',[buff pos(4)-wbutt-buff-islct*wbutt wbutt wbutt]);
+    end
+    
     set(tool.handles.Axes,'XLimMode','manual','YLimMode','manual');
 end
 
@@ -1464,7 +1542,7 @@ switch get(tool.handles.Tools.SaveOptions,'value')
         if FileName == 0
         else
             for i=1:size(tool.I,3)
-                imwrite(gray2ind(mat2gray(tool.I(:,:,i),lims),256),cmap, [PathName FileName], 'WriteMode', 'append',  'Compression','none');
+                imwrite(gray2ind(mat2gray(tool.I(:,:,i,:,tool.Nvol),lims),256),cmap, [PathName FileName], 'WriteMode', 'append',  'Compression','none');
             end
         end
 end
@@ -1522,5 +1600,11 @@ oldUnits = get(h,'Units');
 set(h,'Units','Pixels');
 pos = get(h,'Position');
 set(h,'Units',oldUnits);
+end
+
+function togglebutton(h)
+set(h,'Value',~get(h,'Value'))
+fun = get(h,'Callback');
+fun(h,1)
 end
 
