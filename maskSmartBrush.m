@@ -4,6 +4,10 @@ classdef maskSmartBrush < maskPaintBrush
         windowing = true;
     end
     
+    properties (SetAccess = private, GetAccess = private)
+        smartinvert = [];
+    end
+    
     methods
         function brush = maskSmartBrush(tool) %constructor
             %contruct the brush
@@ -17,6 +21,7 @@ classdef maskSmartBrush < maskPaintBrush
 end
 
 function buttonUpFunction(hObject,eventdata,WBMF_old,WBUF_old,brush)
+brush.smartinvert = [];
 set(hObject,'WindowButtonMotionFcn',WBMF_old,'WindowButtonUpFcn',WBUF_old);
 notify(brush.handles.tool,'maskChanged')
 
@@ -80,8 +85,11 @@ switch tag
         BW = im2bw(slice,level) & mask;
         
         %use BW mask that has the largest number of elements (either BW or 
-        if sum(BW(BW)) < sum(mask(mask))/2
+        if (isempty(brush.smartinvert) && (sum(BW(BW)) < sum(mask(mask))/2)) || (~isempty(brush.smartinvert) && brush.smartinvert)
             BW= ~BW & mask;
+            brush.smartinvert = true;
+        else
+            brush.smartinvert = false;
         end
         
         %Combine the two masks
