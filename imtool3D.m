@@ -219,13 +219,13 @@ classdef imtool3D < handle
                     range=[-50 50]; tools=[]; mask=false(size(I));
                 case 1  %tool = imtool3d(I)
                     I=varargin{1}; position=[0 0 1 1]; h=[];
-                    range=[min(I(:)) max(I(:))]; tools=[]; mask=false(size(I));
+                    range=[]; tools=[]; mask=false(size(I));
                 case 2  %tool = imtool3d(I,position)
                     I=varargin{1}; position=varargin{2}; h=[];
-                    range=[min(I(:)) max(I(:))]; tools=[]; mask=false(size(I));
+                    range=[]; tools=[]; mask=false(size(I));
                 case 3  %tool = imtool3d(I,position,h)
                     I=varargin{1}; position=varargin{2}; h=varargin{3};
-                    range=[min(I(:)) max(I(:))]; tools=[]; mask=false(size(I));
+                    range=[]; tools=[]; mask=false(size(I));
                 case 4  %tool = imtool3d(I,position,h,range)
                     I=varargin{1}; position=varargin{2}; h=varargin{3};
                     range=varargin{4}; tools=[]; mask=false(size(I));
@@ -273,7 +273,7 @@ classdef imtool3D < handle
             
             if isempty(range)
                 Ivol = I(:,:,:,:,1);
-                range=[min(Ivol(:)) max(Ivol(:))];
+                range=range_outlier(Ivol(:),3);
             end
             
             if isempty(mask)
@@ -333,7 +333,7 @@ classdef imtool3D < handle
             
             %Create image axis
             tool.handles.Axes           =   axes('Position',[0 0 1 1],'Parent',tool.handles.Panels.Image,'Color','none');
-            tool.handles.I              =   imshow(I(:,:,1,:,tool.Nvol),range,'Parent',tool.handles.Axes); hold on; set(tool.handles.I,'Clipping','off')
+            tool.handles.I              =   imshow(I(:,:,round(end/2),:,tool.getNvol),range,'Parent',tool.handles.Axes); hold on; set(tool.handles.I,'Clipping','off')
             set(tool.handles.Axes,'XLimMode','manual','YLimMode','manual','Clipping','off');
             
             
@@ -366,7 +366,7 @@ classdef imtool3D < handle
             
             %Create the histogram plot
             tool.handles.HistAxes           =   axes('Position',[.025 .15 .95 .55],'Parent',tool.handles.Panels.Hist);
-            im=tool.I(:,:,1,:,tool.Nvol);
+            im=tool.I(:,:,1,:,tool.getNvol);
             centers=linspace(double(min(I(:))),double(max(I(:))),256); 
             nelements=hist(im(:),centers); nelements=nelements./max(nelements);
             tool.handles.HistLine=plot(centers,nelements,'-w','LineWidth',1);
@@ -753,7 +753,11 @@ classdef imtool3D < handle
         function I = getImage(tool)
             I=tool.I(:,:,:,:,tool.Nvol);
         end
-        
+
+        function Nvol = getNvol(tool)
+            Nvol=tool.Nvol;
+        end
+
         function m = max(tool)
             m = max(tool.I(:));
         end
@@ -996,7 +1000,7 @@ classdef imtool3D < handle
                 set(tool.handles.Slider,'visible','off');
             else
                 set(tool.handles.Slider,'visible','on');
-                set(tool.handles.Slider,'min',1,'max',size(tool.I,3),'value',1)
+                set(tool.handles.Slider,'min',1,'max',size(tool.I,3),'value',round(size(tool.I,3)/2))
                 set(tool.handles.Slider,'SliderStep',[1/(size(tool.I,3)-1) 1/(size(tool.I,3)-1)])
                 fun=@(hobject,eventdata)showSlice(tool,[],hobject,eventdata);
                 set(tool.handles.Slider,'Callback',fun);
@@ -1417,20 +1421,21 @@ set(src,'WindowButtonMotionFcn',WBMF_old,'WindowButtonUpFcn',WBUF_old);
 end
 
 function getImageInfo(src,evnt,tool)
-pos=round(get(tool.handles.Axes,'CurrentPoint'));
+  h = tool.getHandles;
+pos=round(get(h.Axes,'CurrentPoint'));
 pos=pos(1,1:2);
-Xlim=get(tool.handles.Axes,'Xlim');
-Ylim=get(tool.handles.Axes,'Ylim');
-n=round(get(tool.handles.Slider,'value'));
+Xlim=get(h.Axes,'Xlim');
+Ylim=get(h.Axes,'Ylim');
+n=round(get(h.Slider,'value'));
 if n==0
     n=1;
 end
-
-if pos(1)>0 && pos(1)<=size(tool.I,2) && pos(1)>=Xlim(1) && pos(1) <=Xlim(2) && pos(2)>0 && pos(2)<=size(tool.I,1) && pos(2)>=Ylim(1) && pos(2) <=Ylim(2)
-    set(tool.handles.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I(pos(2),pos(1),n,:,tool.Nvol))])
+I = tool.getImage;
+if pos(1)>0 && pos(1)<=size(I,2) && pos(1)>=Xlim(1) && pos(1) <=Xlim(2) && pos(2)>0 && pos(2)<=size(I,1) && pos(2)>=Ylim(1) && pos(2) <=Ylim(2)
+    set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(I(pos(2),pos(1),n,:,tool.getNvol))])
     notify(tool,'newMousePos')
 else
-    set(tool.handles.Info,'String','(x,y) val')
+    set(h.Info,'String','(x,y) val')
 end
 
 
@@ -1438,32 +1443,33 @@ end
 end
 
 function panelResizeFunction(hObject,events,tool,w,h,wbutt)
+    h = tool.getHandles;
 try
-    units=get(tool.handles.Panels.Large,'Units');
-    set(tool.handles.Panels.Large,'Units','Pixels')
-    pos=get(tool.handles.Panels.Large,'Position');
-    set(tool.handles.Panels.Large,'Units',units)
-    if get(tool.handles.Tools.Hist,'value')
-        set(tool.handles.Panels.Image,'Position',[w w pos(3)-2*w pos(4)-2*w-h])
+    units=get(h.Panels.Large,'Units');
+    set(h.Panels.Large,'Units','Pixels')
+    pos=get(h.Panels.Large,'Position');
+    set(h.Panels.Large,'Units',units)
+    if get(h.Tools.Hist,'value')
+        set(h.Panels.Image,'Position',[w w pos(3)-2*w pos(4)-2*w-h])
     else
-        set(tool.handles.Panels.Image,'Position',[w w pos(3)-2*w pos(4)-2*w])
+        set(h.Panels.Image,'Position',[w w pos(3)-2*w pos(4)-2*w])
     end
-    %set(tool.handles.Panels.Image,'Position',[w w pos(3)-2*w pos(4)-2*w])
-    set(tool.handles.Panels.Hist,'Position',[w pos(4)-w-h pos(3)-2*w h])
-    set(tool.handles.Panels.Tools,'Position',[0 pos(4)-w pos(3) w])
-    set(tool.handles.Panels.ROItools,'Position',[pos(3)-w  w w pos(4)-2*w])
-    set(tool.handles.Panels.Slider,'Position',[0 w w pos(4)-2*w])
-    set(tool.handles.Panels.Info,'Position',[0 0 pos(3) w])
-    axis(tool.handles.Axes,'fill');
+    %set(h.Panels.Image,'Position',[w w pos(3)-2*w pos(4)-2*w])
+    set(h.Panels.Hist,'Position',[w pos(4)-w-h pos(3)-2*w h])
+    set(h.Panels.Tools,'Position',[0 pos(4)-w pos(3) w])
+    set(h.Panels.ROItools,'Position',[pos(3)-w  w w pos(4)-2*w])
+    set(h.Panels.Slider,'Position',[0 w w pos(4)-2*w])
+    set(h.Panels.Info,'Position',[0 0 pos(3) w])
+    axis(h.Axes,'fill');
     buff=(w-wbutt)/2;
-    pos=get(tool.handles.Panels.ROItools,'Position');
-    set(tool.handles.Tools.Help,'Position',[buff pos(4)-wbutt-buff wbutt wbutt]);
+    pos=get(h.Panels.ROItools,'Position');
+    set(h.Tools.Help,'Position',[buff pos(4)-wbutt-buff wbutt wbutt]);
     
     for islct=1:5
-        set(tool.handles.Tools.maskSelected(islct),'Position',[buff pos(4)-wbutt-buff-islct*wbutt wbutt wbutt]);
+        set(h.Tools.maskSelected(islct),'Position',[buff pos(4)-wbutt-buff-islct*wbutt wbutt wbutt]);
     end
     
-    set(tool.handles.Axes,'XLimMode','manual','YLimMode','manual');
+    set(h.Axes,'XLimMode','manual','YLimMode','manual');
 end
 
 end
@@ -1524,9 +1530,10 @@ end
 
 function saveImage(hObject,evnt,tool)
 cmap = colormap;
-switch get(tool.handles.Tools.SaveOptions,'value')
+  h = tool.getHandles;
+switch get(h.Tools.SaveOptions,'value')
     case 1 %Save just the current slice
-        I=get(tool.handles.I,'CData'); lims=get(tool.handles.Axes,'CLim');
+        I=get(h.I,'CData'); lims=get(h.Axes,'CLim');
         I=gray2ind(mat2gray(I,lims),256);
         [FileName,PathName] = uiputfile({'*.png';'*.tif';'*.jpg';'*.bmp';'*.gif';'*.hdf'; ...
             '*.jp2';'*.pbm';'*.pcx';'*.pgm'; ...
@@ -1537,28 +1544,30 @@ switch get(tool.handles.Tools.SaveOptions,'value')
             imwrite(I,cmap,[PathName FileName])
         end
     case 2
-        lims=get(tool.handles.Axes,'CLim');
+        lims=get(h.Axes,'CLim');
         [FileName,PathName] = uiputfile({'*.tif'},'Save Image Stack');
         if FileName == 0
-        else
-            for i=1:size(tool.I,3)
-                imwrite(gray2ind(mat2gray(tool.I(:,:,i,:,tool.Nvol),lims),256),cmap, [PathName FileName], 'WriteMode', 'append',  'Compression','none');
+      else
+          I = tool.getImage;
+            for i=1:size(I,3)
+                imwrite(gray2ind(mat2gray(I(:,:,i,:,tool.getNvol),lims),256),cmap, [PathName FileName], 'WriteMode', 'append',  'Compression','none');
             end
         end
 end
 end
 
 function ShowHistogram(hObject,evnt,tool,w,h)
-set(tool.handles.Panels.Large,'Units','Pixels')
-pos=get(tool.handles.Panels.Large,'Position');
-set(tool.handles.Panels.Large,'Units','normalized')
+    h = tool.getHandles;
+set(h.Panels.Large,'Units','Pixels')
+pos=get(h.Panels.Large,'Position');
+set(h.Panels.Large,'Units','normalized')
 
-if get(tool.handles.Tools.Hist,'value')
-    set(tool.handles.Panels.Image,'Position',[w w pos(3)-2*w pos(4)-2*w-h])
+if get(h.Tools.Hist,'value')
+    set(h.Panels.Image,'Position',[w w pos(3)-2*w pos(4)-2*w-h])
 else
-    set(tool.handles.Panels.Image,'Position',[w w pos(3)-2*w pos(4)-2*w])
+    set(h.Panels.Image,'Position',[w w pos(3)-2*w pos(4)-2*w])
 end
-axis(tool.handles.Axes,'fill');
+axis(h.Axes,'fill');
 showSlice(tool)
 
 end
