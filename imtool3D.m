@@ -179,6 +179,7 @@ classdef imtool3D < handle
         I            %Image data (MxNxKxTxV) matrix of image data
         Nvol         % Current volume
         mask         %Indexed mask that can be overlaid on the image data
+        maskHistory  %History of mask  for undo
         maskSelected %Index of the selected mask color
         maskColor    %Nx3 vector specifying the RGB color of the overlaid mask. Default is red (i.e., [1 0 0]);
         handles      %Structured variable with all the handles
@@ -301,6 +302,7 @@ classdef imtool3D < handle
                                 0     0     1;
                                 1     0     1];
             tool.maskSelected = 1;
+            tool.maskHistory  = cell(1,10);
             tool.alpha = .2;
             tool.Nvol = 1;
             
@@ -534,7 +536,6 @@ classdef imtool3D < handle
             set(tool.handles.Tools.maskactivecontour ,'Cdata',icon_profile)
             fun=@(hObject,evnt) ActiveCountourCallback(hObject,evnt,tool);
             set(tool.handles.Tools.maskactivecontour ,'Callback',fun)
-            tool.maskEvents;
             addlistener(tool,'maskChanged',@tool.maskEvents);
 
             %Paint brush tool button
@@ -551,7 +552,14 @@ classdef imtool3D < handle
             set(tool.handles.Tools.SmartBrush ,'Cdata',icon_profile)
             fun=@(hObject,evnt) PaintBrushCallback(hObject,evnt,tool,'Smart');
             set(tool.handles.Tools.SmartBrush ,'Callback',fun)
-                       
+
+            %undo mask button
+            tool.handles.Tools.undoMask        = uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+10*w w w],'TooltipString','Undo');
+            icon_profile = load([MATLABdir filesep 'undo.mat']);
+            set(tool.handles.Tools.undoMask ,'Cdata',icon_profile.undoCData)
+            fun=@(hObject,evnt) maskUndo(tool);
+            set(tool.handles.Tools.undoMask ,'Callback',fun)
+
 %             %Create poly tool button
 %             tool.handles.Tools.mask2poly             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+8*w w w],'TooltipString','mask2poly');
 %             icon_profile = makeToolbarIconFromPNG([MATLABdir '/linkproduct.png']);
@@ -588,6 +596,9 @@ classdef imtool3D < handle
             %run the reset view callback
             resetViewCallback([],[],tool)
             
+            % Enable/Disable buttons based on mask
+            tool.maskEvents;
+
         end
         
         function setPosition(tool,position)
@@ -624,6 +635,28 @@ classdef imtool3D < handle
                 mask = tool.mask;
             else
                 mask = tool.mask==tool.maskSelected;
+            end
+        end
+        
+        function setmaskHistory(tool,mask)
+            tool.maskHistory{1} = mask;
+            tool.maskHistory = circshift(tool.maskHistory,-1,2);
+            if isempty(tool.maskHistory{end-1})
+                set(tool.handles.Tools.undoMask, 'Enable', 'off')
+            else
+                set(tool.handles.Tools.undoMask, 'Enable', 'on')
+            end
+        end
+        
+        function maskUndo(tool)
+            if ~isempty(tool.maskHistory{end-1})
+                tool.mask=tool.maskHistory{end-1};
+                showSlice(tool)
+                tool.maskHistory = circshift(tool.maskHistory,1,2);
+                tool.maskHistory{1}=[];
+            end
+            if isempty(tool.maskHistory{end-1})
+                set(tool.handles.Tools.undoMask, 'Enable', 'off')
             end
         end
         
@@ -1047,6 +1080,7 @@ classdef imtool3D < handle
             else
                 set(tool.handles.Tools.maskactivecontour,'Enable','off')
             end
+            tool.setmaskHistory(tool.getMask(true));
         end
         
         function SliceEvents(tool,src,evnt)
