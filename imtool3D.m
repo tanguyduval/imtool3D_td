@@ -179,6 +179,7 @@ classdef imtool3D < handle
         I            %Image data (MxNxKxTxV) matrix of image data
         Nvol         % Current volume
         mask         %Indexed mask that can be overlaid on the image data
+        maskHistory  %History of mask  for undo
         maskSelected %Index of the selected mask color
         maskColor    %Nx3 vector specifying the RGB color of the overlaid mask. Default is red (i.e., [1 0 0]);
         handles      %Structured variable with all the handles
@@ -300,7 +301,8 @@ classdef imtool3D < handle
                                 0     1     1;
                                 0     0     1;
                                 1     0     1];
-            tool.maskSelected = max(mask(:));
+            tool.maskSelected = 1;
+            tool.maskHistory  = cell(1,10);
             tool.alpha = .2;
             tool.Nvol = 1;
             
@@ -513,18 +515,31 @@ classdef imtool3D < handle
             set(tool.handles.Tools.Ruler,'CData',icon_distance);
             fun=@(hObject,evnt) measureImageCallback(hObject,evnt,tool,'profile');
             set(tool.handles.Tools.Ruler,'Callback',fun)
-            
+
+            %Create smooth3 button
+            tool.handles.Tools.smooth3             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+5*w w w],'TooltipString','Smooth Mask in 3D');
+            icon_profile = makeToolbarIconFromPNG([fileparts(mfilename('fullpath')) '/icon_smooth3.png']);
+            set(tool.handles.Tools.smooth3 ,'Cdata',icon_profile)
+            fun=@(hObject,evnt) smooth3Callback(hObject,evnt,tool);
+            set(tool.handles.Tools.smooth3 ,'Callback',fun)
+
             %Create maskinterp button
-            tool.handles.Tools.maskinterp             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+5*w w w],'TooltipString','Interp Mask');
+            tool.handles.Tools.maskinterp             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+6*w w w],'TooltipString','Interp Mask');
             icon_profile = makeToolbarIconFromPNG([fileparts(mfilename('fullpath')) '/interpmask/interpmask.png']);
             set(tool.handles.Tools.maskinterp ,'Cdata',icon_profile)
             fun=@(hObject,evnt) maskinterpImageCallback(hObject,evnt,tool);
             set(tool.handles.Tools.maskinterp ,'Callback',fun)
-            tool.maskEvents;
+
+            %Create active countour button
+            tool.handles.Tools.maskactivecontour             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+7*w w w],'TooltipString','Active Contour 3D');
+            icon_profile = makeToolbarIconFromPNG([fileparts(mfilename('fullpath')) '/icon_activecontour.png']);
+            set(tool.handles.Tools.maskactivecontour ,'Cdata',icon_profile)
+            fun=@(hObject,evnt) ActiveCountourCallback(hObject,evnt,tool);
+            set(tool.handles.Tools.maskactivecontour ,'Callback',fun)
             addlistener(tool,'maskChanged',@tool.maskEvents);
 
             %Paint brush tool button
-            tool.handles.Tools.PaintBrush        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','String','','Position',[buff buff+6*w w w],'TooltipString','Paint Brush Tool');
+            tool.handles.Tools.PaintBrush        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','String','','Position',[buff buff+8*w w w],'TooltipString','Paint Brush Tool');
             icon_profile = makeToolbarIconFromPNG([MATLABdir '/tool_data_brush.png']);
             set(tool.handles.Tools.PaintBrush ,'Cdata',icon_profile)
             fun=@(hObject,evnt) PaintBrushCallback(hObject,evnt,tool,'Normal');
@@ -532,12 +547,19 @@ classdef imtool3D < handle
             tool.handles.PaintBrushObject=[];
             
             %Smart Paint brush tool button
-            tool.handles.Tools.SmartBrush        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','String','','Position',[buff buff+7*w w w],'TooltipString','Smart Brush Tool');
+            tool.handles.Tools.SmartBrush        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','String','','Position',[buff buff+9*w w w],'TooltipString','Smart Brush Tool');
             icon_profile = makeToolbarIconFromPNG([fileparts(mfilename('fullpath')) '/tool_data_brush_smart.png']);
             set(tool.handles.Tools.SmartBrush ,'Cdata',icon_profile)
             fun=@(hObject,evnt) PaintBrushCallback(hObject,evnt,tool,'Smart');
             set(tool.handles.Tools.SmartBrush ,'Callback',fun)
-                       
+
+            %undo mask button
+            tool.handles.Tools.undoMask        = uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+10*w w w],'TooltipString','Undo');
+            icon_profile = load([MATLABdir filesep 'undo.mat']);
+            set(tool.handles.Tools.undoMask ,'Cdata',icon_profile.undoCData)
+            fun=@(hObject,evnt) maskUndo(tool);
+            set(tool.handles.Tools.undoMask ,'Callback',fun)
+
 %             %Create poly tool button
 %             tool.handles.Tools.mask2poly             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+8*w w w],'TooltipString','mask2poly');
 %             icon_profile = makeToolbarIconFromPNG([MATLABdir '/linkproduct.png']);
@@ -574,6 +596,9 @@ classdef imtool3D < handle
             %run the reset view callback
             resetViewCallback([],[],tool)
             
+            % Enable/Disable buttons based on mask
+            tool.maskEvents;
+
         end
         
         function setPosition(tool,position)
@@ -595,6 +620,7 @@ classdef imtool3D < handle
         function setMask(tool,mask)
             if islogical(mask)
                 maskOld = tool.mask;
+                maskOld(maskOld==tool.maskSelected)=0;
                 maskOld(mask) = tool.maskSelected;
                 mask=maskOld;
             end
@@ -609,6 +635,28 @@ classdef imtool3D < handle
                 mask = tool.mask;
             else
                 mask = tool.mask==tool.maskSelected;
+            end
+        end
+        
+        function setmaskHistory(tool,mask)
+            tool.maskHistory{1} = mask;
+            tool.maskHistory = circshift(tool.maskHistory,-1,2);
+            if isempty(tool.maskHistory{end-1})
+                set(tool.handles.Tools.undoMask, 'Enable', 'off')
+            else
+                set(tool.handles.Tools.undoMask, 'Enable', 'on')
+            end
+        end
+        
+        function maskUndo(tool)
+            if ~isempty(tool.maskHistory{end-1})
+                tool.mask=tool.maskHistory{end-1};
+                showSlice(tool)
+                tool.maskHistory = circshift(tool.maskHistory,1,2);
+                tool.maskHistory{1}=[];
+            end
+            if isempty(tool.maskHistory{end-1})
+                set(tool.handles.Tools.undoMask, 'Enable', 'off')
             end
         end
         
@@ -1025,9 +1073,18 @@ classdef imtool3D < handle
             z = unique(z);
             if length(z)>1 && length(z)<(max(z)-min(z)+1)% if more than mask on more than 2 slices and holes
                 set(tool.handles.Tools.maskinterp,'Enable','on')
+                set(tool.handles.Tools.smooth3,'Enable','off')
             else
                 set(tool.handles.Tools.maskinterp,'Enable','off')
+                set(tool.handles.Tools.smooth3,'Enable','on')
             end
+            
+            if ~isempty(z)
+                set(tool.handles.Tools.maskactivecontour,'Enable','on')
+            else
+                set(tool.handles.Tools.maskactivecontour,'Enable','off')
+            end
+            tool.setmaskHistory(tool.getMask(true));
         end
         
         function SliceEvents(tool,src,evnt)
@@ -1107,6 +1164,12 @@ end
 
 end
 
+function smooth3Callback(hObject,evnt,tool)
+mask = getMask(tool); 
+mask = smooth3(mask)>0.45;
+tool.setMask(mask);
+end
+
 function maskinterpImageCallback(hObject,evnt,tool)
 mask = getMask(tool); 
 [~,~,z] = find3d(mask); z = unique(z);
@@ -1114,6 +1177,29 @@ mask2=false(size(mask));
 mask2(:,:, min(z):max(z)) = interpmask(z, mask(:,:,unique(z)),min(z):max(z),'pchip');
 tool.setMask(mask2);
 end
+
+
+function ActiveCountourCallback(hObject,evnt,tool)
+mask = getMask(tool);
+if any(mask(:))
+    I = tool.getImage;
+    [W,L] = getWindowLevel(tool);
+    I = mat2gray(I,[L-W/2 L+W/2]);
+    
+%     mask = smooth3(mask);
+%     mask = mask>0.8;
+    [~,~,z] = find3d(mask);
+    z = unique(z);
+    for iz = z'
+        Iiz = I(:,:,iz);
+        maskiz = mask(:,:,iz);
+        J = activecontour(Iiz, maskiz, 3,'Chan-Vese','SmoothFactor',0.1);
+        mask(:,:,iz) = J;
+    end
+    tool.setMask(mask);
+end
+end
+
 % function CropImageCallback(hObject,evnt,tool)
 % [I2 rect] = imcrop(tool.handles.Axes);
 % rect=round(rect);
@@ -1499,6 +1585,7 @@ function icon = makeToolbarIconFromPNG(filename)
   else % indexed
     
     % Look through the colormap for the background color.
+    if isempty(map), idx=1; icon = im2double(repmat(icon, [1 1 3])); return; end
     for i=1:size(map,1)
       if all(map(i,:) == [0 1 1])
         idx = i;
