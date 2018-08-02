@@ -1303,7 +1303,8 @@ end
 function changeColormap(hObject,eventdata,tool)
 n=get(hObject,'Value');
 maps=get(hObject,'String');
-colormap(maps{n})
+h = tool.getHandles;
+colormap(h.Axes,maps{n})
 end
 
 function WindowLevel_callback(hobject,evnt,tool)
