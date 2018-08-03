@@ -178,9 +178,11 @@ classdef imtool3D < handle
     properties (SetAccess = private, GetAccess = private)
         I            %Image data (MxNxKxTxV) matrix of image data
         Nvol         % Current volume
+        NvolRange    % Color limits (Clim) to display images in I (cell)
         mask         %Indexed mask that can be overlaid on the image data
         maskHistory  %History of mask  for undo
         maskSelected %Index of the selected mask color
+        lockMask     %Lock other mask colors
         maskColor    %Nx3 vector specifying the RGB color of the overlaid mask. Default is red (i.e., [1 0 0]);
         handles      %Structured variable with all the handles
         centers      %list of bin centers for histogram
@@ -264,6 +266,11 @@ classdef imtool3D < handle
                 elseif Af<AI    %Figure is too long, make it wider to match
                     pos(3)=AI*pos(4);
                 end
+                
+                %set minimal size
+                pos(3)=max(600,pos(3));
+                pos(4)=max(500,pos(4));
+                
                 %make sure the figure is centered
                 screensize = get(0,'ScreenSize');
                 pos(1) = ceil((screensize(3)-pos(3))/2);
@@ -273,12 +280,16 @@ classdef imtool3D < handle
             end
             
             if isempty(range)
-                Ivol = I(:,:,:,:,1);
-                range=range_outlier(Ivol(:),3);
+                for ivol = 1:size(I,5)
+                    Ivol = I(:,:,:,:,ivol);
+                    range{ivol}=range_outlier(Ivol(:),3);
+                end
+                tool.NvolRange = range;
             end
+            if iscell(range), range = range{1}; end
             
             if isempty(mask)
-                mask=logical(zeros([size(I,1) size(I,2) size(I,3)]));
+                mask=false([size(I,1) size(I,2) size(I,3)]);
             end
             
             %find the parent figure handle if the given parent is not a
@@ -292,6 +303,7 @@ classdef imtool3D < handle
             %--------------------------------------------------------------
             tool.I      = I;
             tool.mask   =uint8(mask);
+            tool.lockMask = true;
             tool.handles.fig=fig;
             tool.handles.parent = h;
             tool.maskColor = [  0     0     0;
@@ -367,10 +379,11 @@ classdef imtool3D < handle
             buff=(wp-w)/2;
             
             %Create the histogram plot
+            %set(tool.handles.Panels.Image,'Visible','off')
             tool.handles.HistAxes           =   axes('Position',[.025 .15 .95 .55],'Parent',tool.handles.Panels.Hist);
-            im=tool.I(:,:,1,:,tool.getNvol);
-            centers=linspace(double(min(I(:))),double(max(I(:))),256); 
-            nelements=hist(im(:),centers); nelements=nelements./max(nelements);
+            im=I(:,:,:,:,tool.getNvol); im = im(im>min(im(:)) & im<max(im(:)));
+            centers=linspace(double(min(im)),double(max(im)),256); 
+            nelements=hist(im,centers); nelements=nelements./max(nelements);
             tool.handles.HistLine=plot(centers,nelements,'-w','LineWidth',1);
             set(tool.handles.HistAxes,'Color','none','XColor','w','YColor','w','FontSize',9,'YTick',[])
             axis on
@@ -465,7 +478,7 @@ classdef imtool3D < handle
             lp=lp+3*w;
             
             %Create colormap pulldown menu
-            mapNames={'Gray','Hot','Jet','HSV','Cool','Spring','Summer','Autumn','Winter','Bone','Copper','Pink','Lines','colorcube','flag','prism','white'};
+            mapNames={'Gray','Parula','Jet','HSV','Hot','Cool','Spring','Summer','Autumn','Winter','Bone','Copper','Pink','Lines','colorcube','flag','prism','white'};
             tool.handles.Tools.Color          =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',mapNames,'Position',[lp buff 3.5*w w]);
             fun=@(hObject,evnt) changeColormap(hObject,evnt,tool);
             set(tool.handles.Tools.Color,'Callback',fun)
@@ -579,6 +592,12 @@ classdef imtool3D < handle
                 set(tool.handles.Tools.maskSelected(islct) ,'Cdata',repmat(permute(tool.maskColor(islct+1,:)*tool.alpha+(1-tool.alpha)*[.4 .4 .4],[3 1 2]),w,w))
                 set(tool.handles.Tools.maskSelected(islct) ,'Callback',@(hObject,evnt) setmaskSelected(tool,islct))
             end
+            
+            tool.handles.Tools.maskLock        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','Position',[buff pos(4)-w-buff-(islct+1)*w w w], 'Value', 1, 'TooltipString', 'Lock all colors except selected one');
+            icon_profile = makeToolbarIconFromPNG([fileparts(mfilename('fullpath')) '/icon_lock.png']);
+            set(tool.handles.Tools.maskLock ,'Cdata',icon_profile)
+            set(tool.handles.Tools.maskLock ,'Callback',@(hObject,evnt) setlockMask(tool))
+
             %Set font size of all the tool objects
             try
                 set(cell2mat(struct2cell(tool.handles.Tools)),'FontSize',9,'Units','Pixels')
@@ -621,7 +640,11 @@ classdef imtool3D < handle
             if islogical(mask)
                 maskOld = tool.mask;
                 maskOld(maskOld==tool.maskSelected)=0;
-                maskOld(mask) = tool.maskSelected;
+                if tool.lockMask
+                    maskOld(mask & maskOld==0) = tool.maskSelected;
+                else
+                    maskOld(mask) = tool.maskSelected;
+                end
                 mask=maskOld;
             end
             tool.mask=mask;
@@ -664,6 +687,13 @@ classdef imtool3D < handle
             tool.maskSelected = islct;
         end
         
+        function setlockMask(tool)
+            tool.lockMask = ~tool.lockMask;
+            CData = get(tool.handles.Tools.maskLock,'CData');
+            S = size(CData);
+            CData = CData.*repmat(permute(([0.4 0.4 0.4]*(~tool.lockMask) + 1./[0.4 0.4 0.4]*tool.lockMask),[3 1 2]),S(1), S(2));
+            set(tool.handles.Tools.maskLock,'CData',CData)
+        end
         function setMaskColor(tool,maskColor)
             
             if ischar(maskColor)
@@ -731,7 +761,7 @@ classdef imtool3D < handle
             im=tool.I(:,:,1,1,1);
             tool.Nvol = 1;
             tool.centers=linspace(min(I(:)),max(I(:)),256);
-            nelements=hist(im(:),tool.centers); nelements=nelements./max(nelements);
+            nelements=hist(im(im>min(im(:)) & im<max(im(:))),tool.centers); nelements=nelements./max(nelements);
             set(tool.handles.HistLine,'XData',tool.centers,'YData',nelements);
             centers=linspace(double(min(I(:))),double(max(I(:))),256);
             cmap = get(tool.handles.HistImage,'CData');
@@ -806,6 +836,10 @@ classdef imtool3D < handle
             Nvol=tool.Nvol;
         end
 
+        function setNvolRange(tool,range)
+            tool.NvolRange{tool.getNvol} = range;
+        end
+        
         function m = max(tool)
             m = max(tool.I(:));
         end
@@ -815,7 +849,9 @@ classdef imtool3D < handle
         end
         
         function r = range(tool)
-            r = max(tool.I(:)) - min(tool.I(:));
+            I = tool.getImage;
+            I = I(isfinite(I));
+            r = max(I) - min(I);
         end
         
         function handles=getHandles(tool)
@@ -866,7 +902,11 @@ classdef imtool3D < handle
             % combine mask
             maskOld = tool.mask(:,:,slice);
             maskOld(maskOld==tool.maskSelected)=0;
-            maskOld(mask) = tool.maskSelected;
+            if tool.lockMask
+                maskOld(mask & maskOld==0) = tool.maskSelected;
+            else
+                maskOld(mask) = tool.maskSelected;
+            end
             % update mask
             tool.mask(:,:,slice) = maskOld;
             showSlice(tool,slice)
@@ -1034,8 +1074,9 @@ classdef imtool3D < handle
             set(tool.handles.SliceText,'String',[num2str(n) '/' num2str(size(tool.I,3))])
             if get(tool.handles.Tools.Hist,'value')
                 im=tool.I(:,:,n,:,tool.Nvol);
-                nelements=hist(im(:),tool.centers); nelements=nelements./max(nelements);
+                nelements=hist(im(im>min(im(:)) & im<max(im(:))),tool.centers); nelements=nelements./max(nelements);
                 set(tool.handles.HistLine,'YData',nelements);
+                set(tool.handles.HistLine,'XData',tool.centers);
             end
             
             notify(tool,'newSlice')
@@ -1073,10 +1114,14 @@ classdef imtool3D < handle
             z = unique(z);
             if length(z)>1 && length(z)<(max(z)-min(z)+1)% if more than mask on more than 2 slices and holes
                 set(tool.handles.Tools.maskinterp,'Enable','on')
-                set(tool.handles.Tools.smooth3,'Enable','off')
             else
                 set(tool.handles.Tools.maskinterp,'Enable','off')
+            end
+            
+            if length(z)>1 && any(diff(z)==1)
                 set(tool.handles.Tools.smooth3,'Enable','on')
+            else
+                set(tool.handles.Tools.smooth3,'Enable','off')
             end
             
             if ~isempty(z)
@@ -1104,11 +1149,38 @@ classdef imtool3D < handle
                     togglebutton(tool.handles.Tools.PaintBrush)
                 case 's'
                     togglebutton(tool.handles.Tools.SmartBrush)
+                case 'z'
+                    maskUndo(tool);
+                case 'l'
+                    setlockMask(tool)
                 case 'uparrow'
+                    % save window and level
+                    tool.setNvolRange(get(tool.handles.Axes,'Clim'))
+                    % change volume
                     tool.Nvol = min(tool.Nvol+1,size(tool.I,5));
+                    % load new window and level
+                    NewRange = tool.NvolRange{tool.getNvol};
+                    W=NewRange(2)-NewRange(1); L=mean(NewRange);
+                    tool.setWL(W,L);
+                    % apply xlim to histogram
+                    im = tool.getImage; im=im(:);
+                    tool.centers = linspace(min(im),max(im),256);
+                    set(tool.handles.HistAxes,'Xlim',[min(im),max(im)])
+                    
                     showSlice(tool);
                 case 'downarrow'
+                    % save window and level
+                    tool.setNvolRange(get(tool.handles.Axes,'Clim'))
+                    % change volume
                     tool.Nvol = max(tool.Nvol-1,1);
+                    % load new window and level
+                    NewRange = tool.NvolRange{tool.getNvol};
+                    W=NewRange(2)-NewRange(1); L=mean(NewRange);
+                    tool.setWL(W,L);
+                    % apply xlim to histogram
+                    im = tool.getImage; im=im(:);
+                    tool.centers = linspace(min(im),max(im),256);
+                    set(tool.handles.HistAxes,'Xlim',[min(im),max(im)])
                     showSlice(tool);
                 case '1'
                     togglebutton(tool.handles.Tools.maskSelected(1))
@@ -1121,7 +1193,7 @@ classdef imtool3D < handle
                 case '5'
                     togglebutton(tool.handles.Tools.maskSelected(5))
             end
-            disp(evnt.Key)
+      %      disp(evnt.Key)
         end
     end
 
@@ -1516,9 +1588,9 @@ n=round(get(h.Slider,'value'));
 if n==0
     n=1;
 end
-I = tool.getImage;
-if pos(1)>0 && pos(1)<=size(I,2) && pos(1)>=Xlim(1) && pos(1) <=Xlim(2) && pos(2)>0 && pos(2)<=size(I,1) && pos(2)>=Ylim(1) && pos(2) <=Ylim(2)
-    set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(I(pos(2),pos(1),n,:,tool.getNvol))])
+
+if pos(1)>0 && pos(1)<=size(tool.I,2) && pos(1)>=Xlim(1) && pos(1) <=Xlim(2) && pos(2)>0 && pos(2)<=size(tool.I,1) && pos(2)>=Ylim(1) && pos(2) <=Ylim(2)
+    set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I(pos(2),pos(1),n,1,tool.Nvol))])
     notify(tool,'newMousePos')
 else
     set(h.Info,'String','(x,y) val')
@@ -1529,33 +1601,35 @@ end
 end
 
 function panelResizeFunction(hObject,events,tool,w,h,wbutt)
-    h = tool.getHandles;
+    hh = tool.getHandles;
 try
-    units=get(h.Panels.Large,'Units');
-    set(h.Panels.Large,'Units','Pixels')
-    pos=get(h.Panels.Large,'Position');
-    set(h.Panels.Large,'Units',units)
-    if get(h.Tools.Hist,'value')
-        set(h.Panels.Image,'Position',[w w pos(3)-2*w pos(4)-2*w-h])
+    units=get(hh.Panels.Large,'Units');
+    set(hh.Panels.Large,'Units','Pixels')
+    pos=get(hh.Panels.Large,'Position');
+    set(hh.Panels.Large,'Units',units)
+    if get(hh.Tools.Hist,'value')
+        set(hh.Panels.Image,'Position',[w w pos(3)-2*w pos(4)-2*w-h])
     else
-        set(h.Panels.Image,'Position',[w w pos(3)-2*w pos(4)-2*w])
+        set(hh.Panels.Image,'Position',[w w pos(3)-2*w pos(4)-2*w])
     end
     %set(h.Panels.Image,'Position',[w w pos(3)-2*w pos(4)-2*w])
-    set(h.Panels.Hist,'Position',[w pos(4)-w-h pos(3)-2*w h])
-    set(h.Panels.Tools,'Position',[0 pos(4)-w pos(3) w])
-    set(h.Panels.ROItools,'Position',[pos(3)-w  w w pos(4)-2*w])
-    set(h.Panels.Slider,'Position',[0 w w pos(4)-2*w])
-    set(h.Panels.Info,'Position',[0 0 pos(3) w])
-    axis(h.Axes,'fill');
+    set(hh.Panels.Hist,'Position',[w pos(4)-w-h pos(3)-2*w h])
+    set(hh.Panels.Tools,'Position',[0 pos(4)-w pos(3) w])
+    set(hh.Panels.ROItools,'Position',[pos(3)-w  w w pos(4)-2*w])
+    set(hh.Panels.Slider,'Position',[0 w w pos(4)-2*w])
+    set(hh.Panels.Info,'Position',[0 0 pos(3) w])
+    axis(hh.Axes,'fill');
     buff=(w-wbutt)/2;
-    pos=get(h.Panels.ROItools,'Position');
-    set(h.Tools.Help,'Position',[buff pos(4)-wbutt-buff wbutt wbutt]);
+    pos=get(hh.Panels.ROItools,'Position');
+    set(hh.Tools.Help,'Position',[buff pos(4)-wbutt-buff wbutt wbutt]);
     
     for islct=1:5
-        set(h.Tools.maskSelected(islct),'Position',[buff pos(4)-wbutt-buff-islct*wbutt wbutt wbutt]);
+        set(hh.Tools.maskSelected(islct),'Position',[buff pos(4)-wbutt-buff-islct*wbutt wbutt wbutt]);
     end
     
-    set(h.Axes,'XLimMode','manual','YLimMode','manual');
+    set(hh.Tools.maskLock,'Position',[buff pos(4)-wbutt-buff-(islct+1)*wbutt wbutt wbutt]);
+    
+    set(hh.Axes,'XLimMode','manual','YLimMode','manual');
 end
 
 end
@@ -1644,17 +1718,17 @@ end
 end
 
 function ShowHistogram(hObject,evnt,tool,w,h)
-    h = tool.getHandles;
-set(h.Panels.Large,'Units','Pixels')
-pos=get(h.Panels.Large,'Position');
-set(h.Panels.Large,'Units','normalized')
+    hh = tool.getHandles;
+set(hh.Panels.Large,'Units','Pixels')
+pos=get(hh.Panels.Large,'Position');
+set(hh.Panels.Large,'Units','normalized')
 
-if get(h.Tools.Hist,'value')
-    set(h.Panels.Image,'Position',[w w pos(3)-2*w pos(4)-2*w-h])
+if get(hh.Tools.Hist,'value')
+    set(hh.Panels.Image,'Position',[w w pos(3)-2*w pos(4)-2*w-h])
 else
-    set(h.Panels.Image,'Position',[w w pos(3)-2*w pos(4)-2*w])
+    set(hh.Panels.Image,'Position',[w w pos(3)-2*w pos(4)-2*w])
 end
-axis(h.Axes,'fill');
+axis(hh.Axes,'fill');
 showSlice(tool)
 
 end
