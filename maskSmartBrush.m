@@ -59,39 +59,11 @@ function ButtonMotionFunction(src,evnt,brush,tag,data)
 switch tag
         
     case 'Left Click'
-        %moves the circle
-        cp = get(brush.handles.parent,'CurrentPoint'); cp=[cp(1,1) cp(1,2)];
-        brush.position = [cp(1) cp(2) brush.position(3)];
-        
-        %get the mask for the new brush position
-        mask = getBrushMask(brush);
+        BW = runOtsu(brush);
         
         %get the current mask of the imtool3D object
         maskOld = getCurrentMaskSlice(brush.handles.tool);
-        
-        %Get the image pixels of the current slice
-        slice = getCurrentImageSlice(brush.handles.tool);
-        
-        %convert image range to 0-1
-        if brush.windowing
-            [W,L] = getWindowLevel(brush.handles.tool);
-            slice = mat2gray(slice,[L-W/2 L+W/2]);
-        else
-            slice =mat2gray(slice);
-        end
-        
-        %Get the otsu threshold mask
-        level = graythresh(slice(mask));
-        BW = im2bw(slice,level) & mask;
-        
-        %use BW mask that has the largest number of elements (either BW or 
-        if (isempty(brush.smartinvert) && (sum(BW(BW)) < sum(mask(mask))/2)) || (~isempty(brush.smartinvert) && brush.smartinvert)
-            BW= ~BW & mask;
-            brush.smartinvert = true;
-        else
-            brush.smartinvert = false;
-        end
-        
+
         %Combine the two masks
         mask = BW | maskOld;
         
@@ -99,18 +71,13 @@ switch tag
         setCurrentMaskSlice(brush.handles.tool,mask)
         
     case 'Right Click'
-        %moves the circle
-        cp = get(brush.handles.parent,'CurrentPoint'); cp=[cp(1,1) cp(1,2)];
-        brush.position = [cp(1) cp(2) brush.position(3)];
-        
-        %get the mask for the new brush position
-        mask = getBrushMask(brush);
+        BW = runOtsu(brush);
         
         %get the current mask of the imtool3D object
         maskOld = getCurrentMaskSlice(brush.handles.tool);
         
         %Combine the two masks
-        mask = maskOld   &   ~(mask & maskOld);
+        mask = ~BW & maskOld ;
         
         %Update the mask of the tool
         setCurrentMaskSlice(brush.handles.tool,mask)
@@ -131,4 +98,37 @@ switch tag
         
 end
 
+end
+
+function BW = runOtsu(brush)
+
+%moves the circle
+cp = get(brush.handles.parent,'CurrentPoint'); cp=[cp(1,1) cp(1,2)];
+brush.position = [cp(1) cp(2) brush.position(3)];
+
+%get the mask for the new brush position
+mask = getBrushMask(brush);
+
+%Get the image pixels of the current slice
+slice = getCurrentImageSlice(brush.handles.tool);
+
+%convert image range to 0-1
+if brush.windowing
+    [W,L] = getWindowLevel(brush.handles.tool);
+    slice = mat2gray(slice,[L-W/2 L+W/2]);
+else
+    slice =mat2gray(slice);
+end
+
+%Get the otsu threshold mask
+level = graythresh(slice(mask));
+BW = im2bw(slice,level) & mask;
+
+%use BW mask that has the largest number of elements (either BW or
+if (isempty(brush.smartinvert) && (sum(BW(BW)) < sum(mask(mask))/2)) || (~isempty(brush.smartinvert) && brush.smartinvert)
+    BW= ~BW & mask;
+    brush.smartinvert = true;
+else
+    brush.smartinvert = false;
+end
 end

@@ -538,7 +538,7 @@ classdef imtool3D < handle
 
             %Create maskinterp button
             tool.handles.Tools.maskinterp             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+6*w w w],'TooltipString','Interp Mask');
-            icon_profile = makeToolbarIconFromPNG([fileparts(mfilename('fullpath')) '/interpmask/interpmask.png']);
+            icon_profile = makeToolbarIconFromPNG([fileparts(mfilename('fullpath')) filesep 'icon_interpmask.png']);
             set(tool.handles.Tools.maskinterp ,'Cdata',icon_profile)
             fun=@(hObject,evnt) maskinterpImageCallback(hObject,evnt,tool);
             set(tool.handles.Tools.maskinterp ,'Callback',fun)
@@ -1237,6 +1237,11 @@ end
 end
 
 function smooth3Callback(hObject,evnt,tool)
+% unselect button to prevent activation with spacebar
+set(hObject, 'Enable', 'off');
+drawnow;
+set(hObject, 'Enable', 'on');
+ 
 mask = getMask(tool); 
 mask = smooth3(mask)>0.45;
 tool.setMask(mask);
@@ -1252,6 +1257,11 @@ end
 
 
 function ActiveCountourCallback(hObject,evnt,tool)
+% unselect button to prevent activation with spacebar
+set(hObject, 'Enable', 'off');
+drawnow;
+set(hObject, 'Enable', 'on');
+
 mask = getMask(tool);
 if any(mask(:))
     I = tool.getImage;
@@ -1265,7 +1275,7 @@ if any(mask(:))
     for iz = z'
         Iiz = I(:,:,iz);
         maskiz = mask(:,:,iz);
-        J = activecontour(Iiz, maskiz, 3,'Chan-Vese','SmoothFactor',0.1);
+        J = activecontour(Iiz, maskiz, 3,'Chan-Vese','SmoothFactor',0.1,'ContractionBias' ,0);
         mask(:,:,iz) = J;
     end
     tool.setMask(mask);
