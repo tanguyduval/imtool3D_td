@@ -245,6 +245,7 @@ classdef imtool3D < handle
             if isempty(I)
                 I=random('unif',-50,50,[100 100 3]);
             end
+            I = double(I);
             
             if islogical(I)
                 I=double(I);
@@ -752,6 +753,8 @@ classdef imtool3D < handle
             if isempty(I)
                 I=random('unif',-50,50,[100 100 3]);
             end
+            I = double(I);
+            
             if isempty(range)
                 range=[min(I(:)) max(I(:))];
             end
