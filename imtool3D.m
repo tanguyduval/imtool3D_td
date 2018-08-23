@@ -178,6 +178,7 @@ classdef imtool3D < handle
     properties (SetAccess = private, GetAccess = private)
         I            %Image data (MxNxKxTxV) matrix of image data
         Nvol         % Current volume
+        Ntime        % Current time
         NvolRange    % Color limits (Clim) to display images in I (cell)
         mask         %Indexed mask that can be overlaid on the image data
         maskHistory  %History of mask  for undo
@@ -282,7 +283,7 @@ classdef imtool3D < handle
             if isempty(range)
                 for ivol = 1:size(I,5)
                     Ivol = I(:,:,:,:,ivol);
-                    range{ivol}=range_outlier(Ivol(:),3);
+                    range{ivol}=range_outlier(Ivol(:),5);
                 end
                 tool.NvolRange = range;
             end
@@ -317,6 +318,7 @@ classdef imtool3D < handle
             tool.maskHistory  = cell(1,10);
             tool.alpha = .2;
             tool.Nvol = 1;
+            tool.Ntime = 1;
             
             %Create the panels and slider
             w=30; %Pixel width of the side panels
@@ -347,7 +349,7 @@ classdef imtool3D < handle
             
             %Create image axis
             tool.handles.Axes           =   axes('Position',[0 0 1 1],'Parent',tool.handles.Panels.Image,'Color','none');
-            tool.handles.I              =   imshow(I(:,:,round(end/2),:,tool.getNvol),range,'Parent',tool.handles.Axes); hold on; set(tool.handles.I,'Clipping','off')
+            tool.handles.I              =   imshow(I(:,:,round(end/2),tool.getNtime,tool.getNvol),range,'Parent',tool.handles.Axes); hold on; set(tool.handles.I,'Clipping','off')
             set(tool.handles.Axes,'XLimMode','manual','YLimMode','manual','Clipping','off');
             
             
@@ -381,8 +383,8 @@ classdef imtool3D < handle
             %Create the histogram plot
             %set(tool.handles.Panels.Image,'Visible','off')
             tool.handles.HistAxes           =   axes('Position',[.025 .15 .95 .55],'Parent',tool.handles.Panels.Hist);
-            im=I(:,:,:,:,tool.getNvol); im = im(im>min(im(:)) & im<max(im(:)));
-            centers=linspace(double(min(im)),double(max(im)),256); 
+            im=I(:,:,:,tool.getNtime,tool.getNvol); im = im(im>min(im(:)) & im<max(im(:)));
+            centers=linspace(range(1)-diff(range)*0.05,range(2)+diff(range)*0.05,256); 
             nelements=hist(im,centers); nelements=nelements./max(nelements);
             tool.handles.HistLine=plot(centers,nelements,'-w','LineWidth',1);
             set(tool.handles.HistAxes,'Color','none','XColor','w','YColor','w','FontSize',9,'YTick',[])
@@ -610,7 +612,8 @@ classdef imtool3D < handle
             set(tool.handles.fig,'NextPlot','new')
             
             % add shortcuts
-            set(tool.handles.parent,'Windowkeypressfcn', @(hobject, event) tool.shortcutCallback(hobject, event))
+            
+            set(gcf,'Windowkeypressfcn', @(hobject, event) tool.shortcutCallback(hobject, event))
             
             %run the reset view callback
             resetViewCallback([],[],tool)
@@ -829,7 +832,7 @@ classdef imtool3D < handle
         end
         
         function I = getImage(tool)
-            I=tool.I(:,:,:,:,tool.Nvol);
+            I=tool.I(:,:,:,tool.Ntime,tool.Nvol);
         end
 
         function Nvol = getNvol(tool)
@@ -839,7 +842,11 @@ classdef imtool3D < handle
         function setNvolRange(tool,range)
             tool.NvolRange{tool.getNvol} = range;
         end
-        
+
+        function Nt = getNtime(tool)
+            Nt=tool.Ntime;
+        end
+                
         function m = max(tool)
             m = max(tool.I(:));
         end
@@ -914,7 +921,7 @@ classdef imtool3D < handle
         
         function im = getCurrentImageSlice(tool)
             slice = getCurrentSlice(tool);
-            im = tool.I(:,:,slice,:,tool.Nvol);
+            im = tool.I(:,:,slice,tool.Ntime,tool.Nvol);
         end
         
         function setAlpha(tool,alpha)
@@ -940,8 +947,8 @@ classdef imtool3D < handle
             %lims . Lims defines the box in which the new data, im, will be
             %inserted. lims = [ymin ymax; xmin xmax; zmin zmax];
             
-            tool.I(lims(1,1):lims(1,2),lims(2,1):lims(2,2),lims(3,1):lims(3,2),:,tool.Nvol)=...
-                tool.I(lims(1,1):lims(1,2),lims(2,1):lims(2,2),lims(3,1):lims(3,2),:,tool.Nvol)+im;
+            tool.I(lims(1,1):lims(1,2),lims(2,1):lims(2,2),lims(3,1):lims(3,2),tool.Ntime,tool.Nvol)=...
+                tool.I(lims(1,1):lims(1,2),lims(2,1):lims(2,2),lims(3,1):lims(3,2),tool.Ntime,tool.Nvol)+im;
             showSlice(tool);
         end
         
@@ -949,7 +956,7 @@ classdef imtool3D < handle
             %this function replaces pixel values with im at location specified by
             %lims . Lims defines the box in which the new data, im, will be
             %inserted. lims = [ymin ymax; xmin xmax; zmin zmax];
-            tool.I(lims(1,1):lims(1,2),lims(2,1):lims(2,2),lims(3,1):lims(3,2),:,tool.Nvol)=im;
+            tool.I(lims(1,1):lims(1,2),lims(2,1):lims(2,2),lims(3,1):lims(3,2),tool.Ntime,tool.Nvol)=im;
             showSlice(tool);
         end
         
@@ -1063,9 +1070,9 @@ classdef imtool3D < handle
             
             set(tool.handles.I,'AlphaData',1)
             if ~tool.upsample
-                set(tool.handles.I,'CData',tool.I(:,:,n,:,tool.Nvol))
+                set(tool.handles.I,'CData',tool.I(:,:,n,tool.Ntime,tool.Nvol))
             else
-                set(tool.handles.I,'CData',imresize(tool.I(:,:,n,:,tool.Nvol),tool.rescaleFactor,tool.upsampleMethod),'XData',get(tool.handles.I,'XData'),'YData',get(tool.handles.I,'YData'))
+                set(tool.handles.I,'CData',imresize(tool.I(:,:,n,tool.Ntime,tool.Nvol),tool.rescaleFactor,tool.upsampleMethod),'XData',get(tool.handles.I,'XData'),'YData',get(tool.handles.I,'YData'))
             end
             
             im = ind2rgb(tool.mask(:,:,n),tool.maskColor);
@@ -1073,7 +1080,7 @@ classdef imtool3D < handle
             set(tool.handles.mask,'AlphaData',tool.alpha*logical(tool.mask(:,:,n)))
             set(tool.handles.SliceText,'String',[num2str(n) '/' num2str(size(tool.I,3))])
             if get(tool.handles.Tools.Hist,'value')
-                im=tool.I(:,:,n,:,tool.Nvol);
+                im=tool.I(:,:,n,tool.Ntime,tool.Nvol);
                 nelements=hist(im(im>min(im(:)) & im<max(im(:))),tool.centers); nelements=nelements./max(nelements);
                 set(tool.handles.HistLine,'YData',nelements);
                 set(tool.handles.HistLine,'XData',tool.centers);
@@ -1153,6 +1160,12 @@ classdef imtool3D < handle
                     maskUndo(tool);
                 case 'l'
                     setlockMask(tool)
+                case 'leftarrow'
+                    tool.Ntime = max(tool.Ntime-1,1);
+                    showSlice(tool);
+                case 'rightarrow'
+                    tool.Ntime = min(tool.Ntime+1,size(tool.I,4));
+                    showSlice(tool);
                 case 'uparrow'
                     % save window and level
                     tool.setNvolRange(get(tool.handles.Axes,'Clim'))
@@ -1370,6 +1383,11 @@ set(tool.handles.Axes,'Ylim',get(tool.handles.I,'YData'))
 end
 
 function toggleGrid(hObject,eventdata,tool)
+% unselect button to prevent activation with spacebar
+set(hObject, 'Enable', 'off');
+drawnow;
+set(hObject, 'Enable', 'on');
+
 if get(hObject,'Value')
     set(tool.handles.grid,'Visible','on')
 else
@@ -1378,6 +1396,11 @@ end
 end
 
 function toggleMask(hObject,eventdata,tool)
+% unselect button to prevent activation with spacebar
+set(hObject, 'Enable', 'off');
+drawnow;
+set(hObject, 'Enable', 'on');
+
 if get(hObject,'Value')
     set(tool.handles.mask,'Visible','on')
 else
@@ -1391,6 +1414,7 @@ n=get(hObject,'Value');
 maps=get(hObject,'String');
 h = tool.getHandles;
 colormap(h.Axes,maps{n})
+colormap(h.HistImageAxes,maps{n})
 end
 
 function WindowLevel_callback(hobject,evnt,tool)
@@ -1453,13 +1477,13 @@ function scrollWheel(scr,evnt,tool)
 
 
 %if point(1)>=xmin && point(1)<=xmax && point(2)>=ymin && point(2)<=ymax
-if isMouseOverAxes(tool.handles.Axes)
+%if isMouseOverAxes(tool.handles.Axes)
     newSlice=get(tool.handles.Slider,'value')-evnt.VerticalScrollCount;
     if newSlice>=1 && newSlice <=size(tool.I,3)
         set(tool.handles.Slider,'value',newSlice);
         showSlice(tool)
     end
-end
+%end
 
 end
 
@@ -1601,7 +1625,7 @@ if n==0
 end
 
 if pos(1)>0 && pos(1)<=size(tool.I,2) && pos(1)>=Xlim(1) && pos(1) <=Xlim(2) && pos(2)>0 && pos(2)<=size(tool.I,1) && pos(2)>=Ylim(1) && pos(2) <=Ylim(2)
-    set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I(pos(2),pos(1),n,1,tool.Nvol))])
+    set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I(pos(2),pos(1),n,tool.Ntime,tool.Nvol))])
     notify(tool,'newMousePos')
 else
     set(h.Info,'String','(x,y) val')
@@ -1722,7 +1746,7 @@ switch get(h.Tools.SaveOptions,'value')
       else
           I = tool.getImage;
             for i=1:size(I,3)
-                imwrite(gray2ind(mat2gray(I(:,:,i,:,tool.getNvol),lims),256),cmap, [PathName FileName], 'WriteMode', 'append',  'Compression','none');
+                imwrite(gray2ind(mat2gray(I(:,:,i,tool.getNtime,tool.getNvol),lims),256),cmap, [PathName FileName], 'WriteMode', 'append',  'Compression','none');
             end
         end
 end
