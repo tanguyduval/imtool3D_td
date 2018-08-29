@@ -243,7 +243,7 @@ classdef imtool3D < handle
             
             
             if isempty(I)
-                I=random('unif',-50,50,[100 100 3]);
+                I=rand([100 100 3])*100-50;
             end
             I = double(I);
             
@@ -737,7 +737,7 @@ classdef imtool3D < handle
         function setImage(varargin)
             switch nargin
                 case 1
-                    tool=varargin{1}; I=random('unif',-50,50,[100 100 3]);
+                    tool=varargin{1}; I=rand([100 100 3])*100-50;
                     range=[-50 50]; mask=false(size(I));
                 case 2
                     tool=varargin{1}; I=varargin{2};
@@ -751,7 +751,7 @@ classdef imtool3D < handle
             end
             
             if isempty(I)
-                I=random('unif',-50,50,[100 100 3]);
+                I=rand([100 100 3])*100-50;
             end
             I = double(I);
             
