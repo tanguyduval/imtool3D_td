@@ -7,7 +7,6 @@ imtool3D is used heavily by several other RAI labs projects:
 
 # Dependencies
 * Matlab's image processing toolbox
-* Matlab's Statistics and Machine Learning toolbox
 
 # Authors
 Justin Solomon
