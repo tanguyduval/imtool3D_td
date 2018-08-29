@@ -424,16 +424,16 @@ classdef imtool3D < handle
 
             
             %Create window and level boxes
-            tool.handles.Tools.TW       =   uicontrol(tool.handles.Panels.Tools,'Style','text','String','W','Position',[lp+buff buff w w],'BackgroundColor','k','ForegroundColor','w','TooltipString','Window Width');
-            tool.handles.Tools.W        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String',num2str(range(2)-range(1)),'Position',[lp+buff+w buff 2*w w],'TooltipString','Window Width','BackgroundColor',[.2 .2 .2],'ForegroundColor','w'); 
-            tool.handles.Tools.TL       =   uicontrol(tool.handles.Panels.Tools,'Style','text','String','L','Position',[lp+2*buff+3*w buff w w],'BackgroundColor','k','ForegroundColor','w','TooltipString','Window Level');
-            tool.handles.Tools.L        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String',num2str(mean(range)),'Position',[lp+2*buff+4*w buff 2*w w],'TooltipString','Window Level','BackgroundColor',[.2 .2 .2],'ForegroundColor','w');
+            tool.handles.Tools.TL       =   uicontrol(tool.handles.Panels.Tools,'Style','text','String','L','Position',[lp+buff buff w w],'BackgroundColor','k','ForegroundColor','w','TooltipString','Window Width');
+            tool.handles.Tools.L        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String',num2str(range(1)),'Position',[lp+buff+w buff 2*w w],'TooltipString','Window Width','BackgroundColor',[.2 .2 .2],'ForegroundColor','w'); 
+            tool.handles.Tools.TU       =   uicontrol(tool.handles.Panels.Tools,'Style','text','String','U','Position',[lp+2*buff+3*w buff w w],'BackgroundColor','k','ForegroundColor','w','TooltipString','Window Level');
+            tool.handles.Tools.U        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String',num2str(range(2)),'Position',[lp+2*buff+4*w buff 2*w w],'TooltipString','Window Level','BackgroundColor',[.2 .2 .2],'ForegroundColor','w');
             lp=lp+buff+7*w;
             
             %Creat window and level callbacks
             fun=@(hobject,evnt) WindowLevel_callback(hobject,evnt,tool);
-            set(tool.handles.Tools.W,'Callback',fun);
             set(tool.handles.Tools.L,'Callback',fun);
+            set(tool.handles.Tools.U,'Callback',fun);
             
             %Create view restore button
             tool.handles.Tools.ViewRestore           =   uicontrol(tool.handles.Panels.Tools,'Style','pushbutton','String','','Position',[lp buff w w],'TooltipString','Reset Pan and Zoom');
@@ -1110,8 +1110,8 @@ classdef imtool3D < handle
         function setWL(tool,W,L)
             try
                 set(tool.handles.Axes,'Clim',[L-W/2 L+W/2])
-                set(tool.handles.Tools.W,'String',num2str(W));
-                set(tool.handles.Tools.L,'String',num2str(L));
+                set(tool.handles.Tools.L,'String',num2str(L-W/2));
+                set(tool.handles.Tools.U,'String',num2str(L+W/2));
                 set(tool.handles.HistImageAxes,'Clim',[L-W/2 L+W/2])
                 set(tool.handles.Histrange(1),'XData',[L-W/2 L-W/2 L-W/2])
                 set(tool.handles.Histrange(2),'XData',[L+W/2 L+W/2 L+W/2])
@@ -1422,18 +1422,22 @@ end
 
 function WindowLevel_callback(hobject,evnt,tool)
 range=get(tool.handles.Axes,'Clim');
-Wold=range(2)-range(1); Lold=mean(range);
-W=str2num(get(tool.handles.Tools.W,'String'));
-if isempty(W) || W<=0
-    W=Wold;
-    set(tool.handles.Tools.W,'String',num2str(W))
-end
+
 L=str2num(get(tool.handles.Tools.L,'String'));
-if isempty(L)
-    L=Lold;
+if isempty(L) 
+    L=range(1);
     set(tool.handles.Tools.L,'String',num2str(L))
 end
-setWL(tool,W,L)
+U=str2num(get(tool.handles.Tools.U,'String'));
+if isempty(U)
+    U=range(2);
+    set(tool.handles.Tools.U,'String',num2str(U))
+end
+if U<L
+    U=L+max(eps,abs(0.1*L)); 
+    set(tool.handles.Tools.U,'String',num2str(U))
+end
+setWL(tool,U-L,mean([U,L]))
 end
         
 function histogramButtonDownFunction(hObject,evnt,tool,line)
