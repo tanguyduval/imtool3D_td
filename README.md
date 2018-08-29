@@ -7,11 +7,10 @@ imtool3D is used heavily by several other RAI labs projects:
 
 # Dependencies
 * Matlab's image processing toolbox
-* Matlab's Statistics and Machine Learning toolbox
 
 # Authors
-Justin Solomon
-Tanguy Duval
+Justin Solomon (Original release)  
+Tanguy Duval (4D (time) and 5D (different contrast); multi-label mask; active_contour, undo button, mask2poly, poly2mask, shortcuts)  
 
 # Original release
 https://fr.mathworks.com/matlabcentral/fileexchange/40753-imtool3d
