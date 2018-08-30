@@ -179,7 +179,8 @@ classdef imtool3D < handle
         I            %Image data (MxNxKxTxV) matrix of image data
         Nvol         % Current volume
         Ntime        % Current time
-        NvolRange    % Color limits (Clim) to display images in I (cell)
+        range        % Range of images
+        NvolRange    % Current color limits (Clim) to display images in I (cell)
         mask         %Indexed mask that can be overlaid on the image data
         maskHistory  %History of mask  for undo
         maskSelected %Index of the selected mask color
@@ -220,22 +221,22 @@ classdef imtool3D < handle
                 case 0  %tool = imtool3d()
                     I=rand([100 100 3])*100-50;
                     position=[0 0 1 1]; h=[];
-                    range=[-50 50]; tools=[]; mask=false(size(I));
+                    range=[-50 50]; tools=[]; mask=[];
                 case 1  %tool = imtool3d(I)
                     I=varargin{1}; position=[0 0 1 1]; h=[];
-                    range=[]; tools=[]; mask=false(size(I));
+                    range=[]; tools=[]; mask=[];
                 case 2  %tool = imtool3d(I,position)
                     I=varargin{1}; position=varargin{2}; h=[];
-                    range=[]; tools=[]; mask=false(size(I));
+                    range=[]; tools=[]; mask=[];
                 case 3  %tool = imtool3d(I,position,h)
                     I=varargin{1}; position=varargin{2}; h=varargin{3};
-                    range=[]; tools=[]; mask=false(size(I));
+                    range=[]; tools=[]; mask=[];
                 case 4  %tool = imtool3d(I,position,h,range)
                     I=varargin{1}; position=varargin{2}; h=varargin{3};
-                    range=varargin{4}; tools=[]; mask=false(size(I));
+                    range=varargin{4}; tools=[]; mask=[];
                 case 5  %tool = imtool3d(I,position,h,range,tools)
                     I=varargin{1}; position=varargin{2}; h=varargin{3};
-                    range=varargin{4}; tools=varargin{5}; mask=false(size(I));
+                    range=varargin{4}; tools=varargin{5}; mask=[];
                 case 6  %tool = imtool3d(I,position,h,range,tools,mask)
                     I=varargin{1}; position=varargin{2}; h=varargin{3};
                     range=varargin{4}; tools=varargin{5}; mask=varargin{6};
@@ -281,14 +282,16 @@ classdef imtool3D < handle
                 set(h,'Units','normalized');
             end
             
-            if isempty(range)
-                for ivol = 1:size(I,5)
-                    Ivol = I(:,:,:,:,ivol);
-                    range{ivol}=range_outlier(Ivol(:),5);
-                end
-                tool.NvolRange = range;
+            for ivol = 1:size(I,5)
+                Ivol = I(:,:,:,:,ivol);
+                tool.range{ivol}=range_outlier(Ivol(:),5);
             end
-            if iscell(range), range = range{1}; end
+            tool.NvolRange = tool.range;
+            
+            if ~isempty(range)
+                tool.NvolRange{1} = range;
+            end
+            range = tool.NvolRange{1};
             
             if isempty(mask)
                 mask=false([size(I,1) size(I,2) size(I,3)]);
@@ -842,6 +845,10 @@ classdef imtool3D < handle
             Nvol=tool.Nvol;
         end
 
+        function r = getrange(tool)
+            r=diff(tool.range{tool.Nvol});
+        end
+
         function setNvolRange(tool,range)
             tool.NvolRange{tool.getNvol} = range;
         end
@@ -857,13 +864,7 @@ classdef imtool3D < handle
         function m = min(tool)
             m = min(tool.I(:));
         end
-        
-        function r = range(tool)
-            I = tool.getImage;
-            I = I(isfinite(I));
-            r = max(I) - min(I);
-        end
-        
+                
         function handles=getHandles(tool)
             handles=tool.handles;
         end
@@ -1504,7 +1505,7 @@ function newLowerRangePosition(src,evnt,hObject,tool)
 cp = get(hObject,'CurrentPoint'); cp=[cp(1,1) cp(1,2)];
 range=get(tool.handles.Axes,'Clim');
 Xlims=get(hObject,'Xlim');
-r=double(tool.range);
+r=double(tool.getrange);
 ord = round(log10(r));
 if ord>1
     cp(1)=round(cp(1));
@@ -1521,7 +1522,7 @@ function newUpperRangePosition(src,evnt,hObject,tool)
 cp = get(hObject,'CurrentPoint'); cp=[cp(1,1) cp(1,2)];
 range=get(tool.handles.Axes,'Clim');
 Xlims=get(hObject,'Xlim');
-r=double(tool.range);
+r=double(tool.getrange);
 ord = round(log10(r));
 if ord>1
     cp(1)=round(cp(1));
@@ -1538,7 +1539,7 @@ function newLevelRangePosition(src,evnt,hObject,tool)
 cp = get(hObject,'CurrentPoint'); cp=[cp(1,1) cp(1,2)];
 range=get(tool.handles.Axes,'Clim');
 Xlims=get(hObject,'Xlim');
-r=double(tool.range);
+r=double(tool.getrange);
 ord = round(log10(r));
 if ord>1
     cp(1)=round(cp(1));
@@ -1554,7 +1555,7 @@ function adjustContrastMouse(src,evnt,bp,hObject,tool,W,L)
 cp = get(0,'PointerLocation');
 SS=get( 0, 'Screensize' ); SS=SS(end-1:end); %Get the screen size
 d=round(cp-bp)./SS;
-r=tool.range;
+r=tool.getrange;
 WS=tool.windowSpeed;
 W2=W+r*d(1)*WS; L=L-r*d(2)*WS;
 if W2>0
