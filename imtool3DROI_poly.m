@@ -6,6 +6,8 @@ classdef imtool3DROI_poly < imtool3DROI
     
     properties (SetAccess = protected, GetAccess = protected)
         position        %nx2 matrix that defines the vertices of the polygon [x y] 
+        markerPosition  %nx2 matrix that defines the position of the markers [x y]
+        curveindex      %nx1 vector that defines the curved vertices
         tbuff           %amount of space (in pixels) to place the text above the ROI
     end
     
@@ -73,6 +75,7 @@ classdef imtool3DROI_poly < imtool3DROI
             graphicsHandles(1) = plot(position(:,1),position(:,2),'-r','LineWidth',1.5,'Parent',parent);
             graphicsHandles(2) = plot(position(:,1),position(:,2),'sr','LineWidth',1.5,'MarkerSize',8,'Parent',parent,'MarkerFaceColor','r');
             graphicsHandles(3) = plot(position(1,1),position(1,2),'+r','MarkerSize',12,'Parent',parent); %centroid cross
+            graphicsHandles(4) = plot(0,0,'oy','LineWidth',1.5,'MarkerSize',8,'Parent',parent,'MarkerFaceColor','r');
             set(graphicsHandles,'Clipping','off')
             set(parent,'NextPlot',nextPlot);
             
@@ -92,7 +95,9 @@ classdef imtool3DROI_poly < imtool3DROI
             ROI.textHandle = text(x,y,'text','Parent',parent,'Color','w','FontSize',10,'EdgeColor','w','BackgroundColor','k','HorizontalAlignment','Left','VerticalAlignment','bottom','Clipping','on');
             
             %Set the position property of the ROI
-            ROI.position = position;
+            ROI.position       = position;
+            ROI.markerPosition = position;
+            ROI.curveindex     = false(size(position,1),1);
             
             %Set the button down functions of the graphics
             for i=1:length(graphicsHandles)
@@ -112,19 +117,61 @@ classdef imtool3DROI_poly < imtool3DROI
             position = ROI.position;
         end
         
-        function newPosition(ROI,position)
+        function position = getMarkerPosition(ROI)
+            position = ROI.markerPosition;
+        end
+
+        function newPosition(ROI,markerPosition)
             
-            %set the position property of the ROI
-            ROI.position = position;
+            %set the markerPosition property of the ROI
+            ROI.markerPosition = markerPosition;
             
             %get the graphics handles
             graphicsHandles = ROI.graphicsHandles;
             
+            %get curveindex
+            ind = find(ROI.curveindex);
+                        
+            %compute spline
+            if any(ind)
+                % divide into continuous index
+                if length(ind)==1
+                    ind = {ind};
+                else
+                    cutindex = find(diff(ind)>1);
+                    D = diff([0 cutindex length(ind)]);
+                    ind = mat2cell(ind(:),D,1);
+                end
+                markerPos = markerPosition(1:end-1,:)';
+                positiontmp = [];
+                for iblock = 1:length(ind)
+                    indi = ind{iblock};
+                    Npts = size(markerPos,2);
+                    start = 1+mod(min(indi)-1-1,Npts); % 1+mod(index-1,end): circular indexing
+                    stop  = 1+mod(max(indi)+1-1,Npts);
+                    if start>stop, index = [start:Npts 1:stop];
+                    else, index = start:stop;
+                    end
+                    pp = spline(linspace(0,1,length(indi)+2),markerPos(:,index));
+                    yy = ppval(pp, linspace(0,1,50));
+                    if iblock>1
+                        start = max(ind{iblock-1})+1;
+                    else, start = 1;
+                    end
+                    positiontmp = cat(2,positiontmp,markerPos(:,start:min(indi)-1),yy(:,2:end-1));
+                end
+                positiontmp = cat(2,positiontmp,markerPos(:,max(indi)+1:end));
+                ROI.position = positiontmp(:,[1:end 1])';
+
+            else
+                ROI.position = markerPosition;
+            end
+            
             %set the new position of the polygon and other graphics
             %objects
-            set(graphicsHandles(1),'XData',position(:,1),'YData',position(:,2));
-            set(graphicsHandles(2),'XData',position(:,1),'YData',position(:,2));
-            
+            set(graphicsHandles(1),'XData',ROI.position(:,1),'YData',ROI.position(:,2));
+            set(graphicsHandles(2),'XData',markerPosition(~ROI.curveindex,1),'YData',markerPosition(~ROI.curveindex,2));
+            set(graphicsHandles(4),'XData',markerPosition(ROI.curveindex,1),'YData',markerPosition(ROI.curveindex,2));
             %get the ROI measurements
             stats = getMeasurements(ROI);
             
@@ -132,8 +179,10 @@ classdef imtool3DROI_poly < imtool3DROI
             set(graphicsHandles(3),'XData',stats.centroid(1),'YData',stats.centroid(2));
             
             %set the textbox
-            [x,y] = findTextPosition(position,ROI.tbuff);
-            str = {['Mean: ' num2str(stats.mean,'%+.2f')], ['STD:     ' num2str(stats.STD,'%.2f')]};
+            [x,y] = findTextPosition(markerPosition,ROI.tbuff);
+            str = {['Mean: ' num2str(stats.mean,'%+.2f')], ...
+                   ['STD:     ' num2str(stats.STD,'%.2f')],...
+                   ['Area:     ' num2str(stats.area,'%i') 'px']};
             set(ROI.textHandle,'String',str,'Position',[x y]);
             
             
@@ -167,13 +216,14 @@ classdef imtool3DROI_poly < imtool3DROI
             stats.min = min(im);
             stats.max = max(im);
             stats.mask = mask;
+            stats.area = sum(mask(:));
             stats.position = position;
             stats.centroid = [x y];
             
         end
         
         function handlePropEvents(ROI,src,evnt)
-            position = getPosition(ROI);
+            position = getMarkerPosition(ROI);
             newPosition(ROI,position);
         end
         
@@ -239,30 +289,35 @@ WBUF_old = get(fig,'WindowButtonUpFcn');
 op = get(ROI.axesHandle,'CurrentPoint'); op=[op(1,1) op(1,2)];
 
 %get the original position of the ROI
-position_old = getPosition(ROI);
+position_old = getMarkerPosition(ROI);
 
 %get the type of click
 click = get(ROI.figureHandle,'SelectionType');
 
 %set the default ind
 ind=0;
-if n == 2   %User clicked on a vertice to move it (or delete it)
+if n == 2 || n == 4  %User clicked on a vertice to move it (or delete it)
     %find closest vertice to click
     dist = sqrt((position_old(:,1)-op(1)).^2 + (position_old(:,2)-op(2)).^2 );
     [~, ind] = min(dist);
     if ind == length(dist)
         ind = 1;
     end
+    if strcmp(click,'open') %user wants to convert to curve
+        ROI.curveindex(ind) = ~ROI.curveindex(ind);
+        newPosition(ROI,position_old)
+    end
     if strcmp(click,'extend') && size(position_old,1)>4 %user wants to delete the vertice
-        
         switch ind
             case 1
                 %remove first and last points
                 position = position_old(2:end-1,:);
+                ROI.curveindex = ROI.curveindex(2:end);
                 %close the new polygon
                 position(end+1,:) = position(1,:);
             otherwise
                 position = [position_old(1:ind-1,:) ; position_old(ind+1:end,:)];
+                ROI.curveindex = [ROI.curveindex(1:ind-1); ROI.curveindex(ind+1:end)];
         end
         %set the new position of the ROI
         newPosition(ROI,position);
@@ -274,7 +329,8 @@ if n == 2   %User clicked on a vertice to move it (or delete it)
 end
 
 
-if n ==1 && strcmp(click,'normal')    %The user clicked on a line and wants to add a vertice
+if (n ==1) && strcmp(click,'normal')    %The user clicked on a line and wants to add a vertice
+    
     %get the point on the line to insert the new point
     try
         np = evnt.IntersectionPoint(1:2);
@@ -287,6 +343,7 @@ if n ==1 && strcmp(click,'normal')    %The user clicked on a line and wants to a
     
     %insert the new point
     position = [position_old(1:ind,:); np ; position_old(ind+1:end,:)];
+    ROI.curveindex = [ROI.curveindex(1:ind); 0 ; ROI.curveindex(ind+1:end)];
     
     %set the new position of the ROI
     newPosition(ROI,position);
@@ -311,8 +368,8 @@ function ButtonMotionFunction(src,evnt,ROI,n,op,position_old,ind)
 cp = get(ROI.axesHandle,'CurrentPoint'); cp=[cp(1,1) cp(1,2)];
 
 switch n
-    case 2      %user clicked on a vertice. Will move just that vertice
-        position = getPosition(ROI);
+    case {2,4}      %user clicked on a vertice. Will move just that vertice
+        position = getMarkerPosition(ROI);
         position(ind,1) = cp(1);
         position(ind,2) = cp(2);
         if ind ==1
@@ -324,7 +381,7 @@ switch n
         position(:,1) = position_old(:,1)+d(1);
         position(:,2) = position_old(:,2)+d(2);
     otherwise %location remains unchanged (happens when a vertice is removed and the user keeps the button pressed while moving the mouse)
-        position = getPosition(ROI);
+        position = getMarkerPosition(ROI);
 end
 
 newPosition(ROI,position);
