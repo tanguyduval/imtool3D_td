@@ -246,6 +246,19 @@ classdef imtool3D < handle
             if isempty(I)
                 I=rand([100 100 3])*100-50;
             end
+            
+            if iscell(I)
+                I2 = nan(max(cell2mat(cellfun(@(x) size(x,1), I, 'uni', false))),...
+                    max(cell2mat(cellfun(@(x) size(x,2), I, 'uni', false))),...
+                    max(cell2mat(cellfun(@(x) size(x,3), I, 'uni', false))),...
+                    max(cell2mat(cellfun(@(x) size(x,4), I, 'uni', false))),...
+                    length(I));
+                for iii = 1:length(I)
+                    I2(1:size(I{iii},1),1:size(I{iii},2),1:size(I{iii},3),1:size(I{iii},4),iii)=I{iii};
+                end
+                I = I2;
+                clear I2;
+            end
             I = double(I);
             
             if islogical(I)
@@ -371,9 +384,8 @@ classdef imtool3D < handle
             tool.handles.Info=uicontrol(tool.handles.Panels.Info,'Style','text','String','(x,y) val','Units','Normalized','Position',[0 .1 .5 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Left');
             fun=@(src,evnt)getImageInfo(src,evnt,tool);
             set(tool.handles.fig,'WindowButtonMotionFcn',fun);
-            tool.handles.SliceText=uicontrol(tool.handles.Panels.Tools,'Style','text','String',['1/' num2str(size(I,3))],'Units','Normalized','Position',[.5 .1 .48 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Right');
-            
-            
+            tool.handles.SliceText=uicontrol(tool.handles.Panels.Info,'Style','text','String',['Vol: 1/' num2str(size(I,5)) '    Time: 1/' num2str(size(I,4)) '    Slice: 1/' num2str(size(I,3))],'Units','Normalized','Position',[.5 .1 .48 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Right');
+
             %Set up mouse button controls
             fun=@(hObject,eventdata) imageButtonDownFunction(hObject,eventdata,tool);
             set(tool.handles.mask,'ButtonDownFcn',fun)
@@ -692,6 +704,8 @@ classdef imtool3D < handle
         
         function setmaskSelected(tool,islct)
             tool.maskSelected = islct;
+            set(tool.handles.Tools.maskSelected(islct),'FontWeight','bold','FontSize',12,'ForegroundColor',[1 1 1]);
+            set(tool.handles.Tools.maskSelected(setdiff(1:5,islct)),'FontWeight','normal','FontSize',9,'ForegroundColor',[0 0 0]);
         end
         
         function setlockMask(tool)
@@ -1082,7 +1096,8 @@ classdef imtool3D < handle
             im = ind2rgb(tool.mask(:,:,n),tool.maskColor);
             set(tool.handles.mask,'CData',im);
             set(tool.handles.mask,'AlphaData',tool.alpha*logical(tool.mask(:,:,n)))
-            set(tool.handles.SliceText,'String',[num2str(n) '/' num2str(size(tool.I,3))])
+            set(tool.handles.SliceText,'String',['Vol: ' num2str(tool.Nvol) '/' num2str(size(tool.I,5)) '    Time: ' num2str(tool.Ntime) '/' num2str(size(tool.I,4)) '    Slice: ' num2str(n) '/' num2str(size(tool.I,3))])
+
             if get(tool.handles.Tools.Hist,'value')
                 im=tool.I(:,:,n,tool.Ntime,tool.Nvol);
                 nelements=hist(im(im>min(im(:)) & im<max(im(:))),tool.centers); nelements=nelements./max(nelements);
@@ -1180,9 +1195,9 @@ classdef imtool3D < handle
                     W=NewRange(2)-NewRange(1); L=mean(NewRange);
                     tool.setWL(W,L);
                     % apply xlim to histogram
-                    im = tool.getImage; im=im(:);
-                    tool.centers = linspace(min(im),max(im),256);
-                    set(tool.handles.HistAxes,'Xlim',[min(im),max(im)])
+                    range = tool.range{tool.Nvol};
+                    tool.centers = linspace(range(1),range(2),256);
+                    set(tool.handles.HistAxes,'Xlim',range)
                     
                     showSlice(tool);
                 case 'downarrow'
@@ -1195,9 +1210,10 @@ classdef imtool3D < handle
                     W=NewRange(2)-NewRange(1); L=mean(NewRange);
                     tool.setWL(W,L);
                     % apply xlim to histogram
-                    im = tool.getImage; im=im(:);
-                    tool.centers = linspace(min(im),max(im),256);
-                    set(tool.handles.HistAxes,'Xlim',[min(im),max(im)])
+                    range = tool.range{tool.Nvol};
+                    tool.centers = linspace(range(1),range(2),256);
+                    set(tool.handles.HistAxes,'Xlim',range)
+                    
                     showSlice(tool);
                 case '1'
                     togglebutton(tool.handles.Tools.maskSelected(1))
@@ -1754,7 +1770,7 @@ switch get(h.Tools.SaveOptions,'value')
       else
           I = tool.getImage;
             for i=1:size(I,3)
-                imwrite(gray2ind(mat2gray(I(:,:,i,tool.getNtime,tool.getNvol),lims),256),cmap, [PathName FileName], 'WriteMode', 'append',  'Compression','none');
+                imwrite(gray2ind(mat2gray(I(:,:,i),lims),256),cmap, [PathName FileName], 'WriteMode', 'append',  'Compression','none');
             end
         end
 end
