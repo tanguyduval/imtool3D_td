@@ -97,7 +97,7 @@ classdef imtool3DROI_poly < imtool3DROI
             %Set the position property of the ROI
             ROI.position       = position;
             ROI.markerPosition = position;
-            ROI.curveindex     = false(size(position,1),1);
+            ROI.curveindex     = false(size(position,1)-1,1);
             
             %Set the button down functions of the graphics
             for i=1:length(graphicsHandles)
@@ -128,34 +128,35 @@ classdef imtool3DROI_poly < imtool3DROI
             
             %get the graphics handles
             graphicsHandles = ROI.graphicsHandles;
-            
-            %get curveindex
-            ind = find(ROI.curveindex);
-                        
+                                    
             %compute spline
-            if any(ind)
-                % divide into continuous index
-                if length(ind)==1
-                    ind = {ind};
+            markerPos = markerPosition(1:end-1,:)';
+            Npts = size(markerPos,2);
+            if any(ROI.curveindex) && ~all(ROI.curveindex)
+                % circshift index to put a non-curved marker at the beginning
+                indnotcurv = find(~ROI.curveindex);
+                Ncirc = -(indnotcurv(1)-1);
+                markerPos = circshift(markerPos,Ncirc,2);
+                ROI.markerPosition = markerPos(:,[1:end 1])';
+                ROI.curveindex = circshift(ROI.curveindex,Ncirc);
+                
+                indcurv = find(ROI.curveindex);
+                % divide into piecewise index
+                if length(indcurv)==1
+                    indcurv = {indcurv};
                 else
-                    cutindex = find(diff(ind)>1);
-                    D = diff([0 cutindex length(ind)]);
-                    ind = mat2cell(ind(:),D,1);
+                    cutindex = find(diff(indcurv)>1);
+                    D = diff([0 cutindex(:)' length(indcurv)]);
+                    indcurv = mat2cell(indcurv(:),D,1);
                 end
-                markerPos = markerPosition(1:end-1,:)';
                 positiontmp = [];
-                for iblock = 1:length(ind)
-                    indi = ind{iblock};
-                    Npts = size(markerPos,2);
-                    start = 1+mod(min(indi)-1-1,Npts); % 1+mod(index-1,end): circular indexing
-                    stop  = 1+mod(max(indi)+1-1,Npts);
-                    if start>stop, index = [start:Npts 1:stop];
-                    else, index = start:stop;
-                    end
+                for iblock = 1:length(indcurv)
+                    indi = indcurv{iblock};
+                    index = [min(indi)-1; indi; 1+mod(max(indi)+1-1,Npts)];
                     pp = spline(linspace(0,1,length(indi)+2),markerPos(:,index));
-                    yy = ppval(pp, linspace(0,1,50));
+                    yy = ppval(pp, unique([linspace(0,1,50) linspace(0,1,length(indi)+2)]));
                     if iblock>1
-                        start = max(ind{iblock-1})+1;
+                        start = max(indcurv{iblock-1})+1;
                     else, start = 1;
                     end
                     positiontmp = cat(2,positiontmp,markerPos(:,start:min(indi)-1),yy(:,2:end-1));
@@ -163,6 +164,10 @@ classdef imtool3DROI_poly < imtool3DROI
                 positiontmp = cat(2,positiontmp,markerPos(:,max(indi)+1:end));
                 ROI.position = positiontmp(:,[1:end 1])';
 
+            elseif all(ROI.curveindex)
+                xx = linspace(0,1,3*Npts);
+                pp = spline(xx,cat(2,markerPos,markerPos,markerPos));
+                ROI.position = ppval(pp, unique([linspace(xx(Npts+1),xx(2*Npts+1),100) xx(Npts+1:2*Npts+1)]))';
             else
                 ROI.position = markerPosition;
             end
@@ -170,8 +175,9 @@ classdef imtool3DROI_poly < imtool3DROI
             %set the new position of the polygon and other graphics
             %objects
             set(graphicsHandles(1),'XData',ROI.position(:,1),'YData',ROI.position(:,2));
-            set(graphicsHandles(2),'XData',markerPosition(~ROI.curveindex,1),'YData',markerPosition(~ROI.curveindex,2));
-            set(graphicsHandles(4),'XData',markerPosition(ROI.curveindex,1),'YData',markerPosition(ROI.curveindex,2));
+            curveindexext = [logical(ROI.curveindex); logical(ROI.curveindex(1))];
+            set(graphicsHandles(2),'XData',ROI.markerPosition(~curveindexext,1),'YData',ROI.markerPosition(~curveindexext,2));
+            set(graphicsHandles(4),'XData',ROI.markerPosition(curveindexext,1),'YData',ROI.markerPosition(curveindexext,2));
             %get the ROI measurements
             stats = getMeasurements(ROI);
             
@@ -304,7 +310,8 @@ if n == 2 || n == 4  %User clicked on a vertice to move it (or delete it)
         ind = 1;
     end
     if strcmp(click,'open') %user wants to convert to curve
-        ROI.curveindex(ind) = ~ROI.curveindex(ind);
+        Npts = size(position_old,1);
+        ROI.curveindex(setdiff(ind,Npts)) = ~ROI.curveindex(setdiff(ind,Npts));
         newPosition(ROI,position_old)
     end
     if strcmp(click,'extend') && size(position_old,1)>4 %user wants to delete the vertice
@@ -339,11 +346,14 @@ if (n ==1) && strcmp(click,'normal')    %The user clicked on a line and wants to
     end
     
     %get the index of the intersecting line segment
-    ind = findLineSegment(position_old,np); %points will be ind to ind+1
+    ind = findLineSegment(ROI.getPosition,np); %points will be ind to ind+1
+    [~,ia,ib] = intersect(round(ROI.getPosition*10),round(position_old*10),'rows');
+    c = ind-ia; c(c<0)=inf; [~,ibm] = min(c); ind = ib(ibm);
     
     %insert the new point
     position = [position_old(1:ind,:); np ; position_old(ind+1:end,:)];
-    ROI.curveindex = [ROI.curveindex(1:ind); 0 ; ROI.curveindex(ind+1:end)];
+    markertype = ROI.curveindex(1+mod(ind-1,length(ROI.curveindex))) | ROI.curveindex(1+mod(ind-1+1,length(ROI.curveindex)));
+    ROI.curveindex = [ROI.curveindex(1:ind); markertype ; ROI.curveindex(ind+1:end)];
     
     %set the new position of the ROI
     newPosition(ROI,position);
