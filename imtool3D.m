@@ -508,7 +508,7 @@ classdef imtool3D < handle
             icon_save = makeToolbarIconFromPNG([MATLABdir '/file_save.png']);
             set(tool.handles.Tools.Save,'CData',icon_save);
             lp=lp+w;
-            tool.handles.Tools.SaveOptions    =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'as slice','as stack'},'Position',[lp buff 5*w w]);
+            tool.handles.Tools.SaveOptions    =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'as slice','as stack', 'Mask as nifti'},'Position',[lp buff 5*w w]);
             fun=@(hObject,evnt) saveImage(hObject,evnt,tool);
             set(tool.handles.Tools.Save,'Callback',fun)
             set(tool.handles.Tools.Save,'TooltipString','Save image as slice or tiff stack')
@@ -1259,7 +1259,7 @@ if any(mask(:))
         labelilab = labels==ilab;
         if sum(labelilab(:))>15
             P = bwboundaries(labelilab); P = P{1}; P = P(:,[2 1]);
-            if size(P,1)>16, P = reduce_poly(P(2:end,:)',max(16,round(size(P,1)/5))); end
+            if size(P,1)>16, P = reduce_poly(P(2:end,:)',max(16,round(size(P,1)/10))); end
             if ~isempty(P)
                 imtool3DROI_poly(h.I,P',tool);
             end
@@ -1749,10 +1749,11 @@ function icon = makeToolbarIconFromPNG(filename)
 end
 
 function saveImage(hObject,evnt,tool)
-cmap = colormap;
-  h = tool.getHandles;
-switch get(h.Tools.SaveOptions,'value')
-    case 1 %Save just the current slice
+h = tool.getHandles;
+cmap = get(h.Axes,'Colormap');
+S = get(h.Tools.SaveOptions,'String');
+switch S{get(h.Tools.SaveOptions,'value')}
+    case 'as slice' %Save just the current slice
         I=get(h.I,'CData'); lims=get(h.Axes,'CLim');
         I=gray2ind(mat2gray(I,lims),256);
         [FileName,PathName] = uiputfile({'*.png';'*.tif';'*.jpg';'*.bmp';'*.gif';'*.hdf'; ...
@@ -1763,7 +1764,7 @@ switch get(h.Tools.SaveOptions,'value')
         else
             imwrite(I,cmap,[PathName FileName])
         end
-    case 2
+    case 'as stack'
         lims=get(h.Axes,'CLim');
         [FileName,PathName] = uiputfile({'*.tif'},'Save Image Stack');
         if FileName == 0
@@ -1771,6 +1772,25 @@ switch get(h.Tools.SaveOptions,'value')
           I = tool.getImage;
             for i=1:size(I,3)
                 imwrite(gray2ind(mat2gray(I(:,:,i),lims),256),cmap, [PathName FileName], 'WriteMode', 'append',  'Compression','none');
+            end
+        end
+    case 'Mask as nifti'
+        err=1;
+        while(err)
+            answer = inputdlg2({'save as:','browse reference scan'},'save mask',[1 50]);
+            if isempty(answer), err=0; break; end
+            if ~isempty(answer{1})
+                if ~isempty(answer{2})
+                    try
+                        save_nii_v2(tool.getMask(1),answer{1},answer{2},8);
+                        err=0;
+                    catch bug
+                        uiwait(warndlg(bug.message,'wrong reference','modal'))
+                    end
+                else
+                    save_nii_v2(make_nii(tool.getMask(1)),answer{1},[],8);
+                    err=0;
+                end
             end
         end
 end
