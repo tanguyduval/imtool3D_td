@@ -1168,7 +1168,6 @@ classdef imtool3D < handle
         end
         
         function shortcutCallback(tool,hobject,evnt)
-            disp(evnt)
             switch evnt.Key
                 case 'space'
                     togglebutton(tool.handles.Tools.Mask)
