@@ -346,8 +346,10 @@ if (n ==1) && strcmp(click,'normal')    %The user clicked on a line and wants to
     end
     
     %get the index of the intersecting line segment
-    ind = findLineSegment(ROI.getPosition,np); %points will be ind to ind+1
-    [~,ia,ib] = intersect(round(ROI.getPosition*10),round(position_old*10),'rows');
+    pos  = unique(round(ROI.getPosition*10),'stable','rows')/10;
+    pos(end+1,:)=pos(1,:);
+    ind = findLineSegment(pos,np); %points will be ind to ind+1
+    [~,ia,ib] = intersect(round(pos*10),round(position_old*10),'rows');
     c = ind-ia; c(c<0)=inf; [~,ibm] = min(c); ind = ib(ibm);
     
     %insert the new point
