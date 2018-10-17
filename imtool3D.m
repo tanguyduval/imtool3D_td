@@ -1168,6 +1168,7 @@ classdef imtool3D < handle
         end
         
         function shortcutCallback(tool,hobject,evnt)
+            disp(evnt)
             switch evnt.Key
                 case 'space'
                     togglebutton(tool.handles.Tools.Mask)
@@ -1215,16 +1216,19 @@ classdef imtool3D < handle
                     set(tool.handles.HistAxes,'Xlim',range)
                     
                     showSlice(tool);
-                case '1'
-                    togglebutton(tool.handles.Tools.maskSelected(1))
-                case '2'
-                    togglebutton(tool.handles.Tools.maskSelected(2))
-                case '3'
-                    togglebutton(tool.handles.Tools.maskSelected(3))
-                case '4'
-                    togglebutton(tool.handles.Tools.maskSelected(4))
-                case '5'
-                    togglebutton(tool.handles.Tools.maskSelected(5))
+                 otherwise
+                    switch evnt.Character
+                        case '1'
+                            togglebutton(tool.handles.Tools.maskSelected(1))
+                        case '2'
+                            togglebutton(tool.handles.Tools.maskSelected(2))
+                        case '3'
+                            togglebutton(tool.handles.Tools.maskSelected(3))
+                        case '4'
+                            togglebutton(tool.handles.Tools.maskSelected(4))
+                        case '5'
+                            togglebutton(tool.handles.Tools.maskSelected(5))
+                    end
             end
       %      disp(evnt.Key)
         end
