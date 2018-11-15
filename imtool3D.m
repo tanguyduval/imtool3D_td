@@ -215,7 +215,7 @@ classdef imtool3D < handle
     methods
         
         function tool = imtool3D(varargin)  %Constructor
-            
+            addpath(genpath(fullfile(fileparts(mfilename('fullpath')),'External')))
             %Check the inputs and set things appropriately
             switch nargin
                 case 0  %tool = imtool3d()
