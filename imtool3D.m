@@ -366,6 +366,7 @@ classdef imtool3D < handle
             
             %Create image axis
             tool.handles.Axes           =   axes('Position',[0 0 1 1],'Parent',tool.handles.Panels.Image,'Color','none');
+            view(-90,90);
             tool.handles.I              =   imshow(I(:,:,round(end/2),tool.getNtime,tool.getNvol),range,'Parent',tool.handles.Axes); hold on; set(tool.handles.I,'Clipping','off')
             set(tool.handles.Axes,'XLimMode','manual','YLimMode','manual','Clipping','off');
             
@@ -1629,7 +1630,15 @@ end
 
 function adjustPanMouse(src,evnt,bp,hObject,xlims,ylims,scale)
 cp = get(0,'PointerLocation');
-d=scale*(bp-cp);
+V = get(hObject,'View');
+d = scale*(bp-cp);
+if V(1)==-90
+    d(1) = -d(1);
+    d = d([2 1]);
+elseif V(1)==90
+    d(2) = -d(2);
+    d = d([2 1]);
+end
 set(hObject,'Xlim',xlims+d(1),'Ylim',ylims-d(2))
 end
 

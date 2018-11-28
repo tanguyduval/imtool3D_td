@@ -257,8 +257,13 @@ end
 
 function [x,y] = findTextPosition(position,tbuff)
 %This finds the postion of the text box given the polygon vertices
-
-x = min(position(:,1)); y = min(position(:,2))-tbuff;
+V = get(gca,'View');
+if V(1)==-90
+    x = max(position(:,1))+tbuff; 
+else
+    x = min(position(:,1)); 
+end
+y = min(position(:,2))-tbuff;
 
 
 end
