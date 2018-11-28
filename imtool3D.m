@@ -609,7 +609,7 @@ classdef imtool3D < handle
             
             % mask selection
             for islct=1:5
-                tool.handles.Tools.maskSelected(islct)        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','String',num2str(islct),'Position',[buff pos(4)-w-buff-islct*w w w]);
+                tool.handles.Tools.maskSelected(islct)        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','String',num2str(islct),'Position',[buff pos(4)-w-buff-islct*w w w],'Tag','MaskSelected');
                 set(tool.handles.Tools.maskSelected(islct) ,'Cdata',repmat(permute(tool.maskColor(islct+1,:)*tool.alpha+(1-tool.alpha)*[.4 .4 .4],[3 1 2]),w,w))
                 set(tool.handles.Tools.maskSelected(islct) ,'Callback',@(hObject,evnt) setmaskSelected(tool,islct))
             end
@@ -710,6 +710,40 @@ classdef imtool3D < handle
             tool.maskSelected = islct;
             set(tool.handles.Tools.maskSelected(islct),'FontWeight','bold','FontSize',12,'ForegroundColor',[1 1 1]);
             set(tool.handles.Tools.maskSelected(setdiff(1:5,islct)),'FontWeight','normal','FontSize',9,'ForegroundColor',[0 0 0]);
+        end
+        
+        function setmaskstatistics(tool,current_object)
+            persistent counter
+                
+            % if Mouse over Mask Selection button
+            if strcmp(get(current_object,'Tag'),'MaskSelected')
+                % Prevent too many calls: Limit to 1 call a second
+                if isempty(counter)
+                    counter = tic;
+                else
+                    t = toc(counter);
+                    if t<1
+                        return;
+                    else
+                        counter = tic;
+                    end
+                end
+
+                % Get statistics
+                I = tool.getImage;
+                for ii=1:length(tool.handles.Tools.maskSelected)
+                    mask_ii = tool.mask==ii;
+                    I_ii = I(mask_ii);
+                    mean_ii = mean(I_ii);
+                    std_ii  = std(I_ii);
+                    area_ii = sum(mask_ii(:));
+                    str = [sprintf('%-12s%.2f\n','Mean:',mean_ii), ...
+                        sprintf('%-12s%.2f\n','STD:',std_ii),...
+                        sprintf('%-12s%i','Area:',area_ii) 'px'];
+                    
+                    set(tool.handles.Tools.maskSelected(ii),'TooltipString',str)
+                end
+            end
         end
         
         function setlockMask(tool)
@@ -1656,7 +1690,11 @@ set(src,'WindowButtonMotionFcn',WBMF_old,'WindowButtonUpFcn',WBUF_old);
 end
 
 function getImageInfo(src,evnt,tool)
-  h = tool.getHandles;
+% if Mouse over Mask Selection button
+current_object = hittest;
+setmaskstatistics(tool,current_object)
+
+h = tool.getHandles;
 pos=round(get(h.Axes,'CurrentPoint'));
 pos=pos(1,1:2);
 Xlim=get(h.Axes,'Xlim');
