@@ -217,6 +217,7 @@ classdef imtool3D < handle
         
         function tool = imtool3D(varargin)  %Constructor
             addpath(genpath(fullfile(fileparts(mfilename('fullpath')),'External')))
+            addpath(genpath(fullfile(fileparts(mfilename('fullpath')),'src')))
             %Check the inputs and set things appropriately
             switch nargin
                 case 0  %tool = imtool3d()
@@ -551,21 +552,21 @@ classdef imtool3D < handle
 
             %Create smooth3 button
             tool.handles.Tools.smooth3             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+5*w w w],'TooltipString','Smooth Mask in 3D');
-            icon_profile = makeToolbarIconFromPNG([fileparts(mfilename('fullpath')) '/icon_smooth3.png']);
+            icon_profile = makeToolbarIconFromPNG(fullfile(fileparts(mfilename('fullpath')),'src','icon_smooth3.png'));
             set(tool.handles.Tools.smooth3 ,'Cdata',icon_profile)
             fun=@(hObject,evnt) smooth3Callback(hObject,evnt,tool);
             set(tool.handles.Tools.smooth3 ,'Callback',fun)
 
             %Create maskinterp button
             tool.handles.Tools.maskinterp             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+6*w w w],'TooltipString','Interp Mask');
-            icon_profile = makeToolbarIconFromPNG([fileparts(mfilename('fullpath')) filesep 'icon_interpmask.png']);
+            icon_profile = makeToolbarIconFromPNG(fullfile(fileparts(mfilename('fullpath')),'src','icon_interpmask.png'));
             set(tool.handles.Tools.maskinterp ,'Cdata',icon_profile)
             fun=@(hObject,evnt) maskinterpImageCallback(hObject,evnt,tool);
             set(tool.handles.Tools.maskinterp ,'Callback',fun)
 
             %Create active countour button
             tool.handles.Tools.maskactivecontour             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+7*w w w],'TooltipString','Active Contour 3D');
-            icon_profile = makeToolbarIconFromPNG([fileparts(mfilename('fullpath')) '/icon_activecontour.png']);
+            icon_profile = makeToolbarIconFromPNG(fullfile(fileparts(mfilename('fullpath')),'src','icon_activecontour.png'));
             set(tool.handles.Tools.maskactivecontour ,'Cdata',icon_profile)
             fun=@(hObject,evnt) ActiveCountourCallback(hObject,evnt,tool);
             set(tool.handles.Tools.maskactivecontour ,'Callback',fun)
@@ -582,7 +583,7 @@ classdef imtool3D < handle
             
             %Smart Paint brush tool button
             tool.handles.Tools.SmartBrush        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','String','','Position',[buff buff+9*w w w],'TooltipString','Smart Brush Tool');
-            icon_profile = makeToolbarIconFromPNG([fileparts(mfilename('fullpath')) '/tool_data_brush_smart.png']);
+            icon_profile = makeToolbarIconFromPNG(fullfile(fileparts(mfilename('fullpath')),'src','tool_data_brush_smart.png'));
             set(tool.handles.Tools.SmartBrush ,'Cdata',icon_profile)
             fun=@(hObject,evnt) PaintBrushCallback(hObject,evnt,tool,'Smart');
             set(tool.handles.Tools.SmartBrush ,'Callback',fun)
@@ -615,7 +616,7 @@ classdef imtool3D < handle
             end
             
             tool.handles.Tools.maskLock        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','Position',[buff pos(4)-w-buff-(islct+1)*w w w], 'Value', 1, 'TooltipString', 'Lock all colors except selected one');
-            icon_profile = makeToolbarIconFromPNG([fileparts(mfilename('fullpath')) '/icon_lock.png']);
+            icon_profile = makeToolbarIconFromPNG(fullfile(fileparts(mfilename('fullpath')),'src','icon_lock.png'));
             set(tool.handles.Tools.maskLock ,'Cdata',icon_profile)
             set(tool.handles.Tools.maskLock ,'Callback',@(hObject,evnt) setlockMask(tool))
 
