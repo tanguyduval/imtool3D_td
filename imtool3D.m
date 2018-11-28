@@ -208,6 +208,7 @@ classdef imtool3D < handle
     events
         newImage
         maskChanged
+        maskUndone
         newMousePos
         newSlice
     end
@@ -569,6 +570,7 @@ classdef imtool3D < handle
             fun=@(hObject,evnt) ActiveCountourCallback(hObject,evnt,tool);
             set(tool.handles.Tools.maskactivecontour ,'Callback',fun)
             addlistener(tool,'maskChanged',@tool.maskEvents);
+            addlistener(tool,'maskUndone',@tool.maskEvents);
 
             %Paint brush tool button
             tool.handles.Tools.PaintBrush        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','String','','Position',[buff buff+8*w w w],'TooltipString','Paint Brush Tool');
@@ -701,6 +703,7 @@ classdef imtool3D < handle
             if isempty(tool.maskHistory{end-1})
                 set(tool.handles.Tools.undoMask, 'Enable', 'off')
             end
+            notify(tool,'maskUndone')
         end
         
         function setmaskSelected(tool,islct)
@@ -1136,8 +1139,9 @@ classdef imtool3D < handle
             end
         end
              
-        function maskEvents(tool,src,evnt)
-            [~,~,z] = find3d(tool.getMask);
+        function maskEvents(tool,src,evnt)            
+            % Enable/Disable buttons
+            [~,~,z] = find3d(tool.mask);
             z = unique(z);
             if length(z)>1 && length(z)<(max(z)-min(z)+1)% if more than mask on more than 2 slices and holes
                 set(tool.handles.Tools.maskinterp,'Enable','on')
@@ -1156,7 +1160,9 @@ classdef imtool3D < handle
             else
                 set(tool.handles.Tools.maskactivecontour,'Enable','off')
             end
-            tool.setmaskHistory(tool.getMask(true));
+            if ~exist('evnt','var') || strcmp(evnt.EventName,'maskChanged')
+                tool.setmaskHistory(tool.getMask(true));
+            end
         end
         
         function SliceEvents(tool,src,evnt)
