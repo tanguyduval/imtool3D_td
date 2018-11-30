@@ -221,7 +221,7 @@ classdef imtool3D < handle
             %Check the inputs and set things appropriately
             switch nargin
                 case 0  %tool = imtool3d()
-                    I=rand([100 100 3])*100-50;
+                    I=rand([256 256 3 20 3]).*repmat(phantom,[1 1 3 20 3])*100-50;
                     position=[0 0 1 1]; h=[];
                     range=[-50 50]; tools=[]; mask=[];
                 case 1  %tool = imtool3d(I)
@@ -246,7 +246,7 @@ classdef imtool3D < handle
             
             
             if isempty(I)
-                I=rand([100 100 3])*100-50;
+                I=rand([100 100 3 20 3])*100-50;
             end
             
             if iscell(I)
@@ -404,7 +404,7 @@ classdef imtool3D < handle
             tool.handles.HistAxes           =   axes('Position',[.025 .15 .95 .55],'Parent',tool.handles.Panels.Hist);
             im=I(:,:,:,tool.getNtime,tool.getNvol); im = im(im>min(im(:)) & im<max(im(:)));
             centers=linspace(range(1)-diff(range)*0.05,range(2)+diff(range)*0.05,256); 
-            nelements=hist(im,centers); nelements=nelements./max(nelements);
+            nelements=hist(im(im~=min(im(:)) & im~=max(im(:))),centers); nelements=nelements./max(nelements);
             tool.handles.HistLine=plot(centers,nelements,'-w','LineWidth',1);
             set(tool.handles.HistAxes,'Color','none','XColor','w','YColor','w','FontSize',9,'YTick',[])
             axis on
@@ -793,7 +793,7 @@ classdef imtool3D < handle
         function setImage(varargin)
             switch nargin
                 case 1
-                    tool=varargin{1}; I=rand([100 100 3])*100-50;
+                    tool=varargin{1}; I=rand([256 256 3 20 3]).*repmat(phantom,[1 1 3 20 3])*100-50;
                     range=[-50 50]; mask=false(size(I));
                 case 2
                     tool=varargin{1}; I=varargin{2};
@@ -807,7 +807,7 @@ classdef imtool3D < handle
             end
             
             if isempty(I)
-                I=rand([100 100 3])*100-50;
+                I=rand([100 100 3 20 3])*100-50;
             end
             I = double(I);
             
@@ -1139,7 +1139,8 @@ classdef imtool3D < handle
 
             if get(tool.handles.Tools.Hist,'value')
                 im=tool.I(:,:,n,tool.Ntime,tool.Nvol);
-                nelements=hist(im(im>min(im(:)) & im<max(im(:))),tool.centers); nelements=nelements./max(nelements);
+                err = (max(im(:)) - min(im(:)))*1e-10;
+                nelements=hist(im(im>(min(im(:))+err) & im<max(im(:)-err)),tool.centers); nelements=nelements./max(nelements);
                 set(tool.handles.HistLine,'YData',nelements);
                 set(tool.handles.HistLine,'XData',tool.centers);
             end
