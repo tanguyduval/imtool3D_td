@@ -881,7 +881,7 @@ classdef imtool3D < handle
             end
             
             tool.I=I;
-            tool.mask=mask;
+            tool.mask=uint8(mask);
             
             
             %Update the histogram
