@@ -380,6 +380,8 @@ classdef imtool3D < handle
             %Create image axis
             tool.handles.Axes           =   axes('Position',[0 0 1 1],'Parent',tool.handles.Panels.Image,'Color','none');
             tool.handles.I              =   imshow(I(:,:,round(end/2),tool.getNtime,tool.getNvol),range,'Parent',tool.handles.Axes); hold on; set(tool.handles.I,'Clipping','off')
+            set(tool.handles.I,'XData',[1 max(2,size(I,2))])
+            set(tool.handles.I,'YData',[1 max(2,size(I,1))])
             view(tool.handles.Axes,-90,90);
             set(tool.handles.Axes,'XLimMode','manual','YLimMode','manual','Clipping','off');
             
@@ -909,8 +911,8 @@ classdef imtool3D < handle
             %set(tool.handles.I,'CData',im)
             xlim(tool.handles.Axes,[0 size(I,2)])
             ylim(tool.handles.Axes,[0 size(I,1)])
-            set(tool.handles.I,'XData',[1 size(I,2)]);
-            set(tool.handles.I,'YData',[1 size(I,1)]);
+            set(tool.handles.I,'XData',[1 max(2,size(I,2))]);
+            set(tool.handles.I,'YData',[1 max(2,size(I,1))]);
             
             %update the mask cdata (in case it has changed size)
             C=zeros(size(I,1),size(I,2),3);
@@ -1775,7 +1777,7 @@ end
 setWL(tool,W,L)
 end
 
-function adjustZoomMouse(src,evnt,bp,hObject,tool,xlims,ylims,bpA)
+function adjustZoomMouse(src,~,bp,hObject,tool,xlims,ylims,bpA)
 
 %get the zoom factor
 cp = get(0,'PointerLocation');

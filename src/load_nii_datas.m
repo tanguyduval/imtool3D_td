@@ -1,4 +1,4 @@
-function [dat,hdr] = imtool3D_load_nii(filename,viewplane)
+function [dat,hdr] = load_nii_datas(filename,untouch)
 A = which('load_untouch_nii');
 if isempty(A)
     warning('Dependency to Jimmy Shen NIFTI tools is missing. https://fr.mathworks.com/matlabcentral/fileexchange/8797-tools-for-nifti-and-analyze-image');
@@ -17,26 +17,19 @@ if isempty(list)
 end
 dat = {};
 for iii=1:length(list)
-    if nargin>1 && ~isempty(viewplane)
-        [dat{iii}, hdriii] = load_nii_data(list{iii});
+    if nargin==1 || (~isempty(untouch) && ~untouch)
+        [nii, hdriii] = load_nii_data(list{iii});
         if iii==1
             hdr = hdriii.hdr;
         end
     else
         nii = load_untouch_nii(list{iii});
-        dat(end+1:end+size(nii.img,5)) = mat2cell(nii.img,size(nii.img,1),size(nii.img,2),size(nii.img,3),size(nii.img,4),ones(1,size(nii.img,5)));
         if iii==1
             hdr = nii.hdr;
         end
+        nii = nii.img;
     end
-end
-
-if nargin<2 || isempty(viewplane), viewplane = 'axial'; end
-switch viewplane
-    case 'sagittal'
-        dat = cellfun(@(x) permute(x,[2 3 1 4 5]),dat,'UniformOutput',false);
-    case 'coronal'
-        dat = cellfun(@(x) permute(x,[1 3 2 4 5]),dat,'UniformOutput',false);
+    dat(end+1:end+size(nii,5)) = mat2cell(nii,size(nii,1),size(nii,2),size(nii,3),size(nii,4),ones(1,size(nii,5)));
 end
 
 function [list, path]=tools_ls(fname, keeppath, keepext, folders,arborescence,select)
