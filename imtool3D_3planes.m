@@ -25,6 +25,8 @@ end
 h = tool(1).getHandles.fig;
 set(h,'WindowScrollWheelFcn',@(src, evnt) scrollWheel(src, evnt, tool) )
 set(h,'Windowkeypressfcn', @(hobject, event) shortcutCallback(hobject, event,tool))
+
+% Make 3 times larger
 set(h,'Units','Pixels');
 pos = get(tool(1).getHandles.fig,'Position');
 pos(3)=3*pos(3);
