@@ -218,86 +218,11 @@ classdef imtool3D < handle
         function tool = imtool3D(varargin)  %Constructor
             addpath(genpath(fullfile(fileparts(mfilename('fullpath')),'External')))
             addpath(genpath(fullfile(fileparts(mfilename('fullpath')),'src')))
-            %Check the inputs and set things appropriately
-            switch nargin
-                case 0  %tool = imtool3d()
-                    I=rand([256 256 3 20 3]).*repmat(phantom,[1 1 3 20 3])*100-50;
-                    position=[0 0 1 1]; h=[];
-                    range=[-50 50]; tools=[]; mask=[];
-                case 1  %tool = imtool3d(I)
-                    I=varargin{1}; position=[0 0 1 1]; h=[];
-                    range=[]; tools=[]; mask=[];
-                case 2  %tool = imtool3d(I,position)
-                    I=varargin{1}; position=varargin{2}; h=[];
-                    range=[]; tools=[]; mask=[];
-                case 3  %tool = imtool3d(I,position,h)
-                    I=varargin{1}; position=varargin{2}; h=varargin{3};
-                    range=[]; tools=[]; mask=[];
-                case 4  %tool = imtool3d(I,position,h,range)
-                    I=varargin{1}; position=varargin{2}; h=varargin{3};
-                    range=varargin{4}; tools=[]; mask=[];
-                case 5  %tool = imtool3d(I,position,h,range,tools)
-                    I=varargin{1}; position=varargin{2}; h=varargin{3};
-                    range=varargin{4}; tools=varargin{5}; mask=[];
-                case 6  %tool = imtool3d(I,position,h,range,tools,mask)
-                    I=varargin{1}; position=varargin{2}; h=varargin{3};
-                    range=varargin{4}; tools=varargin{5}; mask=varargin{6};
-                case 7  %tool = imtool3d(I,position,h,range,tools,mask)
-                    I=varargin{1}; position=varargin{2}; h=varargin{3};
-                    range=varargin{4}; tools=varargin{5}; mask=varargin{6};
-                    nohist = varargin{7};
-            end
             
+            % Parse Inputs
+            [I, position, h, range, tools, mask, enableHist] = parseinputs(varargin{:});
             
-            if isempty(I)
-                I=rand([100 100 3 20 3])*100-50;
-            end
-            
-            if iscell(I)
-                I2 = nan(max(cell2mat(cellfun(@(x) size(x,1), I, 'uni', false))),...
-                    max(cell2mat(cellfun(@(x) size(x,2), I, 'uni', false))),...
-                    max(cell2mat(cellfun(@(x) size(x,3), I, 'uni', false))),...
-                    max(cell2mat(cellfun(@(x) size(x,4), I, 'uni', false))),...
-                    length(I));
-                for iii = 1:length(I)
-                    I2(1:size(I{iii},1),1:size(I{iii},2),1:size(I{iii},3),1:size(I{iii},4),iii)=I{iii};
-                end
-                I = I2;
-                clear I2;
-            end
-            I = double(I);
-            
-            if islogical(I)
-                I=double(I);
-                range = [0 1];
-            end
-
-
-            if iscell(range)
-                tool.range = range;
-                range = range{1};
-            else
-                for ivol = 1:size(I,5)
-                    Ivol = I(:,:,:,:,ivol);
-                    tool.range{ivol}=range_outlier(Ivol(:),5);
-                end
-            end
-            tool.Climits = tool.range;
-            
-            if ~isempty(range)
-                tool.Climits{1} = range;
-            end
-            range = tool.Climits{1};
-            
-            if isempty(mask)
-                mask=false([size(I,1) size(I,2) size(I,3)]);
-            end
-            
-            
-            if isempty(position)
-                position=[0 0 1 1];
-            end
-            
+            % display figure
             if isempty(h)
                 h=figure;
                 set(h,'Toolbar','none','Menubar','none','NextPlot','new')
@@ -332,8 +257,6 @@ classdef imtool3D < handle
             end
             
             %--------------------------------------------------------------
-            tool.I      = I;
-            tool.mask   =uint8(mask);
             tool.lockMask = true;
             tool.handles.fig=fig;
             tool.handles.parent = h;
@@ -373,16 +296,14 @@ classdef imtool3D < handle
             
             %Create Slider for scrolling through image stack
             tool.handles.Slider         =   uicontrol(tool.handles.Panels.Slider,'Style','Slider','Units','Normalized','Position',[0 0 1 1],'TooltipString','Change Slice (can use scroll wheel also)');
-            setupSlider(tool)
             fun=@(scr,evnt)multipleScrollWheel(scr,evnt,[tool tools]);
             set(tool.handles.fig,'WindowScrollWheelFcn',fun);
            
             
             %Create image axis
             tool.handles.Axes           =   axes('Position',[0 0 1 1],'Parent',tool.handles.Panels.Image,'Color','none');
-            tool.handles.I              =   imshow(I(:,:,round(end/2),tool.getNtime,tool.getNvol),range,'Parent',tool.handles.Axes); hold on; set(tool.handles.I,'Clipping','off')
-            set(tool.handles.I,'XData',[1 max(2,size(I,2))])
-            set(tool.handles.I,'YData',[1 max(2,size(I,1))])
+            tool.handles.I              =   imshow(zeros(3,3),[0 1],'Parent',tool.handles.Axes); hold on;
+            set(tool.handles.I,'Clipping','off')
             view(tool.handles.Axes,-90,90);
             set(tool.handles.Axes,'XLimMode','manual','YLimMode','manual','Clipping','off');
             
@@ -415,29 +336,24 @@ classdef imtool3D < handle
             
             %Create the histogram plot
             %set(tool.handles.Panels.Image,'Visible','off')
-            if ~exist('nohist','var')
+            if enableHist
                 tool.handles.HistAxes           =   axes('Position',[.025 .15 .95 .55],'Parent',tool.handles.Panels.Hist);
-                im=I(:,:,:,tool.getNtime,tool.getNvol); im = im(im>min(im(:)) & im<max(im(:)));
-                if isempty(im), im=0; end
-                centers=linspace(range(1)-diff(range)*0.05,range(2)+diff(range)*0.05,256);
-                nelements=hist(im(im~=min(im(:)) & im~=max(im(:))),centers); nelements=nelements./max(nelements);
-                tool.handles.HistLine=plot(centers,nelements,'-w','LineWidth',1);
+                tool.handles.HistLine=plot([0 1],[0 1],'-w','LineWidth',1);
                 set(tool.handles.HistAxes,'Color','none','XColor','w','YColor','w','FontSize',9,'YTick',[])
                 axis on
                 hold on
                 axis fill
                 xlim(get(gca,'Xlim'))
-                tool.handles.Histrange(1)=plot([range(1) range(1) range(1)],[0 .5 1],'.-r');
-                tool.handles.Histrange(2)=plot([range(2) range(2) range(2)],[0 .5 1],'.-r');
-                tool.handles.Histrange(3)=plot([mean(range) mean(range) mean(range)],[0 .5 1],'.--r');
+                tool.handles.Histrange(1)=plot([0 0 0],[0 .5 1],'.-r');
+                tool.handles.Histrange(2)=plot([1 1 1],[0 .5 1],'.-r');
+                tool.handles.Histrange(3)=plot([0.5 0.5 0.5],[0 .5 1],'.--r');
                 tool.handles.HistImageAxes           =   axes('Position',[.025 .75 .95 .2],'Parent',tool.handles.Panels.Hist);
                 set(tool.handles.HistImageAxes,'Units','Pixels'); pos=get(tool.handles.HistImageAxes,'Position'); set(tool.handles.HistImageAxes,'Units','Normalized');
-                tool.handles.HistImage=imshow(repmat(centers,[round(pos(4)) 1]),range);
+                tool.handles.HistImage=imshow(repmat(linspace(0,1,256),[round(pos(4)) 1]),[0 1]);
                 set(tool.handles.HistImageAxes,'XColor','w','YColor','w','XTick',[],'YTick',[])
                 axis on;
                 box on;
                 axis normal
-                tool.centers=centers;
                 fun = @(hObject,evnt)histogramButtonDownFunction(hObject,evnt,tool,1);
                 set(tool.handles.Histrange(1),'ButtonDownFcn',fun);
                 fun = @(hObject,evnt)histogramButtonDownFunction(hObject,evnt,tool,2);
@@ -461,9 +377,9 @@ classdef imtool3D < handle
             
             %Create window and level boxes
             tool.handles.Tools.TL       =   uicontrol(tool.handles.Panels.Tools,'Style','text','String','L','Position',[lp+buff buff w w],'BackgroundColor','k','ForegroundColor','w','TooltipString','Window Width');
-            tool.handles.Tools.L        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String',num2str(range(1)),'Position',[lp+buff+w buff 2*w w],'TooltipString','Window Width','BackgroundColor',[.2 .2 .2],'ForegroundColor','w'); 
+            tool.handles.Tools.L        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String','0','Position',[lp+buff+w buff 2*w w],'TooltipString','Window Width','BackgroundColor',[.2 .2 .2],'ForegroundColor','w'); 
             tool.handles.Tools.TU       =   uicontrol(tool.handles.Panels.Tools,'Style','text','String','U','Position',[lp+2*buff+3*w buff w w],'BackgroundColor','k','ForegroundColor','w','TooltipString','Window Level');
-            tool.handles.Tools.U        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String',num2str(range(2)),'Position',[lp+2*buff+4*w buff 2*w w],'TooltipString','Window Level','BackgroundColor',[.2 .2 .2],'ForegroundColor','w');
+            tool.handles.Tools.U        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String','1','Position',[lp+2*buff+4*w buff 2*w w],'TooltipString','Window Level','BackgroundColor',[.2 .2 .2],'ForegroundColor','w');
             lp=lp+buff+7*w;
             
             %Creat window and level callbacks
@@ -657,6 +573,9 @@ classdef imtool3D < handle
             
             % Enable/Disable buttons based on mask
             tool.maskEvents;
+            
+            % set Image
+            setImage(tool, varargin{:})
 
         end
         
@@ -754,7 +673,7 @@ classdef imtool3D < handle
                     mask_ii = tool.mask==ii;
                     I_ii = I(mask_ii);
                     mean_ii = mean(I_ii);
-                    std_ii  = std(I_ii);
+                    std_ii  = std(double(I_ii));
                     area_ii = sum(mask_ii(:));
                     str = [sprintf('%-12s%.2f\n','Mean:',mean_ii), ...
                         sprintf('%-12s%.2f\n','STD:',std_ii),...
@@ -808,68 +727,45 @@ classdef imtool3D < handle
             maskColor = tool.maskColor;
         end
         
-        function setImage(varargin)
-            tool = varargin{1};
-            varargin = varargin(2:end);
-            switch length(varargin)
-                case 0  %tool = imtool3d()
-                    I=rand([256 256 3 20 3]).*repmat(phantom,[1 1 3 20 3])*100-50;
-                    position=[0 0 1 1]; h=[];
-                    range=[-50 50]; tools=[]; mask=[];
-                case 1  %tool = imtool3d(I)
-                    I=varargin{1}; position=[0 0 1 1]; h=[];
-                    range=[]; tools=[]; mask=[];
-                case 2  %tool = imtool3d(I,position)
-                    I=varargin{1}; position=varargin{2}; h=[];
-                    range=[]; tools=[]; mask=[];
-                case 3  %tool = imtool3d(I,position,h)
-                    I=varargin{1}; position=varargin{2}; h=varargin{3};
-                    range=[]; tools=[]; mask=[];
-                case 4  %tool = imtool3d(I,position,h,range)
-                    I=varargin{1}; position=varargin{2}; h=varargin{3};
-                    range=varargin{4}; tools=[]; mask=[];
-                case 5  %tool = imtool3d(I,position,h,range,tools)
-                    I=varargin{1}; position=varargin{2}; h=varargin{3};
-                    range=varargin{4}; tools=varargin{5}; mask=[];
-                case 6  %tool = imtool3d(I,position,h,range,tools,mask)
-                    I=varargin{1}; position=varargin{2}; h=varargin{3};
-                    range=varargin{4}; tools=varargin{5}; mask=varargin{6};
-                case 7  %tool = imtool3d(I,position,h,range,tools,mask)
-                    I=varargin{1}; position=varargin{2}; h=varargin{3};
-                    range=varargin{4}; tools=varargin{5}; mask=varargin{6};
-                    nohist = varargin{7};
-            end
-            
+        function setImage(tool, varargin)
+            [I, position, h, range, tools, mask, enablehist] = parseinputs(varargin{:});            
             
             if isempty(I)
                 I=rand([100 100 3 20 3])*100-50;
             end
             
             if iscell(I)
-                I2 = nan(max(cell2mat(cellfun(@(x) size(x,1), I, 'uni', false))),...
-                    max(cell2mat(cellfun(@(x) size(x,2), I, 'uni', false))),...
-                    max(cell2mat(cellfun(@(x) size(x,3), I, 'uni', false))),...
-                    max(cell2mat(cellfun(@(x) size(x,4), I, 'uni', false))),...
-                    length(I));
-                for iii = 1:length(I)
-                    I2(1:size(I{iii},1),1:size(I{iii},2),1:size(I{iii},3),1:size(I{iii},4),iii)=I{iii};
+                if length(I)>1
+                    I2 = nan(max(cell2mat(cellfun(@(x) size(x,1), I, 'uni', false))),...
+                        max(cell2mat(cellfun(@(x) size(x,2), I, 'uni', false))),...
+                        max(cell2mat(cellfun(@(x) size(x,3), I, 'uni', false))),...
+                        max(cell2mat(cellfun(@(x) size(x,4), I, 'uni', false))),...
+                        length(I));
+                    for iii = 1:length(I)
+                        I2(1:size(I{iii},1),1:size(I{iii},2),1:size(I{iii},3),1:size(I{iii},4),iii)=I{iii};
+                    end
+                    I = I2;
+                    clear I2;
+                else
+                    I = I{1};
                 end
-                I = I2;
-                clear I2;
             end
             
             if islogical(I)
                 range = [0 1];
             end
-            I = double(I);
 
             if iscell(range)
                 tool.range = range;
                 range = range{1};
             else
                 for ivol = 1:size(I,5)
-                    Ivol = I(:,:,:,:,ivol);
-                    tool.range{ivol}=range_outlier(Ivol(:),5);
+                    if size(I,5)>1
+                        Ivol = I(:,:,:,:,ivol);
+                    else % no need to copy variable
+                        Ivol = I;
+                    end
+                    tool.range{ivol}=double(range_outlier(Ivol(:),5));
                 end
             end
             tool.Climits = tool.range;
@@ -882,7 +778,7 @@ classdef imtool3D < handle
             if isempty(mask)
                 mask=false([size(I,1) size(I,2) size(I,3)]);
             end
-            
+                        
             tool.I=I;
             tool.mask=uint8(mask);
             
@@ -890,14 +786,18 @@ classdef imtool3D < handle
 
             %Update the histogram
             if isfield(tool.handles,'HistAxes')
-                im=I(:,:,:,:,tool.Nvol); 
-                im = im(unique(round(linspace(1,numel(im),min(5000,numel(im)))))); 
-                im = im(im>min(im) & im<max(im));
+                if size(I,5)>1
+                    Ivol=I(:,:,:,:,tool.Nvol);
+                else
+                    Ivol = I;
+                end
+                Ivol = Ivol(unique(round(linspace(1,numel(Ivol),min(5000,numel(Ivol)))))); 
+                Ivol = Ivol(Ivol>min(Ivol) & Ivol<max(Ivol));
                 tool.centers=linspace(range(1)-diff(range)*0.05,range(2)+diff(range)*0.05,256);
-                nelements=hist(im(im~=min(im(:)) & im~=max(im(:))),tool.centers); nelements=nelements./max(nelements);
+                nelements=hist(Ivol(Ivol~=min(Ivol(:)) & Ivol~=max(Ivol(:))),tool.centers); nelements=nelements./max(nelements);
                 set(tool.handles.HistLine,'XData',tool.centers,'YData',nelements);
-                cmap = get(tool.handles.HistImage,'CData');
-                set(tool.handles.HistImage,'CData',repmat(tool.centers,[size(cmap,1) 1]));
+                pos=getpixelposition(tool.handles.HistImageAxes);
+                set(tool.handles.HistImage,'CData',repmat(tool.centers,[round(pos(4)) 1]));
                 try
                     xlim(tool.handles.HistAxes,[tool.centers(1) tool.centers(end)])
                 catch
@@ -961,8 +861,13 @@ classdef imtool3D < handle
             
         end
         
-        function I = getImage(tool)
-            I=tool.I(:,:,:,tool.Ntime,tool.Nvol);
+        function I = getImage(tool,all)
+            if nargin<2, all=false; end
+            if all
+                I=tool.I;
+            else
+                I=tool.I(:,:,:,tool.Ntime,tool.Nvol);
+            end
         end
 
         function Nvol = getNvol(tool)
@@ -1280,6 +1185,8 @@ classdef imtool3D < handle
                             answer = inputdlg2({'save as:','browse reference scan'},'save mask',[1 50],{fullfile(PathName,FileName), ''});
                             if isempty(answer), err=0; break; end
                             if ~isempty(answer{1})
+                                answer{1} = strrep(answer{1},'.gz','.nii.gz');
+                                answer{1} = strrep(answer{1},'.nii.nii','.nii');
                                 if ~isempty(answer{2})
                                     try
                                         save_nii_v2(tool.getMask(1),answer{1},answer{2},8);
@@ -1512,6 +1419,43 @@ end
 % setImage(tool, tool.I(rect(2):rect(2)+rect(4)-1,rect(1):rect(1)+rect(3)-1,:),range,mask(rect(2):rect(2)+rect(4)-1,rect(1):rect(1)+rect(3)-1,:))
 % end
 
+function [I, position, h, range, tools, mask, enableHist] = parseinputs(varargin)
+            switch length(varargin)
+                case 0  %tool = imtool3d()
+                    I=rand([256 256 3 20 3]).*repmat(phantom,[1 1 3 20 3])*100-50;
+                    position=[0 0 1 1]; h=[];
+                    range=[-50 50]; tools=[]; mask=[]; enableHist=true;
+                case 1  %tool = imtool3d(I)
+                    I=varargin{1}; position=[0 0 1 1]; h=[];
+                    range=[]; tools=[]; mask=[]; enableHist=true;
+                case 2  %tool = imtool3d(I,position)
+                    I=varargin{1}; position=varargin{2}; h=[];
+                    range=[]; tools=[]; mask=[]; enableHist=true;
+                case 3  %tool = imtool3d(I,position,h)
+                    I=varargin{1}; position=varargin{2}; h=varargin{3};
+                    range=[]; tools=[]; mask=[]; enableHist=true;
+                case 4  %tool = imtool3d(I,position,h,range)
+                    I=varargin{1}; position=varargin{2}; h=varargin{3};
+                    range=varargin{4}; tools=[]; mask=[]; enableHist=true;
+                case 5  %tool = imtool3d(I,position,h,range,tools)
+                    I=varargin{1}; position=varargin{2}; h=varargin{3};
+                    range=varargin{4}; tools=varargin{5}; mask=[];
+                    enableHist=true;
+                case 6  %tool = imtool3d(I,position,h,range,tools,mask)
+                    I=varargin{1}; position=varargin{2}; h=varargin{3};
+                    range=varargin{4}; tools=varargin{5}; mask=varargin{6};
+                    enableHist=true;
+                case 7  %tool = imtool3d(I,position,h,range,tools,mask)
+                    I=varargin{1}; position=varargin{2}; h=varargin{3};
+                    range=varargin{4}; tools=varargin{5}; mask=varargin{6};
+                    enableHist = varargin{7};
+            end
+            
+            if isempty(position)
+                position=[0 0 1 1];
+            end
+end
+
 function measureImageCallback(hObject,evnt,tool,type)
 
 switch type
@@ -1593,9 +1537,13 @@ end
 
 function toggleGrid(hObject,eventdata,tool)
 % unselect button to prevent activation with spacebar
-set(hObject, 'Enable', 'off');
-drawnow;
-set(hObject, 'Enable', 'on');
+try
+    warning off
+    set(hObject, 'Enable', 'off');
+    drawnow;
+    set(hObject, 'Enable', 'on');
+    warning on
+end
 
 if get(hObject,'Value')
     set(tool.handles.grid,'Visible','on')
@@ -2044,5 +1992,3 @@ set(h,'Value',~get(h,'Value'))
 fun = get(h,'Callback');
 fun(h,1)
 end
-
-
