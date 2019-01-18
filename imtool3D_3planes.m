@@ -1,5 +1,6 @@
 function tool = imtool3D_3planes(dat,mask)
 if ~exist('mask','var'), mask=[]; end
+if ~exist('dat','var'), dat=[]; end
 
 tool = imtool3D(dat,[],[],[],[],mask,[]);
 range = tool.getClimits;
@@ -44,6 +45,8 @@ set(tool(1).getHandles.Tools.maskLock,'Visible','off')
 set(tool(2).getHandles.Tools.maskLock,'Visible','off')
 set(tool(1).getHandles.Tools.Help,'Visible','off')
 set(tool(2).getHandles.Tools.Help,'Visible','off')
+set(tool(1).getHandles.Tools.maskStats,'Visible','off')
+set(tool(2).getHandles.Tools.maskStats,'Visible','off')
 
 for ic = 1:length(controls1)
     CB = get(controls1(ic),'Callback');
@@ -117,7 +120,7 @@ msg = {'imtool3D, written by Justin Solomon',...
 function scrollWheel(src, evnt, tool)
 currentobj = hittest;
 for ii=1:length(tool)
-    if isequal(currentobj,tool(ii).getHandles.mask)
+    if ismember(currentobj,findobj(tool(ii).getHandles.Axes))
         newSlice=tool(ii).getCurrentSlice-evnt.VerticalScrollCount;
         dim = tool(ii).getImageSize;
         if newSlice>=1 && newSlice <=dim(3)
@@ -133,7 +136,7 @@ switch event.Key
     case 'x'
         currentobj = hittest;
         for ii=1:length(tool)
-            if isequal(currentobj,tool(ii).getHandles.mask) || isequal(currentobj,tool(ii).getHandles.I)
+            if ismember(currentobj,findobj(tool(ii).getHandles.Axes))
                 movetools = setdiff(1:length(tool),ii);
                 [xi,yi,zi] = tool(ii).getCurrentMouseLocation;
                 if ii==1
@@ -145,19 +148,28 @@ switch event.Key
                 end
             end
         end
-    case {'leftarrow', 'rightarrow', 'uparrow', 'downarrow', 'space'}
-        for ii=length(tool):-1:1
-            tool(ii).shortcutCallback(event)
-        end
         
     case 'z'
         tool(1).shortcutCallback(event)
+        
+    otherwise
+        fig = tool(1).getHandles.fig;
+        oldWBMF = get(fig,'WindowButtonMotionFcn');
+        for ii=length(tool):-1:1
+            set(fig,'WindowButtonMotionFcn',oldWBMF);
+            tool(ii).shortcutCallback(event)
+            CB_Motion_mod{ii} = get(fig,'WindowButtonMotionFcn');
+        end
+        if ~isequal(CB_Motion_mod{1},CB_Motion_mod{2})
+            set(fig,'WindowButtonMotionFcn',@(src,evnt) Callback3(CB_Motion_mod{1},CB_Motion_mod{2},CB_Motion_mod{3},src,evnt));
+        end
 end
 
 function Callback3(CB1,CB2,CB3,varargin)
+CB3(varargin{:})
 CB1(varargin{:})
 CB2(varargin{:})
-CB3(varargin{:})
+
 
 function syncMasks(tool,ic)
 persistent timer

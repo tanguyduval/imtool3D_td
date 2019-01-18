@@ -139,6 +139,8 @@ function ButtonMotionFunction(src,evnt,brush,tag,data)
 
 switch tag
     case 'No Click'
+        if ~isvalid(brush), return; end
+        if isempty(brush.position), return; end
         brush.oldWBMF(src,evnt)
 
         cp = get(brush.handles.parent,'CurrentPoint'); cp=[cp(1,1) cp(1,2)];

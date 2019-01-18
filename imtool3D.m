@@ -189,7 +189,7 @@ classdef imtool3D < handle
         handles      %Structured variable with all the handles
         centers      %list of bin centers for histogram
         alpha        %transparency of the overlaid mask (default is .2)
-        aspectRatio = [1 1];
+        aspectRatio = [1 1 1];
         viewplane    = 3; % Direction of the 3rd dimension 
         
         
@@ -451,7 +451,7 @@ classdef imtool3D < handle
             set(tool.handles.Tools.Save,'TooltipString','Save Mask or image as slice or tiff stack')
             
             %Create viewplane button
-            tool.handles.Tools.ViewPlane    =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'Axial','Sagittal','Coronal'},'Position',[lp buff 3.5*w w],'Value',tool.viewplane);
+            tool.handles.Tools.ViewPlane    =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'Axial','Sagittal','Coronal'},'Position',[lp buff 3.5*w w],'Value',4-tool.viewplane);
             lp=lp+3.5*w+buff;
             fun=@(hObject,evnt) setviewplane(tool,hObject);
             set(tool.handles.Tools.ViewPlane,'Callback',fun)
@@ -555,11 +555,19 @@ classdef imtool3D < handle
                 set(tool.handles.Tools.maskSelected(islct) ,'Callback',@(hObject,evnt) setmaskSelected(tool,islct))
             end
             
+            % lock mask
             tool.handles.Tools.maskLock        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','Position',[buff pos(4)-w-buff-(islct+1)*w w w], 'Value', 1, 'TooltipString', 'Lock all colors except selected one');
             icon_profile = makeToolbarIconFromPNG(fullfile(fileparts(mfilename('fullpath')),'src','icon_lock.png'));
             set(tool.handles.Tools.maskLock ,'Cdata',icon_profile)
             set(tool.handles.Tools.maskLock ,'Callback',@(hObject,evnt) setlockMask(tool))
 
+            % mask statistics
+            tool.handles.Tools.maskStats        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','Position',[buff pos(4)-w-buff-(islct+2)*w w w], 'Value', 1, 'TooltipString', 'Statistics');
+            icon_hist = makeToolbarIconFromPNG([MATLABdir '/plottype-histogram.png']);
+            icon_hist = min(1,max(0,imresize(icon_hist,[16 16])));
+            set(tool.handles.Tools.maskStats ,'Cdata',icon_hist)
+            set(tool.handles.Tools.maskStats ,'Callback',@(hObject,evnt) StatsCallback(hObject,evnt,tool))
+            
             %Set font size of all the tool objects
             try
                 set(cell2mat(struct2cell(tool.handles.Tools)),'FontSize',9,'Units','Pixels')
@@ -740,7 +748,9 @@ classdef imtool3D < handle
             [I, position, h, range, tools, mask, enablehist] = parseinputs(varargin{:});            
             
             if isempty(I)
-                I=rand([100 100 3 20 3])*100-50;
+                phantom3 = min(1,max(0,cat(5,phantom,1 - phantom, -phantom.^2+phantom)));
+                I=rand([256 256 3 20 3])*.3+repmat(phantom3,[1 1 3 20 1]);
+                tool.setAspectRatio([1/256 1/256 1/3]);
             end
             
             if iscell(I)
@@ -934,7 +944,16 @@ classdef imtool3D < handle
         function setAspectRatio(tool,psize)
             %This sets the proper aspect ratio of the viewer for cases
             %where you have non-square pixels
-            set(tool.handles.Axes,'DataAspectRatio',1./psize)
+            tool.aspectRatio = psize;
+            switch tool.viewplane
+                case 1
+                    aspectRatio = tool.aspectRatio([2 3 1]);
+                case 2
+                    aspectRatio = tool.aspectRatio([1 3 2]);
+                case 3
+                    aspectRatio = tool.aspectRatio([1 2 3]);
+            end
+            set(tool.handles.Axes,'DataAspectRatio',aspectRatio)
         end
         
         function setviewplane(tool,dim)
@@ -989,6 +1008,9 @@ classdef imtool3D < handle
             end
             S = get(tool.handles.Tools.ViewPlane,'String');
             set(tool.handles.Tools.ViewPlane,'Value',find(strcmpi(S,dim)));
+
+            % permute aspect ratio
+            setAspectRatio(tool,tool.aspectRatio)
         end
         
         function setDisplayRange(tool,range)
@@ -1059,7 +1081,7 @@ classdef imtool3D < handle
                 case 3
                     tool.mask(:,:,slice) = maskOld;
             end
-            
+            notify(tool,'maskChanged')
             showSlice(tool,slice)
         end
         
@@ -1480,6 +1502,19 @@ classdef imtool3D < handle
     
 end
 
+function StatsCallback(hObject,evnt,tool)
+% unselect button to prevent activation with spacebar
+set(hObject, 'Enable', 'off');
+drawnow;
+set(hObject, 'Enable', 'on');
+ 
+f1 = StatsGUI(tool.getImage(1),tool.getMask(1),[],tool.getMaskColor);
+f2 = HistogramGUI(tool.getImage,tool.getMask(1),tool.getMaskColor);
+pos = get(f1,'Position');
+pos(1) = pos(1)+pos(3);
+set(f2,'Position',pos)
+end
+
 function PaintBrushCallback(hObject,evnt,tool,style)
 %Remove any old brush
 removeBrushObject(tool);
@@ -1607,9 +1642,9 @@ end
 function [I, position, h, range, tools, mask, enableHist] = parseinputs(varargin)
             switch length(varargin)
                 case 0  %tool = imtool3d()
-                    I=rand([256 256 3 20 3]).*repmat(phantom,[1 1 3 20 3])*100-50;
+                    I=[];
                     position=[0 0 1 1]; h=[];
-                    range=[-50 50]; tools=[]; mask=[]; enableHist=true;
+                    range=[]; tools=[]; mask=[]; enableHist=true;
                 case 1  %tool = imtool3d(I)
                     I=varargin{1}; position=[0 0 1 1]; h=[];
                     range=[]; tools=[]; mask=[]; enableHist=true;
@@ -2039,7 +2074,8 @@ function panelResizeFunction(hObject,events,tool,w,h,wbutt)
     end
     
     set(hh.Tools.maskLock,'Position',[buff pos(4)-wbutt-buff-(islct+1)*wbutt wbutt wbutt]);
-    
+    set(hh.Tools.maskStats,'Position',[buff pos(4)-wbutt-buff-(islct+2)*wbutt wbutt wbutt]);
+
     set(hh.Axes,'XLimMode','manual','YLimMode','manual');
 
     end

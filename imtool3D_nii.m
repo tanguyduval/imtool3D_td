@@ -16,18 +16,21 @@ else
     tool = imtool3D(dat,[],parent,range,[],[],[]);
 end
 
+% set voxelsize
+tool.setAspectRatio(hdr.dime.pixdim(2:4));
+
+% set viewplane
 setviewplane(tool,viewplane);
 
-% set voxelsize
-H = getHandles(tool);
-set(H.Axes,'DataAspectRatio',hdr.dime.pixdim(2:4))
 
+H = getHandles(tool);
 view(H.Axes,-90,90)
 
 if iscell(filename), filename = filename{1}; end
 set(H.Tools.Save,'Callback',@(hObject,evnt)saveImagenii(tool, filename))
 
 function saveImagenii(tool, fname)
+if exist(fname,'file')
 h = tool.getHandles;
 S = get(h.Tools.SaveOptions,'String');
 switch S{get(h.Tools.SaveOptions,'value')}
@@ -36,6 +39,9 @@ switch S{get(h.Tools.SaveOptions,'value')}
         save_nii_v2(tool.getMask(1),fullfile(PathName,FileName),fname,8);
     otherwise
         tool.saveImage;
+end
+else
+    tool.saveImage;
 end
 
 

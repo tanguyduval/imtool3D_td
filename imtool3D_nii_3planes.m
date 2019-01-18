@@ -8,9 +8,6 @@ else
 end
 tool = imtool3D_3planes(dat,mask);
 % set voxelsize
-H = getHandles(tool(1));
-set(H.Axes,'DataAspectRatio',hdr.dime.pixdim([2 3 4]))
-H = getHandles(tool(2));
-set(H.Axes,'DataAspectRatio',hdr.dime.pixdim([3 4 2]))
-H = getHandles(tool(3));
-set(H.Axes,'DataAspectRatio',hdr.dime.pixdim([2 4 3]))
+for ii=1:3
+tool(ii).setAspectRatio(hdr.dime.pixdim(2:4));
+end
