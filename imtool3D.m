@@ -190,6 +190,7 @@ classdef imtool3D < handle
         centers      %list of bin centers for histogram
         alpha        %transparency of the overlaid mask (default is .2)
         aspectRatio = [1 1];
+        viewplane    = 3; % Direction of the 3rd dimension 
         
         
     end
@@ -309,9 +310,8 @@ classdef imtool3D < handle
             
             
             %Set up the binary mask viewer
-            im = ind2rgb(tool.mask(:,:,1),tool.maskColor);
+            im = ind2rgb(zeros(3,3),tool.maskColor);
             tool.handles.mask           =   imshow(im);
-            set(tool.handles.mask,'AlphaData',.3*(logical(tool.mask(:,:,1))))
             set(tool.handles.Axes,'Position',[0 0 1 1],'Color','none','XColor','r','YColor','r','GridLineStyle','--','LineWidth',1.5,'XTickLabel','','YTickLabel','');
             axis off
             grid off
@@ -322,7 +322,7 @@ classdef imtool3D < handle
             tool.handles.Info=uicontrol(tool.handles.Panels.Info,'Style','text','String','(x,y) val','Units','Normalized','Position',[0 .1 .5 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Left');
             fun=@(src,evnt)getImageInfo(src,evnt,tool);
             set(tool.handles.fig,'WindowButtonMotionFcn',fun);
-            tool.handles.SliceText=uicontrol(tool.handles.Panels.Info,'Style','text','String',['Vol: 1/' num2str(size(I,5)) '    Time: 1/' num2str(size(I,4)) '    Slice: 1/' num2str(size(I,3))],'Units','Normalized','Position',[.5 .1 .48 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Right');
+            tool.handles.SliceText=uicontrol(tool.handles.Panels.Info,'Style','text','String',['Vol: 1/' num2str(size(I,5)) '    Time: 1/' num2str(size(I,4)) '    Slice: 1/' num2str(size(I,tool.viewplane))],'Units','Normalized','Position',[.5 .1 .48 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Right');
 
             %Set up mouse button controls
             fun=@(hObject,eventdata) imageButtonDownFunction(hObject,eventdata,tool);
@@ -437,17 +437,24 @@ classdef imtool3D < handle
             fun=@(hObject,evnt) changeColormap(hObject,evnt,tool);
             set(tool.handles.Tools.Color,'Callback',fun)
             set(tool.handles.Tools.Color,'TooltipString','Select a colormap')
-            lp=lp+3.5*w;
+            lp=lp+3.5*w+buff;
             
             %Create save button
+            tool.handles.Tools.SaveOptions    =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'Mask','Current slice','Whole stack'},'Position',[lp buff 3*w w]);
+            lp=lp+3*w;
             tool.handles.Tools.Save           =   uicontrol(tool.handles.Panels.Tools,'Style','pushbutton','String','','Position',[lp buff w w]);
+            lp=lp+w+buff;
             icon_save = makeToolbarIconFromPNG([MATLABdir '/file_save.png']);
             set(tool.handles.Tools.Save,'CData',icon_save);
-            lp=lp+w;
-            tool.handles.Tools.SaveOptions    =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'Mask','Current slice','Whole stack'},'Position',[lp buff 5*w w]);
             fun=@(hObject,evnt) saveImage(tool);
             set(tool.handles.Tools.Save,'Callback',fun)
             set(tool.handles.Tools.Save,'TooltipString','Save Mask or image as slice or tiff stack')
+            
+            %Create viewplane button
+            tool.handles.Tools.ViewPlane    =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'Axial','Sagittal','Coronal'},'Position',[lp buff 3.5*w w],'Value',tool.viewplane);
+            lp=lp+3.5*w+buff;
+            fun=@(hObject,evnt) setviewplane(tool,hObject);
+            set(tool.handles.Tools.ViewPlane,'Callback',fun)
             
             %Create mask2poly button
             tool.handles.Tools.mask2poly             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff w w],'TooltipString','Mask2Poly');
@@ -621,12 +628,14 @@ classdef imtool3D < handle
         end
         
         function setmaskHistory(tool,mask)
-            tool.maskHistory{1} = mask;
-            tool.maskHistory = circshift(tool.maskHistory,-1,2);
-            if isempty(tool.maskHistory{end-1})
-                set(tool.handles.Tools.undoMask, 'Enable', 'off')
-            else
-                set(tool.handles.Tools.undoMask, 'Enable', 'on')
+            if ~isequal(mask,tool.maskHistory{end})
+                tool.maskHistory{1} = mask;
+                tool.maskHistory = circshift(tool.maskHistory,-1,2);
+                if isempty(tool.maskHistory{end-1})
+                    set(tool.handles.Tools.undoMask, 'Enable', 'off')
+                else
+                    set(tool.handles.Tools.undoMask, 'Enable', 'on')
+                end
             end
         end
         
@@ -811,10 +820,23 @@ classdef imtool3D < handle
 
             %Update the image
             %set(tool.handles.I,'CData',im)
-            xlim(tool.handles.Axes,[0 size(I,2)])
-            ylim(tool.handles.Axes,[0 size(I,1)])
-            set(tool.handles.I,'XData',[1 max(2,size(I,2))]);
-            set(tool.handles.I,'YData',[1 max(2,size(I,1))]);
+            switch tool.viewplane
+                case 1
+                    xlim(tool.handles.Axes,[0 size(I,3)])
+                    ylim(tool.handles.Axes,[0 size(I,2)])
+                    set(tool.handles.I,'XData',[1 max(2,size(I,3))]);
+                    set(tool.handles.I,'YData',[1 max(2,size(I,2))]);
+                case 2
+                    xlim(tool.handles.Axes,[0 size(I,3)])
+                    ylim(tool.handles.Axes,[0 size(I,1)])
+                    set(tool.handles.I,'XData',[1 max(2,size(I,3))]);
+                    set(tool.handles.I,'YData',[1 max(2,size(I,1))]);
+                case 3
+                    xlim(tool.handles.Axes,[0 size(I,2)])
+                    ylim(tool.handles.Axes,[0 size(I,1)])
+                    set(tool.handles.I,'XData',[1 max(2,size(I,2))]);
+                    set(tool.handles.I,'YData',[1 max(2,size(I,1))]);
+            end
             
             %update the mask cdata (in case it has changed size)
             C=zeros(size(I,1),size(I,2),3);
@@ -828,29 +850,7 @@ classdef imtool3D < handle
             tool.Ntime = min(tool.Ntime,size(I,4));
             
             %Update the gridlines
-            delete(tool.handles.grid)
-            nGrid=7;
-            nMinor=4;
-            x=linspace(1,size(I,2),nGrid);
-            y=linspace(1,size(I,1),nGrid);
-            hold on;
-            tool.handles.grid=[];
-            gColor=[255 38 38]./256;
-            mColor=[255 102 102]./256;
-            for i=1:nGrid
-                tool.handles.grid(end+1)=plot([.5 size(I,2)-.5],[y(i) y(i)],'-','LineWidth',1.2,'HitTest','off','Color',gColor,'Parent',tool.handles.Axes);
-                tool.handles.grid(end+1)=plot([x(i) x(i)],[.5 size(I,1)-.5],'-','LineWidth',1.2,'HitTest','off','Color',gColor,'Parent',tool.handles.Axes);
-                if i<nGrid
-                    xm=linspace(x(i),x(i+1),nMinor+2); xm=xm(2:end-1);
-                    ym=linspace(y(i),y(i+1),nMinor+2); ym=ym(2:end-1);
-                    for j=1:nMinor
-                        tool.handles.grid(end+1)=plot([.5 size(I,2)-.5],[ym(j) ym(j)],'-r','LineWidth',.9,'HitTest','off','Color',mColor,'Parent',tool.handles.Axes);
-                        tool.handles.grid(end+1)=plot([xm(j) xm(j)],[.5 size(I,1)-.5],'-r','LineWidth',.9,'HitTest','off','Color',mColor,'Parent',tool.handles.Axes);
-                    end
-                end
-            end
-            tool.handles.grid(end+1)=scatter(.5+size(I,2)/2,.5+size(I,1)/2,'r','filled','Parent',tool.handles.Axes);
-            toggleGrid(tool.handles.Tools.Grid,[],tool)
+            setupGrid(tool)
             
             %Show the first slice
             showSlice(tool)
@@ -937,6 +937,60 @@ classdef imtool3D < handle
             set(tool.handles.Axes,'DataAspectRatio',1./psize)
         end
         
+        function setviewplane(tool,dim)
+            if isa(dim,'matlab.ui.control.UIControl') % called from the button
+                hObject = dim;
+                set(hObject, 'Enable', 'off');
+                drawnow;
+                set(hObject, 'Enable', 'on');
+                dim = get(hObject,'String'); 
+                dim=dim{get(hObject,'Value')}; 
+            end
+            
+            if ischar(dim)
+                switch lower(dim)
+                    case 'sagittal'
+                        dim=1;
+                    case 'coronal'
+                        dim=2;
+                    otherwise
+                        dim=3;
+                end
+            end
+            tool.viewplane = min(3,max(1,round(dim)));
+            showSlice(tool,round(size(tool.I,dim)/2))
+            switch dim
+                case 1
+                    xlim(tool.handles.Axes,[0 size(tool.I,3)])
+                    ylim(tool.handles.Axes,[0 size(tool.I,2)])
+                    set(tool.handles.I,'XData',[1 max(2,size(tool.I,3))]);
+                    set(tool.handles.I,'YData',[1 max(2,size(tool.I,2))]);
+                case 2
+                    xlim(tool.handles.Axes,[0 size(tool.I,3)])
+                    ylim(tool.handles.Axes,[0 size(tool.I,1)])
+                    set(tool.handles.I,'XData',[1 max(2,size(tool.I,3))]);
+                    set(tool.handles.I,'YData',[1 max(2,size(tool.I,1))]);
+                case 3
+                    xlim(tool.handles.Axes,[0 size(tool.I,2)])
+                    ylim(tool.handles.Axes,[0 size(tool.I,1)])
+                    set(tool.handles.I,'XData',[1 max(2,size(tool.I,2))]);
+                    set(tool.handles.I,'YData',[1 max(2,size(tool.I,1))]);
+            end
+            setupSlider(tool)
+            setupGrid(tool)
+            
+            switch dim
+                case 1
+                    dim = 'Sagittal';
+                case 2
+                    dim = 'Coronal';
+                case 3
+                    dim = 'Axial';
+            end
+            S = get(tool.handles.Tools.ViewPlane,'String');
+            set(tool.handles.Tools.ViewPlane,'Value',find(strcmpi(S,dim)));
+        end
+        
         function setDisplayRange(tool,range)
             W=diff(range);
             L=mean(range);
@@ -965,29 +1019,61 @@ classdef imtool3D < handle
             slice=round(get(tool.handles.Slider,'value'));
         end
                 
-        function mask = getCurrentMaskSlice(tool)
+        function mask = getCurrentMaskSlice(tool,all)
+            if ~exist('all','var'), all=0; end
             slice = getCurrentSlice(tool);
-            mask=tool.mask(:,:,slice)==tool.maskSelected;
+            switch tool.viewplane
+                case 1
+                    mask=tool.mask(slice,:,:);
+                case 2
+                    mask=tool.mask(:,slice,:);
+                case 3
+                    mask=tool.mask(:,:,slice);
+            end
+            
+            if ~all
+                mask = mask==tool.maskSelected;
+            end
+            mask = squeeze(mask);
         end
         
-        function setCurrentMaskSlice(tool,mask)
+        function setCurrentMaskSlice(tool,mask,combine)
+            if ~exist('combine','var'), combine=false; end
             slice = getCurrentSlice(tool);
+            maskOld = getCurrentMaskSlice(tool,1);
             % combine mask
-            maskOld = tool.mask(:,:,slice);
-            maskOld(maskOld==tool.maskSelected)=0;
+            if ~combine
+                maskOld(maskOld==tool.maskSelected)=0;
+            end
             if tool.lockMask
                 maskOld(mask & maskOld==0) = tool.maskSelected;
             else
                 maskOld(mask) = tool.maskSelected;
             end
             % update mask
-            tool.mask(:,:,slice) = maskOld;
+            switch tool.viewplane
+                case 1
+                    tool.mask(slice,:,:) = maskOld;
+                case 2
+                    tool.mask(:,slice,:) = maskOld;
+                case 3
+                    tool.mask(:,:,slice) = maskOld;
+            end
+            
             showSlice(tool,slice)
         end
         
         function im = getCurrentImageSlice(tool)
             slice = getCurrentSlice(tool);
-            im = tool.I(:,:,slice,tool.Ntime,tool.Nvol);
+            switch tool.viewplane
+                case 1
+                    im = tool.I(slice,:,:,tool.Ntime,tool.Nvol);
+                case 2
+                    im = tool.I(:,slice,:,tool.Ntime,tool.Nvol);
+                case 3
+                    im = tool.I(:,:,slice,tool.Ntime,tool.Nvol);
+            end
+            im = squeeze(im);
         end
         
         function setAlpha(tool,alpha)
@@ -1006,6 +1092,12 @@ classdef imtool3D < handle
         
         function S = getImageSize(tool)
             S=size(tool.I);
+            switch tool.viewplane
+                case 1
+                    S = S([2 3 1]);
+                case 2
+                    S = S([1 3 2]);
+            end
         end
         
         function addImageValues(tool,im,lims)
@@ -1032,7 +1124,14 @@ classdef imtool3D < handle
         
         function im = getImageSlices(tool,zmin,zmax)
             S = getImageSize(tool);
-            lims = [1 S(1); 1 S(2); zmin zmax];
+            switch tool.viewplane
+                case 1
+                    lims = [zmin zmax; 1 S(2); 1 S(3)];
+                case 2
+                    lims = [1 S(1); zmin zmax; 1 S(3)];
+                case 3
+                    lims = [1 S(1); 1 S(2); zmin zmax];
+            end
             im = getImageValues(tool,lims);
         end
         
@@ -1174,8 +1273,16 @@ classdef imtool3D < handle
                         viewtype = get(tool.handles.Axes,'View');
                         if viewtype(1)==-90, I=rot90(I);  end
 
-                        for i=1:size(I,3)
-                            imwrite(gray2ind(mat2gray(I(:,:,i),lims),size(cmap,1)),cmap, [PathName FileName], 'WriteMode', 'append',  'Compression','none');
+                        for z=1:size(I,tool.viewplane)
+                            switch tool.viewplane
+                                case 1
+                                    Iz = I(z,:,:);
+                                case 2
+                                    Iz = I(:,z,:);
+                                case 3
+                                    Iz = I(:,:,z);
+                            end
+                            imwrite(gray2ind(mat2gray(Iz,lims),size(cmap,1)),cmap, [PathName FileName], 'WriteMode', 'append',  'Compression','none');
                         end
                     end
                 case 'Mask'
@@ -1229,53 +1336,88 @@ classdef imtool3D < handle
                 n=1;
             end
             
-            if n > size(tool.I,3)
-                n=size(tool.I,3);
+            if n > size(tool.I,tool.viewplane)
+                n=size(tool.I,tool.viewplane);
             end
             
             set(tool.handles.I,'AlphaData',1)
-            if ~tool.upsample
-                set(tool.handles.I,'CData',tool.I(:,:,n,tool.Ntime,tool.Nvol))
-            else
-                set(tool.handles.I,'CData',imresize(tool.I(:,:,n,tool.Ntime,tool.Nvol),tool.rescaleFactor,tool.upsampleMethod),'XData',get(tool.handles.I,'XData'),'YData',get(tool.handles.I,'YData'))
-            end
+            In = squeeze(tool.getCurrentImageSlice);
+            maskn = squeeze(tool.getCurrentMaskSlice(1));
             
-            im = ind2rgb(tool.mask(:,:,n),tool.maskColor);
-            set(tool.handles.mask,'CData',im);
-            set(tool.handles.mask,'AlphaData',tool.alpha*logical(tool.mask(:,:,n)))
-            set(tool.handles.SliceText,'String',['Vol: ' num2str(tool.Nvol) '/' num2str(size(tool.I,5)) '    Time: ' num2str(tool.Ntime) '/' num2str(size(tool.I,4)) '    Slice: ' num2str(n) '/' num2str(size(tool.I,3))])
+            if ~tool.upsample
+                set(tool.handles.I,'CData',In)
+            else
+                set(tool.handles.I,'CData',imresize(In,tool.rescaleFactor,tool.upsampleMethod),'XData',get(tool.handles.I,'XData'),'YData',get(tool.handles.I,'YData'))
+            end
+            maskrgb = ind2rgb(maskn,tool.maskColor);
+            set(tool.handles.mask,'CData',maskrgb);
+            set(tool.handles.mask,'AlphaData',tool.alpha*logical(maskn))
+            set(tool.handles.SliceText,'String',['Vol: ' num2str(tool.Nvol) '/' num2str(size(tool.I,5)) '    Time: ' num2str(tool.Ntime) '/' num2str(size(tool.I,4)) '    Slice: ' num2str(n) '/' num2str(size(tool.I,tool.viewplane))])
 
             if isfield(tool.handles.Tools,'Hist') && get(tool.handles.Tools.Hist,'value')
-                im=tool.I(:,:,n,tool.Ntime,tool.Nvol);
+                maskrgb=In;
                 range = tool.range{tool.Nvol};
-                im(im<range(1) | im>range(2)) = [];
-                err = (max(im(:)) - min(im(:)))*1e-10;
-                nelements=hist(im(im>(min(im(:))+err) & im<max(im(:)-err)),tool.centers); nelements=nelements./max(nelements);
+                maskrgb(maskrgb<range(1) | maskrgb>range(2)) = [];
+                err = (max(maskrgb(:)) - min(maskrgb(:)))*1e-10;
+                nelements=hist(maskrgb(maskrgb>(min(maskrgb(:))+err) & maskrgb<max(maskrgb(:)-err)),tool.centers); nelements=nelements./max(nelements);
                 set(tool.handles.HistLine,'YData',nelements);
                 set(tool.handles.HistLine,'XData',tool.centers);
             end
-            
+           
             notify(tool,'newSlice')
             
         end
         
         function setupSlider(tool)
-            n=size(tool.I,3);
+            n=size(tool.I,tool.viewplane);
             if n==1
                 set(tool.handles.Slider,'visible','off');
             else
                 set(tool.handles.Slider,'visible','on');
-                set(tool.handles.Slider,'SliderStep',[1/(size(tool.I,3)-1) 1/(size(tool.I,3)-1)])
+                set(tool.handles.Slider,'SliderStep',[1/(size(tool.I,tool.viewplane)-1) 1/(size(tool.I,tool.viewplane)-1)])
                 fun=@(hobject,eventdata)showSlice(tool,[],hobject,eventdata);
                 set(tool.handles.Slider,'Callback',fun);
             end
-            set(tool.handles.Slider,'min',1,'max',size(tool.I,3));
+            set(tool.handles.Slider,'min',1,'max',size(tool.I,tool.viewplane));
             if get(tool.handles.Slider,'value')==0 || get(tool.handles.Slider,'value')>n
-                currentslice = round(size(tool.I,3)/2);
+                currentslice = round(size(tool.I,tool.viewplane)/2);
             else
                 currentslice = get(tool.handles.Slider,'value');
             end    
             set(tool.handles.Slider,'value',currentslice)
+        end
+        
+        function setupGrid(tool)
+            %Update the gridlines
+            delete(tool.handles.grid)
+            nGrid=7;
+            nMinor=4;
+            posdim = setdiff(1:3,tool.viewplane);
+            x=linspace(1,size(tool.I,posdim(2)),nGrid);
+            y=linspace(1,size(tool.I,posdim(1)),nGrid);
+            hold on;
+            tool.handles.grid=[];
+            gColor=[255 38 38]./256;
+            mColor=[255 102 102]./256;
+            for i=1:nGrid
+                tool.handles.grid(end+1)=plot([.5 size(tool.I,posdim(2))-.5],[y(i) y(i)],'-','LineWidth',1.2,'HitTest','off','Color',gColor,'Parent',tool.handles.Axes);
+                tool.handles.grid(end+1)=plot([x(i) x(i)],[.5 size(tool.I,posdim(1))-.5],'-','LineWidth',1.2,'HitTest','off','Color',gColor,'Parent',tool.handles.Axes);
+                if i<nGrid
+                    xm=linspace(x(i),x(i+1),nMinor+2); xm=xm(2:end-1);
+                    ym=linspace(y(i),y(i+1),nMinor+2); ym=ym(2:end-1);
+                    for j=1:nMinor
+                        tool.handles.grid(end+1)=plot([.5 size(tool.I,posdim(2))-.5],[ym(j) ym(j)],'-r','LineWidth',.9,'HitTest','off','Color',mColor,'Parent',tool.handles.Axes);
+                        tool.handles.grid(end+1)=plot([xm(j) xm(j)],[.5 size(tool.I,posdim(1))-.5],'-r','LineWidth',.9,'HitTest','off','Color',mColor,'Parent',tool.handles.Axes);
+                    end
+                end
+            end
+            tool.handles.grid(end+1)=scatter(.5+size(tool.I,posdim(2))/2,.5+size(tool.I,posdim(1))/2,'r','filled','Parent',tool.handles.Axes);
+
+            if get(tool.handles.Tools.Grid,'Value')
+                set(tool.handles.grid,'Visible','on')
+            else
+                set(tool.handles.grid,'Visible','off')
+            end
         end
         
         function setWL(tool,W,L)
@@ -1292,7 +1434,14 @@ classdef imtool3D < handle
              
         function maskEvents(tool,src,evnt)            
             % Enable/Disable buttons
-            [~,~,z] = find3d(tool.mask==tool.maskSelected);
+            [x,y,z] = find3d(tool.mask==tool.maskSelected);
+            switch tool.viewplane
+                case 1
+                    z=x;
+                case 2
+                    z=y;
+            end
+            
             z = unique(z);
             if length(z)>1 && length(z)<(max(z)-min(z)+1)% if more than mask on more than 2 slices and holes
                 set(tool.handles.Tools.maskinterp,'Enable','on')
@@ -1317,7 +1466,8 @@ classdef imtool3D < handle
         end
         
         function SliceEvents(tool,src,evnt)
-            mask = tool.mask(:,:,min(end,tool.getCurrentSlice));
+            mask = tool.getCurrentMaskSlice(1);
+            
             if any(mask(:))
                 set(tool.handles.Tools.mask2poly,'Enable','on')
             else
@@ -1348,7 +1498,7 @@ end
 
 function mask2polyImageCallback(hObject,evnt,tool)
 h = getHandles(tool);
-mask = getMask(tool); mask = mask(:,:,tool.getCurrentSlice);
+mask = tool.getCurrentMaskSlice(0);
 mask = imfill(mask,'holes');
 if any(mask(:))
     [labels,num] = bwlabel(mask);
@@ -1356,7 +1506,7 @@ if any(mask(:))
         labelilab = labels==ilab;
         if sum(labelilab(:))>15
             P = bwboundaries(labelilab); P = P{1}; P = P(:,[2 1]);
-            if size(P,1)>16, P = reduce_poly(P(2:end,:)',max(16,round(size(P,1)/10))); end
+            if size(P,1)>16, P = reduce_poly(P(2:end,:)',max(6,round(size(P,1)/15))); P(:,end+1)=P(:,1); end
             if ~isempty(P)
                 imtool3DROI_poly(h.I,P',tool);
             end
@@ -1379,9 +1529,20 @@ end
 
 function maskinterpImageCallback(hObject,evnt,tool)
 mask = getMask(tool); 
-[~,~,z] = find3d(mask); z = unique(z);
+[x,y,z] = find3d(mask); 
 mask2=false(size(mask));
-mask2(:,:, min(z):max(z)) = interpmask(z, mask(:,:,unique(z)),min(z):max(z),'pchip');
+
+switch tool.viewplane
+    case 1
+        z = unique(x);
+        mask2(min(z):max(z),:,:) = interpmask(z, mask(unique(z),:,:),min(z):max(z),'interpDim',1,'pchip');
+    case 2
+        z = unique(y);
+        mask2(:,min(z):max(z),:) = interpmask(z, mask(:,unique(z),:),min(z):max(z),'interpDim',2,'pchip');
+    case 3
+        z = unique(z);
+        mask2(:,:, min(z):max(z)) = interpmask(z, mask(:,:,unique(z)),min(z):max(z),'interpDim',3,'pchip');
+end
 tool.setMask(mask2);
 end
 
@@ -1400,13 +1561,36 @@ if any(mask(:))
     
 %     mask = smooth3(mask);
 %     mask = mask>0.8;
-    [~,~,z] = find3d(mask);
+    [x,y,z] = find3d(mask);
+    switch tool.viewplane
+        case 1
+            z=x;
+        case 2
+            z=y;
+    end
     z = unique(z);
     for iz = z'
-        Iiz = I(:,:,iz);
-        maskiz = mask(:,:,iz);
-        J = activecontour(Iiz, maskiz, 3,'Chan-Vese','SmoothFactor',0.1,'ContractionBias' ,0);
-        mask(:,:,iz) = J;
+        switch tool.viewplane
+            case 1
+                Iiz = I(iz,:,:);
+                maskiz = mask(iz,:,:);
+            case 2
+                Iiz = I(:,iz,:);
+                maskiz = mask(:,iz,:);
+            case 3
+                Iiz = I(:,:,iz);
+                maskiz = mask(:,:,iz);
+        end
+
+        J = activecontour(squeeze(Iiz), squeeze(maskiz), 3,'Chan-Vese','SmoothFactor',0.1,'ContractionBias' ,0);
+        switch tool.viewplane
+            case 1
+                mask(iz,:,:) = J;
+            case 2
+                mask(:,iz,:) = J;
+            case 3
+                mask(:,:,iz) = J;
+        end
     end
     tool.setMask(mask);
 end
@@ -1648,7 +1832,7 @@ function scrollWheel(scr,evnt,tool)
 %if point(1)>=xmin && point(1)<=xmax && point(2)>=ymin && point(2)<=ymax
 %if isMouseOverAxes(tool.handles.Axes)
     newSlice=get(tool.handles.Slider,'value')-evnt.VerticalScrollCount;
-    if newSlice>=1 && newSlice <=size(tool.I,3)
+    if newSlice>=1 && newSlice <=size(tool.I,tool.viewplane)
         set(tool.handles.Slider,'value',newSlice);
         showSlice(tool)
     end
@@ -1808,8 +1992,16 @@ if n==0
     n=1;
 end
 
-if pos(1)>0 && pos(1)<=size(tool.I,2) && pos(2)>0 && pos(2)<=size(tool.I,1)
-    set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I(pos(2),pos(1),n,tool.Ntime,tool.Nvol))])
+posdim = setdiff(1:3, tool.viewplane);
+if pos(1)>0 && pos(1)<=size(tool.I,posdim(2)) && pos(2)>0 && pos(2)<=size(tool.I,posdim(1))
+    switch tool.viewplane
+        case 1
+            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I(n,pos(2),pos(1),tool.Ntime,tool.Nvol))])
+        case 2
+            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I(pos(2),n,pos(1),tool.Ntime,tool.Nvol))])
+        case 3
+            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I(pos(2),pos(1),n,tool.Ntime,tool.Nvol))])
+    end
     notify(tool,'newMousePos')
 else
     set(h.Info,'String','(x,y) val')
