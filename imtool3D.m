@@ -1072,7 +1072,6 @@ classdef imtool3D < handle
                 case 3
                     tool.mask(:,:,slice) = maskOld;
             end
-            notify(tool,'maskChanged')
             showSlice(tool,slice)
         end
         

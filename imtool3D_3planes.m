@@ -26,13 +26,13 @@ set(tool(ii).getHandles.Panels.Tools,'Visible','off')
 end
 set(tool(1).getHandles.Tools.ViewPlane,'Visible','off')
 
-% tool of first block transfert to all
-% transfert mask
+% Synchronize masks
 for ii=1:3
     addlistener(tool(ii),'maskChanged',@(x,y) syncMasks(tool,ii));
     addlistener(tool(ii),'maskUndone',@(x,y) syncMasks(tool,ii));
 end
 
+% tool of first block transfert to all
 controls1 = findobj(tool(1).getHandles.Panels.Tools,'Type','uicontrol');
 controls2 = findobj(tool(2).getHandles.Panels.Tools,'Type','uicontrol');
 controls3 = findobj(tool(3).getHandles.Panels.Tools,'Type','uicontrol');
@@ -49,6 +49,7 @@ set(tool(1).getHandles.Tools.maskStats,'Visible','off')
 set(tool(2).getHandles.Tools.maskStats,'Visible','off')
 
 for ic = 1:length(controls1)
+    if ~isempty(controls1(ic).Callback) && contains(func2str(controls1(ic).Callback),'saveImage'), continue; end % save Mask only once!
     CB = get(controls1(ic),'Callback');
     CB2 = get(controls2(ic),'Callback');
     CB3 = get(controls3(ic),'Callback');
@@ -64,9 +65,34 @@ for ic = 1:length(controls1)
     end
 end
 
+% Add crosses
+H = tool(1).getHandles;
+S = tool(1).getImageSize;
+y1 = tool(2).getCurrentSlice;
+x1 = tool(3).getCurrentSlice;
+crossX1 = plot(H.Axes,[x1 x1],[0 S(1)],'r-');
+crossY1 = plot(H.Axes,[0 S(2)],[y1 y1],'r-');
+
+H = tool(2).getHandles;
+S = tool(2).getImageSize;
+y2 = tool(3).getCurrentSlice;
+x2 = tool(1).getCurrentSlice;
+crossX2 = plot(H.Axes,[x2 x2],[0 S(1)],'r-');
+crossY2 = plot(H.Axes,[0 S(2)],[y2 y2],'r-');
+
+H = tool(3).getHandles;
+S = tool(3).getImageSize;
+y3 = tool(2).getCurrentSlice;
+x3 = tool(1).getCurrentSlice;
+crossX3 = plot(H.Axes,[x3 x3],[0 S(1)],'r-');
+crossY3 = plot(H.Axes,[0 S(2)],[y3 y3],'r-');
+
+hidecross(crossX1,crossY1,crossX2,crossY2,crossX3,crossY3)
+
+% Add mouse/keyboard interactions
 h = tool(1).getHandles.fig;
 set(h,'WindowScrollWheelFcn',@(src, evnt) scrollWheel(src, evnt, tool) )
-set(h,'Windowkeypressfcn', @(hobject, event) shortcutCallback(hobject, event,tool))
+set(h,'Windowkeypressfcn', @(hobject, event) shortcutCallback(hobject, event,tool,crossX1,crossY1,crossX2,crossY2,crossX3,crossY3))
 set(h,'WindowButtonMotionFcn',@(src,evnt) Callback3(CB_Motion1,CB_Motion2,CB_Motion3,src,evnt))
 
 addlistener(tool(1).getHandles.Tools.L,'String','PostSet',@(x,y) setWL(tool));
@@ -131,9 +157,16 @@ for ii=1:length(tool)
 end
 
 
-function shortcutCallback(hobject, event,tool)
+function shortcutCallback(hobject, event,tool,crossX1,crossY1,crossX2,crossY2,crossX3,crossY3)
+persistent timer
+if isempty(timer), timer=tic; end
+
 switch event.Key
     case 'x'
+        if toc(timer)<0.1
+            return;
+        end
+
         currentobj = hittest;
         for ii=1:length(tool)
             if ismember(currentobj,findobj(tool(ii).getHandles.Axes))
@@ -148,7 +181,13 @@ switch event.Key
                 end
             end
         end
-        
+        showcross(tool,crossX1,crossY1,crossX2,crossY2,crossX3,crossY3)
+        if toc(timer)<0.5
+            return;
+        end
+        timer=tic;
+        pause(.5)
+        hidecross(crossX1,crossY1,crossX2,crossY2,crossX3,crossY3)
     case 'z'
         tool(1).shortcutCallback(event)
         
@@ -182,3 +221,26 @@ timer=tic;
 for ii=setdiff(1:3,ic)
     tool(ii).setMask(tool(ic).getMask(1));
 end
+
+function showcross(tool,crossX1,crossY1,crossX2,crossY2,crossX3,crossY3)
+set(crossX1,'XData',[tool(3).getCurrentSlice tool(3).getCurrentSlice])
+set(crossY1,'YData',[tool(2).getCurrentSlice tool(2).getCurrentSlice])
+set(crossX2,'XData',[tool(1).getCurrentSlice tool(1).getCurrentSlice])
+set(crossY2,'YData',[tool(3).getCurrentSlice tool(3).getCurrentSlice])
+set(crossX3,'XData',[tool(1).getCurrentSlice tool(1).getCurrentSlice])
+set(crossY3,'YData',[tool(2).getCurrentSlice tool(2).getCurrentSlice])
+
+set(crossX1,'Visible','on')
+set(crossY1,'Visible','on')
+set(crossX2,'Visible','on')
+set(crossY2,'Visible','on')
+set(crossX3,'Visible','on')
+set(crossY3,'Visible','on')
+
+function hidecross(crossX1,crossY1,crossX2,crossY2,crossX3,crossY3)
+set(crossX1,'Visible','off')
+set(crossY1,'Visible','off')
+set(crossX2,'Visible','off')
+set(crossY2,'Visible','off')
+set(crossX3,'Visible','off')
+set(crossY3,'Visible','off')
