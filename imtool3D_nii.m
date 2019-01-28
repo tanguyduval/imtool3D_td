@@ -17,7 +17,7 @@ else
 end
 
 % set voxelsize
-tool.setAspectRatio(hdr.dime.pixdim(2:4));
+tool.setAspectRatio(hdr.pixdim(2:4));
 
 % set viewplane
 setviewplane(tool,viewplane);

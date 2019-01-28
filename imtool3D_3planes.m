@@ -155,8 +155,10 @@ switch event.Key
     otherwise
         fig = tool(1).getHandles.fig;
         oldWBMF = get(fig,'WindowButtonMotionFcn');
+        oldPTR  = get(fig,'Pointer');
         for ii=length(tool):-1:1
             set(fig,'WindowButtonMotionFcn',oldWBMF);
+            set(fig,'Pointer',oldPTR);
             tool(ii).shortcutCallback(event)
             CB_Motion_mod{ii} = get(fig,'WindowButtonMotionFcn');
         end

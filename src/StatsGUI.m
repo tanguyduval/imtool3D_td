@@ -1,7 +1,14 @@
 % STATS Table
 function f = StatsGUI(I,Maskall, fields, Color)
 if ~exist('Color','var'), Color = jet(double(max(1+Maskall(:)))); end
-if ~exist('fields','var') || isempty(fields), fields = cellfun(@(x) ['vol #' x],strsplit(num2str(size(I,5):-1:1)),'uni',0); end
+if iscell(I)
+    Nvol = length(I); 
+else
+    Nvol = size(I,5);
+end
+if ~exist('fields','var') || isempty(fields)
+    fields = cellfun(@(x) ['vol #' x],strsplit(num2str(Nvol:-1:1)),'uni',0); 
+end
 
 values = unique(Maskall(Maskall>0))';
 
@@ -12,8 +19,11 @@ for Selected = values
     Mask = Maskall==Selected;
     Stats = cell(length(fields),7);
     for iii=1:length(fields)
-        datiii = I(:,:,:,:,length(fields)+1-iii);
-        datiii = nanmean(datiii,4); % average 4D data along time
+        if iscell(I)
+            datiii = nanmean(I{length(fields)+1-iii},4); % average 4D data along time
+        else
+            datiii = nanmean(I(:,:,:,:,length(fields)+1-iii),4);
+        end
         datiii = datiii(Mask);
         Stats{iii,1} = mean(datiii);
         Stats{iii,2} = median(datiii);

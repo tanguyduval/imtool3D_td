@@ -217,8 +217,10 @@ classdef imtool3D < handle
     methods
         
         function tool = imtool3D(varargin)  %Constructor
-            addpath(genpath(fullfile(fileparts(mfilename('fullpath')),'External')))
-            addpath(genpath(fullfile(fileparts(mfilename('fullpath')),'src')))
+            if ~isdeployed
+                addpath(genpath(fullfile(fileparts(mfilename('fullpath')),'External')))
+                addpath(genpath(fullfile(fileparts(mfilename('fullpath')),'src')))
+            end
             
             % Parse Inputs
             [I, position, h, range, tools, mask, enableHist] = parseinputs(varargin{:});
@@ -492,21 +494,21 @@ classdef imtool3D < handle
 
             %Create smooth3 button
             tool.handles.Tools.smooth3             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+5*w w w],'TooltipString','Smooth Mask in 3D');
-            icon_profile = makeToolbarIconFromPNG(fullfile(fileparts(mfilename('fullpath')),'src','icon_smooth3.png'));
+            icon_profile = makeToolbarIconFromPNG('icon_smooth3.png');
             set(tool.handles.Tools.smooth3 ,'Cdata',icon_profile)
             fun=@(hObject,evnt) smooth3Callback(hObject,evnt,tool);
             set(tool.handles.Tools.smooth3 ,'Callback',fun)
 
             %Create maskinterp button
             tool.handles.Tools.maskinterp             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+6*w w w],'TooltipString','Interp Mask');
-            icon_profile = makeToolbarIconFromPNG(fullfile(fileparts(mfilename('fullpath')),'src','icon_interpmask.png'));
+            icon_profile = makeToolbarIconFromPNG('icon_interpmask.png');
             set(tool.handles.Tools.maskinterp ,'Cdata',icon_profile)
             fun=@(hObject,evnt) maskinterpImageCallback(hObject,evnt,tool);
             set(tool.handles.Tools.maskinterp ,'Callback',fun)
 
             %Create active countour button
             tool.handles.Tools.maskactivecontour             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+7*w w w],'TooltipString','Active Contour 3D');
-            icon_profile = makeToolbarIconFromPNG(fullfile(fileparts(mfilename('fullpath')),'src','icon_activecontour.png'));
+            icon_profile = makeToolbarIconFromPNG('icon_activecontour.png');
             set(tool.handles.Tools.maskactivecontour ,'Cdata',icon_profile)
             fun=@(hObject,evnt) ActiveCountourCallback(hObject,evnt,tool);
             set(tool.handles.Tools.maskactivecontour ,'Callback',fun)
@@ -523,7 +525,7 @@ classdef imtool3D < handle
             
             %Smart Paint brush tool button
             tool.handles.Tools.SmartBrush        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','String','','Position',[buff buff+9*w w w],'TooltipString','Smart Brush Tool');
-            icon_profile = makeToolbarIconFromPNG(fullfile(fileparts(mfilename('fullpath')),'src','tool_data_brush_smart.png'));
+            icon_profile = makeToolbarIconFromPNG('tool_data_brush_smart.png');
             set(tool.handles.Tools.SmartBrush ,'Cdata',icon_profile)
             fun=@(hObject,evnt) PaintBrushCallback(hObject,evnt,tool,'Smart');
             set(tool.handles.Tools.SmartBrush ,'Callback',fun)
@@ -557,7 +559,7 @@ classdef imtool3D < handle
             
             % lock mask
             tool.handles.Tools.maskLock        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','Position',[buff pos(4)-w-buff-(islct+1)*w w w], 'Value', 1, 'TooltipString', 'Lock all colors except selected one');
-            icon_profile = makeToolbarIconFromPNG(fullfile(fileparts(mfilename('fullpath')),'src','icon_lock.png'));
+            icon_profile = makeToolbarIconFromPNG('icon_lock.png');
             set(tool.handles.Tools.maskLock ,'Cdata',icon_profile)
             set(tool.handles.Tools.maskLock ,'Callback',@(hObject,evnt) setlockMask(tool))
 
@@ -754,23 +756,22 @@ classdef imtool3D < handle
             end
             
             if iscell(I)
-                if length(I)>1
-                    I2 = nan(max(cell2mat(cellfun(@(x) size(x,1), I, 'uni', false))),...
-                        max(cell2mat(cellfun(@(x) size(x,2), I, 'uni', false))),...
-                        max(cell2mat(cellfun(@(x) size(x,3), I, 'uni', false))),...
-                        max(cell2mat(cellfun(@(x) size(x,4), I, 'uni', false))),...
-                        length(I));
-                    for iii = 1:length(I)
-                        I2(1:size(I{iii},1),1:size(I{iii},2),1:size(I{iii},3),1:size(I{iii},4),iii)=I{iii};
+                S = [max(cell2mat(cellfun(@(x) size(x,1), I, 'uni', false))),...
+                     max(cell2mat(cellfun(@(x) size(x,2), I, 'uni', false))),...
+                     max(cell2mat(cellfun(@(x) size(x,3), I, 'uni', false)))];
+                for iii = 1:length(I)
+                    Siii = [size(I{iii},1) size(I{iii},2) size(I{iii},3)];
+                    if ~isequal(S,Siii)
+                        Iiii = zeros(S,'like',I{iii});
+                        Iiii(1:Siii(1),1:Siii(2),1:Siii(3)) = I{iii};
+                        I{iii} = Iiii;
                     end
-                    I = I2;
-                    clear I2;
-                else
-                    I = I{1};
                 end
+            else
+                I = mat2cell(I,size(I,1),size(I,2),size(I,3),size(I,4),ones(1,size(I,5)));
             end
             
-            if islogical(I)
+            if islogical(I{1})
                 range = [0 1];
             end
 
@@ -778,13 +779,8 @@ classdef imtool3D < handle
                 tool.range = range;
                 range = range{1};
             else
-                for ivol = 1:size(I,5)
-                    if size(I,5)>1
-                        Ivol = I(:,:,:,:,ivol);
-                    else % no need to copy variable
-                        Ivol = I;
-                    end
-                    tool.range{ivol}=double(range_outlier(Ivol(:),5));
+                for ivol = 1:length(I)
+                    tool.range{ivol}=double(range_outlier(I{ivol}(:),5));
                 end
             end
             tool.Climits = tool.range;
@@ -795,7 +791,7 @@ classdef imtool3D < handle
             range = tool.Climits{1};
             
             if isempty(mask)
-                mask=false([size(I,1) size(I,2) size(I,3)]);
+                mask=false([size(I{1},1) size(I{1},2) size(I{1},3)]);
             end
                         
             tool.I=I;
@@ -805,12 +801,7 @@ classdef imtool3D < handle
 
             %Update the histogram
             if isfield(tool.handles,'HistAxes')
-                if size(I,5)>1
-                    Ivol=I(:,:,:,:,tool.Nvol);
-                else
-                    Ivol = I;
-                end
-                Ivol = Ivol(unique(round(linspace(1,numel(Ivol),min(5000,numel(Ivol)))))); 
+                Ivol = I{tool.Nvol}(unique(round(linspace(1,numel(I{tool.Nvol}),min(5000,numel(I{tool.Nvol})))))); 
                 Ivol = Ivol(Ivol>min(Ivol) & Ivol<max(Ivol));
                 if isempty(Ivol), Ivol=0; end
                 tool.centers=linspace(range(1)-diff(range)*0.05,range(2)+diff(range)*0.05,256);
@@ -832,24 +823,24 @@ classdef imtool3D < handle
             %set(tool.handles.I,'CData',im)
             switch tool.viewplane
                 case 1
-                    xlim(tool.handles.Axes,[0 size(I,3)])
-                    ylim(tool.handles.Axes,[0 size(I,2)])
-                    set(tool.handles.I,'XData',[1 max(2,size(I,3))]);
-                    set(tool.handles.I,'YData',[1 max(2,size(I,2))]);
+                    xlim(tool.handles.Axes,[0 size(I{tool.Nvol},3)])
+                    ylim(tool.handles.Axes,[0 size(I{tool.Nvol},2)])
+                    set(tool.handles.I,'XData',[1 max(2,size(I{tool.Nvol},3))]);
+                    set(tool.handles.I,'YData',[1 max(2,size(I{tool.Nvol},2))]);
                 case 2
-                    xlim(tool.handles.Axes,[0 size(I,3)])
-                    ylim(tool.handles.Axes,[0 size(I,1)])
-                    set(tool.handles.I,'XData',[1 max(2,size(I,3))]);
-                    set(tool.handles.I,'YData',[1 max(2,size(I,1))]);
+                    xlim(tool.handles.Axes,[0 size(I{tool.Nvol},3)])
+                    ylim(tool.handles.Axes,[0 size(I{tool.Nvol},1)])
+                    set(tool.handles.I,'XData',[1 max(2,size(I{tool.Nvol},3))]);
+                    set(tool.handles.I,'YData',[1 max(2,size(I{tool.Nvol},1))]);
                 case 3
-                    xlim(tool.handles.Axes,[0 size(I,2)])
-                    ylim(tool.handles.Axes,[0 size(I,1)])
-                    set(tool.handles.I,'XData',[1 max(2,size(I,2))]);
-                    set(tool.handles.I,'YData',[1 max(2,size(I,1))]);
+                    xlim(tool.handles.Axes,[0 size(I{tool.Nvol},2)])
+                    ylim(tool.handles.Axes,[0 size(I{tool.Nvol},1)])
+                    set(tool.handles.I,'XData',[1 max(2,size(I{tool.Nvol},2))]);
+                    set(tool.handles.I,'YData',[1 max(2,size(I{tool.Nvol},1))]);
             end
             
             %update the mask cdata (in case it has changed size)
-            C=zeros(size(I,1),size(I,2),3);
+            C=zeros(size(I{tool.Nvol},1),size(I{tool.Nvol},2),3);
             C(:,:,1)=tool.maskColor(1); C(:,:,2)=tool.maskColor(2); C(:,:,3)=tool.maskColor(3);
             set(tool.handles.mask,'CData',C);
             
@@ -857,7 +848,7 @@ classdef imtool3D < handle
             setupSlider(tool)
             
             %Update the TIme
-            tool.Ntime = min(tool.Ntime,size(I,4));
+            tool.Ntime = min(tool.Ntime,size(I{tool.Nvol},4));
             
             %Update the gridlines
             setupGrid(tool)
@@ -877,7 +868,7 @@ classdef imtool3D < handle
             if all
                 I=tool.I;
             else
-                I=tool.I(:,:,:,tool.Ntime,tool.Nvol);
+                I=tool.I{tool.Nvol}(:,:,:,min(end,tool.Ntime));
             end
         end
 
@@ -889,7 +880,7 @@ classdef imtool3D < handle
             % save window and level
             tool.setClimits(get(tool.handles.Axes,'Clim'))
             % change Volume
-            tool.Nvol = max(1,min(Nvol,size(tool.I,5)));
+            tool.Nvol = max(1,min(Nvol,length(tool.I)));
             % load new window and level
             NewRange = tool.Climits{tool.Nvol};
             W=NewRange(2)-NewRange(1); L=mean(NewRange);
@@ -930,11 +921,11 @@ classdef imtool3D < handle
         end
                 
         function m = max(tool)
-            m = max(tool.I(:));
+            m = max(tool.I{tool.getNvol}(:));
         end
         
         function m = min(tool)
-            m = min(tool.I(:));
+            m = min(tool.I{tool.getNvol}(:));
         end
                 
         function handles=getHandles(tool)
@@ -977,23 +968,23 @@ classdef imtool3D < handle
                 end
             end
             tool.viewplane = min(3,max(1,round(dim)));
-            showSlice(tool,round(size(tool.I,dim)/2))
+            showSlice(tool,round(size(tool.I{tool.getNvol},dim)/2))
             switch dim
                 case 1
-                    xlim(tool.handles.Axes,[0 size(tool.I,3)])
-                    ylim(tool.handles.Axes,[0 size(tool.I,2)])
-                    set(tool.handles.I,'XData',[1 max(2,size(tool.I,3))]);
-                    set(tool.handles.I,'YData',[1 max(2,size(tool.I,2))]);
+                    xlim(tool.handles.Axes,[0 size(tool.I{tool.getNvol},3)])
+                    ylim(tool.handles.Axes,[0 size(tool.I{tool.getNvol},2)])
+                    set(tool.handles.I,'XData',[1 max(2,size(tool.I{tool.getNvol},3))]);
+                    set(tool.handles.I,'YData',[1 max(2,size(tool.I{tool.getNvol},2))]);
                 case 2
-                    xlim(tool.handles.Axes,[0 size(tool.I,3)])
-                    ylim(tool.handles.Axes,[0 size(tool.I,1)])
-                    set(tool.handles.I,'XData',[1 max(2,size(tool.I,3))]);
-                    set(tool.handles.I,'YData',[1 max(2,size(tool.I,1))]);
+                    xlim(tool.handles.Axes,[0 size(tool.I{tool.getNvol},3)])
+                    ylim(tool.handles.Axes,[0 size(tool.I{tool.getNvol},1)])
+                    set(tool.handles.I,'XData',[1 max(2,size(tool.I{tool.getNvol},3))]);
+                    set(tool.handles.I,'YData',[1 max(2,size(tool.I{tool.getNvol},1))]);
                 case 3
-                    xlim(tool.handles.Axes,[0 size(tool.I,2)])
-                    ylim(tool.handles.Axes,[0 size(tool.I,1)])
-                    set(tool.handles.I,'XData',[1 max(2,size(tool.I,2))]);
-                    set(tool.handles.I,'YData',[1 max(2,size(tool.I,1))]);
+                    xlim(tool.handles.Axes,[0 size(tool.I{tool.getNvol},2)])
+                    ylim(tool.handles.Axes,[0 size(tool.I{tool.getNvol},1)])
+                    set(tool.handles.I,'XData',[1 max(2,size(tool.I{tool.getNvol},2))]);
+                    set(tool.handles.I,'YData',[1 max(2,size(tool.I{tool.getNvol},1))]);
             end
             setupSlider(tool)
             setupGrid(tool)
@@ -1089,11 +1080,11 @@ classdef imtool3D < handle
             slice = getCurrentSlice(tool);
             switch tool.viewplane
                 case 1
-                    im = tool.I(slice,:,:,tool.Ntime,tool.Nvol);
+                    im = tool.I{tool.Nvol}(slice,:,:,min(end,tool.Ntime));
                 case 2
-                    im = tool.I(:,slice,:,tool.Ntime,tool.Nvol);
+                    im = tool.I{tool.Nvol}(:,slice,:,min(end,tool.Ntime));
                 case 3
-                    im = tool.I(:,:,slice,tool.Ntime,tool.Nvol);
+                    im = tool.I{tool.Nvol}(:,:,slice,min(end,tool.Ntime));
             end
             im = squeeze(im);
         end
@@ -1113,7 +1104,8 @@ classdef imtool3D < handle
         end
         
         function S = getImageSize(tool)
-            S=size(tool.I);
+            S=size(tool.I{tool.Nvol});
+            if length(S)<3, S(3) = 1; end
             switch tool.viewplane
                 case 1
                     S = S([2 3 1]);
@@ -1127,8 +1119,8 @@ classdef imtool3D < handle
             %lims . Lims defines the box in which the new data, im, will be
             %inserted. lims = [ymin ymax; xmin xmax; zmin zmax];
             
-            tool.I(lims(1,1):lims(1,2),lims(2,1):lims(2,2),lims(3,1):lims(3,2),tool.Ntime,tool.Nvol)=...
-                tool.I(lims(1,1):lims(1,2),lims(2,1):lims(2,2),lims(3,1):lims(3,2),tool.Ntime,tool.Nvol)+im;
+            tool.I{tool.Nvol}(lims(1,1):lims(1,2),lims(2,1):lims(2,2),lims(3,1):lims(3,2),min(end,tool.Ntime))=...
+                tool.I{tool.Nvol}(lims(1,1):lims(1,2),lims(2,1):lims(2,2),lims(3,1):lims(3,2),min(end,tool.Ntime))+im;
             showSlice(tool);
         end
         
@@ -1136,12 +1128,12 @@ classdef imtool3D < handle
             %this function replaces pixel values with im at location specified by
             %lims . Lims defines the box in which the new data, im, will be
             %inserted. lims = [ymin ymax; xmin xmax; zmin zmax];
-            tool.I(lims(1,1):lims(1,2),lims(2,1):lims(2,2),lims(3,1):lims(3,2),tool.Ntime,tool.Nvol)=im;
+            tool.I{tool.Nvol}(lims(1,1):lims(1,2),lims(2,1):lims(2,2),lims(3,1):lims(3,2),min(end,tool.Ntime))=im;
             showSlice(tool);
         end
         
         function im = getImageValues(tool,lims)
-            im = tool.I(lims(1,1):lims(1,2),lims(2,1):lims(2,2),lims(3,1):lims(3,2));
+            im = tool.I{tool.Nvol}(lims(1,1):lims(1,2),lims(2,1):lims(2,2),lims(3,1):lims(3,2));
         end
         
         function im = getImageSlices(tool,zmin,zmax)
@@ -1244,7 +1236,7 @@ classdef imtool3D < handle
                     tool.Ntime = max(tool.Ntime-1,1);
                     showSlice(tool);
                 case 'rightarrow'
-                    tool.Ntime = min(tool.Ntime+1,size(tool.I,4));
+                    tool.Ntime = min(tool.Ntime+1,size(tool.I{tool.Nvol},4));
                     showSlice(tool);
                 case 'uparrow'
                     setNvol(tool,tool.Nvol+1)
@@ -1358,8 +1350,8 @@ classdef imtool3D < handle
                 n=1;
             end
             
-            if n > size(tool.I,tool.viewplane)
-                n=size(tool.I,tool.viewplane);
+            if n > size(tool.I{tool.Nvol},tool.viewplane)
+                n=size(tool.I{tool.Nvol},tool.viewplane);
             end
             
             set(tool.handles.I,'AlphaData',1)
@@ -1374,7 +1366,7 @@ classdef imtool3D < handle
             maskrgb = ind2rgb(maskn,tool.maskColor);
             set(tool.handles.mask,'CData',maskrgb);
             set(tool.handles.mask,'AlphaData',tool.alpha*logical(maskn))
-            set(tool.handles.SliceText,'String',['Vol: ' num2str(tool.Nvol) '/' num2str(size(tool.I,5)) '    Time: ' num2str(tool.Ntime) '/' num2str(size(tool.I,4)) '    Slice: ' num2str(n) '/' num2str(size(tool.I,tool.viewplane))])
+            set(tool.handles.SliceText,'String',['Vol: ' num2str(tool.Nvol) '/' num2str(length(tool.I)) '    Time: ' num2str(tool.Ntime) '/' num2str(size(tool.I{tool.Nvol},4)) '    Slice: ' num2str(n) '/' num2str(size(tool.I{tool.Nvol},tool.viewplane))])
 
             if isfield(tool.handles.Tools,'Hist') && get(tool.handles.Tools.Hist,'value')
                 maskrgb=In;
@@ -1391,18 +1383,18 @@ classdef imtool3D < handle
         end
         
         function setupSlider(tool)
-            n=size(tool.I,tool.viewplane);
+            n=size(tool.I{tool.Nvol},tool.viewplane);
             if n==1
                 set(tool.handles.Slider,'visible','off');
             else
                 set(tool.handles.Slider,'visible','on');
-                set(tool.handles.Slider,'SliderStep',[1/(size(tool.I,tool.viewplane)-1) 1/(size(tool.I,tool.viewplane)-1)])
+                set(tool.handles.Slider,'SliderStep',[1/(size(tool.I{tool.Nvol},tool.viewplane)-1) 1/(size(tool.I{tool.Nvol},tool.viewplane)-1)])
                 fun=@(hobject,eventdata)showSlice(tool,[],hobject,eventdata);
                 set(tool.handles.Slider,'Callback',fun);
             end
-            set(tool.handles.Slider,'min',1,'max',size(tool.I,tool.viewplane));
+            set(tool.handles.Slider,'min',1,'max',size(tool.I{tool.Nvol},tool.viewplane));
             if get(tool.handles.Slider,'value')==0 || get(tool.handles.Slider,'value')>n
-                currentslice = round(size(tool.I,tool.viewplane)/2);
+                currentslice = round(size(tool.I{tool.Nvol},tool.viewplane)/2);
             else
                 currentslice = get(tool.handles.Slider,'value');
             end    
@@ -1415,25 +1407,25 @@ classdef imtool3D < handle
             nGrid=7;
             nMinor=4;
             posdim = setdiff(1:3,tool.viewplane);
-            x=linspace(1,size(tool.I,posdim(2)),nGrid);
-            y=linspace(1,size(tool.I,posdim(1)),nGrid);
+            x=linspace(1,size(tool.I{tool.Nvol},posdim(2)),nGrid);
+            y=linspace(1,size(tool.I{tool.Nvol},posdim(1)),nGrid);
             hold on;
             tool.handles.grid=[];
             gColor=[255 38 38]./256;
             mColor=[255 102 102]./256;
             for i=1:nGrid
-                tool.handles.grid(end+1)=plot([.5 size(tool.I,posdim(2))-.5],[y(i) y(i)],'-','LineWidth',1.2,'HitTest','off','Color',gColor,'Parent',tool.handles.Axes);
-                tool.handles.grid(end+1)=plot([x(i) x(i)],[.5 size(tool.I,posdim(1))-.5],'-','LineWidth',1.2,'HitTest','off','Color',gColor,'Parent',tool.handles.Axes);
+                tool.handles.grid(end+1)=plot([.5 size(tool.I{tool.Nvol},posdim(2))-.5],[y(i) y(i)],'-','LineWidth',1.2,'HitTest','off','Color',gColor,'Parent',tool.handles.Axes);
+                tool.handles.grid(end+1)=plot([x(i) x(i)],[.5 size(tool.I{tool.Nvol},posdim(1))-.5],'-','LineWidth',1.2,'HitTest','off','Color',gColor,'Parent',tool.handles.Axes);
                 if i<nGrid
                     xm=linspace(x(i),x(i+1),nMinor+2); xm=xm(2:end-1);
                     ym=linspace(y(i),y(i+1),nMinor+2); ym=ym(2:end-1);
                     for j=1:nMinor
-                        tool.handles.grid(end+1)=plot([.5 size(tool.I,posdim(2))-.5],[ym(j) ym(j)],'-r','LineWidth',.9,'HitTest','off','Color',mColor,'Parent',tool.handles.Axes);
-                        tool.handles.grid(end+1)=plot([xm(j) xm(j)],[.5 size(tool.I,posdim(1))-.5],'-r','LineWidth',.9,'HitTest','off','Color',mColor,'Parent',tool.handles.Axes);
+                        tool.handles.grid(end+1)=plot([.5 size(tool.I{tool.Nvol},posdim(2))-.5],[ym(j) ym(j)],'-r','LineWidth',.9,'HitTest','off','Color',mColor,'Parent',tool.handles.Axes);
+                        tool.handles.grid(end+1)=plot([xm(j) xm(j)],[.5 size(tool.I{tool.Nvol},posdim(1))-.5],'-r','LineWidth',.9,'HitTest','off','Color',mColor,'Parent',tool.handles.Axes);
                     end
                 end
             end
-            tool.handles.grid(end+1)=scatter(.5+size(tool.I,posdim(2))/2,.5+size(tool.I,posdim(1))/2,'r','filled','Parent',tool.handles.Axes);
+            tool.handles.grid(end+1)=scatter(.5+size(tool.I,posdim(2))/2,.5+size(tool.I{tool.Nvol},posdim(1))/2,'r','filled','Parent',tool.handles.Axes);
 
             if get(tool.handles.Tools.Grid,'Value')
                 set(tool.handles.grid,'Visible','on')
@@ -1867,7 +1859,7 @@ function scrollWheel(scr,evnt,tool)
 %if point(1)>=xmin && point(1)<=xmax && point(2)>=ymin && point(2)<=ymax
 %if isMouseOverAxes(tool.handles.Axes)
     newSlice=get(tool.handles.Slider,'value')-evnt.VerticalScrollCount;
-    if newSlice>=1 && newSlice <=size(tool.I,tool.viewplane)
+    if newSlice>=1 && newSlice <=size(tool.I{tool.Nvol},tool.viewplane)
         set(tool.handles.Slider,'value',newSlice);
         showSlice(tool)
     end
@@ -2028,14 +2020,14 @@ if n==0
 end
 
 posdim = setdiff(1:3, tool.viewplane);
-if pos(1)>0 && pos(1)<=size(tool.I,posdim(2)) && pos(2)>0 && pos(2)<=size(tool.I,posdim(1))
+if pos(1)>0 && pos(1)<=size(tool.I{tool.Nvol},posdim(2)) && pos(2)>0 && pos(2)<=size(tool.I{tool.Nvol},posdim(1))
     switch tool.viewplane
         case 1
-            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I(n,pos(2),pos(1),tool.Ntime,tool.Nvol))])
+            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I{tool.Nvol}(n,pos(2),pos(1),min(end,tool.Ntime)))])
         case 2
-            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I(pos(2),n,pos(1),tool.Ntime,tool.Nvol))])
+            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I{tool.Nvol}(pos(2),n,pos(1),min(end,tool.Ntime)))])
         case 3
-            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I(pos(2),pos(1),n,tool.Ntime,tool.Nvol))])
+            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I{tool.Nvol}(pos(2),pos(1),n,min(end,tool.Ntime)))])
     end
     notify(tool,'newMousePos')
 else
