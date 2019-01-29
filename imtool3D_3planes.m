@@ -94,6 +94,7 @@ h = tool(1).getHandles.fig;
 set(h,'WindowScrollWheelFcn',@(src, evnt) scrollWheel(src, evnt, tool) )
 set(h,'Windowkeypressfcn', @(hobject, event) shortcutCallback(hobject, event,tool,crossX1,crossY1,crossX2,crossY2,crossX3,crossY3))
 set(h,'WindowButtonMotionFcn',@(src,evnt) Callback3(CB_Motion1,CB_Motion2,CB_Motion3,src,evnt))
+set(h,'WindowKeyReleaseFcn',@(hobject,key) setappdata(hobject,'HoldX',0))
 
 addlistener(tool(1).getHandles.Tools.L,'String','PostSet',@(x,y) setWL(tool));
 addlistener(tool(1).getHandles.Tools.U,'String','PostSet',@(x,y) setWL(tool));
@@ -175,35 +176,13 @@ end
 
 
 function shortcutCallback(hobject, event,tool,crossX1,crossY1,crossX2,crossY2,crossX3,crossY3)
-persistent timer
-if isempty(timer), timer=tic; end
-
 switch event.Key
     case 'x'
-        if toc(timer)<0.1
-            return;
+        setappdata(hobject,'HoldX',1)
+        while getappdata(hobject,'HoldX')
+            syncSlices(tool,crossX1,crossY1,crossX2,crossY2,crossX3,crossY3)
+            pause(.1)
         end
-
-        currentobj = hittest;
-        for ii=1:length(tool)
-            if ismember(currentobj,findobj(tool(ii).getHandles.Axes))
-                movetools = setdiff(1:length(tool),ii);
-                [xi,yi,zi] = tool(ii).getCurrentMouseLocation;
-                if ii==1
-                    tool(movetools(1)).setCurrentSlice(yi);
-                    tool(movetools(2)).setCurrentSlice(xi);
-                else
-                    tool(movetools(1)).setCurrentSlice(xi);
-                    tool(movetools(2)).setCurrentSlice(yi);
-                end
-            end
-        end
-        showcross(tool,crossX1,crossY1,crossX2,crossY2,crossX3,crossY3)
-        if toc(timer)<0.5
-            return;
-        end
-        timer=tic;
-        pause(.5)
         hidecross(crossX1,crossY1,crossX2,crossY2,crossX3,crossY3)
     case 'z'
         tool(1).shortcutCallback(event)
@@ -238,6 +217,31 @@ timer=tic;
 for ii=setdiff(1:3,ic)
     tool(ii).setMask(tool(ic).getMask(1));
 end
+
+function syncSlices(tool,crossX1,crossY1,crossX2,crossY2,crossX3,crossY3)
+persistent timer
+if isempty(timer), timer=tic; end
+if toc(timer)<0.1
+    return;
+end
+
+currentobj = hittest;
+for ii=1:length(tool)
+    if ismember(currentobj,findobj(tool(ii).getHandles.Axes))
+        movetools = setdiff(1:length(tool),ii);
+        [xi,yi,~] = tool(ii).getCurrentMouseLocation;
+        if ii==1
+            tool(movetools(1)).setCurrentSlice(yi);
+            tool(movetools(2)).setCurrentSlice(xi);
+        else
+            tool(movetools(1)).setCurrentSlice(xi);
+            tool(movetools(2)).setCurrentSlice(yi);
+        end
+    end
+end
+showcross(tool,crossX1,crossY1,crossX2,crossY2,crossX3,crossY3)
+timer=tic;
+
 
 function showcross(tool,crossX1,crossY1,crossX2,crossY2,crossX3,crossY3)
 set(crossX1,'XData',[tool(3).getCurrentSlice tool(3).getCurrentSlice])
