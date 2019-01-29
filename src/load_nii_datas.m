@@ -2,15 +2,26 @@ function [dat,hdr] = load_nii_datas(filename,untouch)
 if ~isdeployed
     A = which('nii_tool');
     if isempty(A)
-        warning('Dependency to Jimmy Shen NIFTI tools is missing. https://fr.mathworks.com/matlabcentral/fileexchange/8797-tools-for-nifti-and-analyze-image');
+        warning('Dependency to Xiangrui Li NIFTI tools is missing. http://www.mathworks.com/matlabcentral/fileexchange/42997');
         return
     end
 end
 
 if ~iscell(filename)
-    list = tools_ls(filename,1,1,2,1);
+    if strcmp(filename(1:min(3,end)),'**/') || strcmp(filename(1:min(3,end)),'**\')
+        list = tools_ls(filename(4:end),1,1,2,1);
+    else
+        list = tools_ls(filename,1,1,2,0);
+    end
 else
     list = filename;
+end
+
+%reslice images
+for ff=2:length(list)
+    originalfilename = list{ff};
+    list{ff} = [tempname '.nii'];
+    nii_xform(originalfilename,list{1},list{ff})
 end
 
 if isempty(list)
@@ -30,6 +41,11 @@ for iii=1:length(list)
     nii = nii.img;
     
     dat(end+1:end+size(nii,5)) = mat2cell(nii,size(nii,1),size(nii,2),size(nii,3),size(nii,4),ones(1,size(nii,5)));
+end
+
+% delete resliced images
+for ff=2:length(list)
+    delete(list{ff})
 end
 
 function [list, path]=tools_ls(fname, keeppath, keepext, folders,arborescence,select)
@@ -87,18 +103,8 @@ end
 
 if select, list=list{select}; end
 
-
-function [data, hdr]=load_nii_data(fname,slice)
-% data=load_nii_data(fname)
-data=load_nii(fname,[],[],[],[],[],1); 
-hdr=rmfield(data,'img');
-if exist('slice','var')
-    data=data.img(:,:,min(slice,end),:);
-else
-    data=data.img;
-end
-
 function [hdr, orient] = change_hdr(hdr)
+hdr.original = hdr;
 tolerance = 1;
 preferredForm = 's';
 orient = [1 2 3];
@@ -346,6 +352,7 @@ end
 
 function nii = rotateimage(nii,orient)
 if ~isequal(orient, [1 2 3])
+    nii.hdr.dim(nii.hdr.dim==0)=1;
     old_dim = nii.hdr.dim([2:4]);
     
     %  More than 1 time frame
@@ -448,4 +455,7 @@ if ~isequal(orient, [1 2 3])
             nii.img = permute(nii.img, rot_orient);
         end
     end
+else
+    nii.hdr.rot_orient = [];
+    nii.hdr.flip_orient = [];
 end
