@@ -25,8 +25,7 @@ for ff=2:length(list)
 end
 
 if isempty(list)
-    warning(['no files match ' filename])
-    return;
+    error(['no files match ' filename])
 end
 dat = {};
 for iii=1:length(list)
