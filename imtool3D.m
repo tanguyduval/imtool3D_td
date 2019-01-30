@@ -442,7 +442,7 @@ classdef imtool3D < handle
             lp=lp+3.5*w+buff;
             
             %Create save button
-            tool.handles.Tools.SaveOptions    =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'Mask','Current slice','Whole stack'},'Position',[lp buff 3*w w]);
+            tool.handles.Tools.SaveOptions    =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'Mask','Image'},'Position',[lp buff 3*w w]);
             lp=lp+3*w;
             tool.handles.Tools.Save           =   uicontrol(tool.handles.Panels.Tools,'Style','pushbutton','String','','Position',[lp buff w w]);
             lp=lp+w+buff;
@@ -450,7 +450,7 @@ classdef imtool3D < handle
             set(tool.handles.Tools.Save,'CData',icon_save);
             fun=@(hObject,evnt) saveImage(tool);
             set(tool.handles.Tools.Save,'Callback',fun)
-            set(tool.handles.Tools.Save,'TooltipString','Save Mask or image as slice or tiff stack')
+            set(tool.handles.Tools.Save,'TooltipString','Save Mask or Image')
             
             %Create viewplane button
             tool.handles.Tools.ViewPlane    =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'Axial','Sagittal','Coronal'},'Position',[lp buff 3.5*w w],'Value',4-tool.viewplane);
@@ -1263,43 +1263,50 @@ classdef imtool3D < handle
             cmap = colormap(h.Tools.Color.String{h.Tools.Color.Value});
             S = get(h.Tools.SaveOptions,'String');
             switch S{get(h.Tools.SaveOptions,'value')}
-                case 'Current slice' %Save just the current slice
-                    I=get(h.I,'CData'); 
-                    viewtype = get(tool.handles.Axes,'View');
-                    if viewtype(1)==-90, I=rot90(I);  end
-                    lims=get(h.Axes,'CLim');
-                    I=gray2ind(mat2gray(I,lims),size(cmap,1));
-                    [FileName,PathName] = uiputfile({'*.png';'*.tif';'*.jpg';'*.bmp';'*.gif';'*.hdf'; ...
+                case 'Image' %Save just the current slice
+                    imformats = {'*.tif';'*.jpg';'*.bmp';'*.gif';'*.hdf'; ...
                         '*.jp2';'*.pbm';'*.pcx';'*.pgm'; ...
-                        '*.pnm';'*.ppm';'*.ras';'*.xwd'},'Save Image');
+                        '*.pnm';'*.ppm';'*.ras';'*.xwd'};
+                    imformats = cat(2,imformats,cellfun(@(X) sprintf('Current slice (%s)',X),imformats,'uni',0));
+                    imformats = cat(1,{'*.png','Current slice (*.png)';
+                        '*.tif','Whole stack (*.tif)'},imformats);
+                    [FileName,PathName, ext] = uiputfile(imformats,'Save Image');
                     
-                    if FileName == 0
-                    else
-                        imwrite(cat(2,I,repmat(round(linspace(size(cmap,1),0,size(I,1)))',[1 round(size(I,2)/50)])),cmap,[PathName FileName])
-                    end
-                case 'Whole stack'
-                    lims=get(h.Axes,'CLim');
-                    [FileName,PathName] = uiputfile({'*.tif'},'Save Image Stack');
-                    if FileName == 0
-                    else
-                        I = tool.getImage;
+                    if ext ~= 2 % Current slice
+                        I=get(h.I,'CData');
                         viewtype = get(tool.handles.Axes,'View');
                         if viewtype(1)==-90, I=rot90(I);  end
-
-                        for z=1:size(I,tool.viewplane)
-                            switch tool.viewplane
-                                case 1
-                                    Iz = I(z,:,:);
-                                case 2
-                                    Iz = I(:,z,:);
-                                case 3
-                                    Iz = I(:,:,z);
+                        lims=get(h.Axes,'CLim');
+                        I=gray2ind(mat2gray(I,lims),size(cmap,1));
+                        
+                        if FileName == 0
+                        else
+                            imwrite(cat(2,I,repmat(round(linspace(size(cmap,1),0,size(I,1)))',[1 round(size(I,2)/50)])),cmap,[PathName FileName])
+                        end
+                    else
+                        lims=get(h.Axes,'CLim');
+                        
+                        if FileName == 0
+                        else
+                            I = tool.getImage;
+                            viewtype = get(tool.handles.Axes,'View');
+                            if viewtype(1)==-90, I=rot90(I);  end
+                            
+                            for z=1:size(I,tool.viewplane)
+                                switch tool.viewplane
+                                    case 1
+                                        Iz = I(z,:,:);
+                                    case 2
+                                        Iz = I(:,z,:);
+                                    case 3
+                                        Iz = I(:,:,z);
+                                end
+                                imwrite(gray2ind(mat2gray(Iz,lims),size(cmap,1)),cmap, [PathName FileName], 'WriteMode', 'append',  'Compression','none');
                             end
-                            imwrite(gray2ind(mat2gray(Iz,lims),size(cmap,1)),cmap, [PathName FileName], 'WriteMode', 'append',  'Compression','none');
                         end
                     end
                 case 'Mask'
-                    [FileName,PathName, ext] = uiputfile({'*.nii.gz';'*.mat'},'Save Mask','Mask');
+                    [FileName,PathName, ext] = uiputfile({'*.nii.gz','NIFTI file (*.nii.gz)';'*.mat','MATLAB File (*.mat)';'*.tif','Image Stack (*.tif)'},'Save Mask','Mask');
                     if ext==1 % .nii.gz
                         err=1;
                         while(err)
@@ -1324,6 +1331,19 @@ classdef imtool3D < handle
                     elseif ext==2 % .mat
                         Mask = tool.getMask(1);
                         save(fullfile(PathName,FileName),'Mask');
+                    elseif ext==3 % .tif
+                        Mask = tool.getMask(1);
+                        for z=1:size(Mask,tool.viewplane)
+                            switch tool.viewplane
+                                case 1
+                                    Maskz = Mask(z,:,:);
+                                case 2
+                                    Maskz = Mask(:,z,:);
+                                case 3
+                                    Maskz = Mask(:,:,z);
+                            end
+                            imwrite(Maskz, [PathName FileName], 'WriteMode', 'append',  'Compression','none');
+                        end
                     end
             end
         end

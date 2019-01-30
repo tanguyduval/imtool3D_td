@@ -11,6 +11,7 @@ if ~isempty(maskname)
 else
     mask = [];
 end
+% Call imtool3D_3planes
 tool = imtool3D_3planes(dat,mask);
 % set voxelsize
 for ii=1:3
@@ -19,6 +20,17 @@ end
 % save Mask
 H = tool(1).getHandles;
 set(H.Tools.Save,'Callback',@(hObject,evnt)saveMask(tool(1),hdr))
+
+% add load Mask and Image features
+Pos = get(tool(1).getHandles.Tools.Save,'Position');
+Pos(1) = Pos(1) + Pos(3)+5;
+Loadbut           =   uicontrol(tool(1).getHandles.Panels.Tools,'Style','pushbutton','String','','Position',Pos);
+[iptdir, MATLABdir] = ipticondir;
+icon_load = makeToolbarIconFromPNG([MATLABdir '/file_open.png']);
+set(Loadbut,'CData',icon_load);
+fun=@(hObject,evnt) loadImage(tool,hdr);
+set(Loadbut,'Callback',fun)
+set(Loadbut,'TooltipString','Load NIFTI (Mask or Image)')
 
 
 function saveMask(tool,hdr)
@@ -47,6 +59,30 @@ switch S{get(H.Tools.SaveOptions,'value')}
         tool.saveImage;
 end
 
+function loadImage(tool,hdr)
+[FileName,PathName] = uigetfile('*.nii;*.nii.gz','Load NIFTI','MultiSelect', 'on');
+if isequal(FileName,0)
+    return;
+end
+if iscell(FileName)
+    dat = load_nii_datas([{hdr.original},fullfile(PathName,FileName)]);
+else
+    dat = load_nii_datas({hdr.original,fullfile(PathName,FileName)});
+end
+H = tool.getHandles;
+S = get(H.Tools.SaveOptions,'String');
+switch S{get(H.Tools.SaveOptions,'value')}
+    case 'Mask'
+        for ii=1:3
+            tool(ii).setMask(uint8(dat{1}))
+        end
+    case 'Image'
+        I = tool(1).getImage(1);
+        for ii=1:3
+            tool(ii).setImage(cat(5,I,dat{:}))
+        end
+end
+
 function outblock = unxform_nii(hdr, inblock)
 
 if isempty(hdr.rot_orient)
@@ -65,3 +101,56 @@ if ~isempty(hdr.flip_orient)
         end
     end
 end
+
+function icon = makeToolbarIconFromPNG(filename)
+% makeToolbarIconFromPNG  Creates an icon with transparent
+%   background from a PNG image.
+
+%   Copyright 2004 The MathWorks, Inc.  
+%   $Revision: 1.1.8.1 $  $Date: 2004/08/10 01:50:31 $
+
+  % Read image and alpha channel if there is one.
+  [icon,map,alpha] = imread(filename);
+
+  % If there's an alpha channel, the transparent values are 0.  For an RGB
+  % image the transparent pixels are [0, 0, 0].  Otherwise the background is
+  % cyan for indexed images.
+  if (ndims(icon) == 3) % RGB
+
+    idx = 0;
+    if ~isempty(alpha)
+      mask = alpha == idx;
+    else
+      mask = icon==idx; 
+    end
+    
+  else % indexed
+    
+    % Look through the colormap for the background color.
+    if isempty(map), idx=1; icon = im2double(repmat(icon, [1 1 3])); return; end
+    for i=1:size(map,1)
+      if all(map(i,:) == [0 1 1])
+        idx = i;
+        break;
+      end
+    end
+    
+    mask = icon==(idx-1); % Zero based.
+    icon = ind2rgb(icon,map);
+    
+  end
+  
+  % Apply the mask.
+  icon = im2double(icon);
+  
+  for p = 1:3
+    
+    tmp = icon(:,:,p);
+    if ndims(mask)==3
+        tmp(mask(:,:,p))=NaN;
+    else
+        tmp(mask) = NaN;
+    end
+    icon(:,:,p) = tmp;
+    
+  end

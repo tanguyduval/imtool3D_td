@@ -29,7 +29,13 @@ if isempty(list)
 end
 dat = {};
 for iii=1:length(list)
-    nii = nii_tool('load',list{iii});
+    if isstruct(list{iii}) && isfield(list{iii},'img')
+        nii = list{iii};
+    elseif ischar(list{iii})
+        nii = nii_tool('load',list{iii});
+    else
+        continue
+    end
     if nargin==1 || (~isempty(untouch) && ~untouch)
         [nii.hdr, orient] = change_hdr(nii.hdr);
         nii = rotateimage(nii,orient);
