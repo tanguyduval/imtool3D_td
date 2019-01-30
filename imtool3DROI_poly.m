@@ -462,6 +462,7 @@ switch get(source,'Label')
          masknew = poly2mask(x,y,m,n);
          combine = true;
          tool.setCurrentMaskSlice(masknew,combine)
+         notify(tool,'maskChanged')
 end
 
 
