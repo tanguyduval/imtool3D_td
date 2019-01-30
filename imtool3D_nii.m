@@ -9,7 +9,7 @@ if isempty(viewplane), untouch = true; viewplane=3; else, untouch = false; end
 if ~exist('range','var'), range=[]; end
 
 [dat, hdr] = load_nii_datas(filename,untouch);
-if nargin>2 && ~isempty(maskfname)
+if nargin>2 && ~isempty(maskfname) && (~iscell(maskfname) || ~isempty(maskfname{1}))
     mask = load_nii_datas(maskfname,untouch);
     tool = imtool3D(dat,[],parent,range,[],mask{1},[]);
 else

@@ -5,7 +5,13 @@ x=x(unique(round(linspace(1,numel(x),min(5000,numel(x)))))); x(isinf(x))=[]; x(i
 xmin = x==min(x); xmax= x==max(x); 
 xmin(find(xmin,1))=false; xmax(find(xmax,1))=false;
 x(xmin | xmax)=[];
-
+if isempty(x)
+    xmin=nan; xmax=nan;
+    if nargout<2
+        xmin = [xmin xmax];
+    end
+    return;
+end
 % compute 25th percentile (first quartile)
 Q1L = x<median(x);
 if ~any(Q1L)
