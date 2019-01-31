@@ -5,7 +5,7 @@ if nargin==0
     filename = fullfile(path,filename); 
 end
 if ~exist('maskname','var'), maskname=[]; end
-[dat, hdr] = load_nii_datas(filename,0);
+[dat, hdr, list] = load_nii_datas(filename,0);
 if ~isempty(maskname)
     mask = load_nii_datas(maskname,0); mask = mask{1};
 else
@@ -28,7 +28,7 @@ Loadbut           =   uicontrol(tool(1).getHandles.Panels.Tools,'Style','pushbut
 [iptdir, MATLABdir] = ipticondir;
 icon_load = makeToolbarIconFromPNG([MATLABdir '/file_open.png']);
 set(Loadbut,'CData',icon_load);
-fun=@(hObject,evnt) loadImage(tool,hdr);
+fun=@(hObject,evnt) loadImage(tool,hdr, list);
 set(Loadbut,'Callback',fun)
 set(Loadbut,'TooltipString','Load NIFTI (Mask or Image)')
 
@@ -59,8 +59,8 @@ switch S{get(H.Tools.SaveOptions,'value')}
         tool.saveImage;
 end
 
-function loadImage(tool,hdr)
-[FileName,PathName] = uigetfile('*.nii;*.nii.gz','Load NIFTI','MultiSelect', 'on');
+function loadImage(tool,hdr, list)
+[FileName,PathName] = uigetfile('*.nii;*.nii.gz','Load NIFTI',list{1},'MultiSelect', 'on');
 if isequal(FileName,0)
     return;
 end

@@ -1,4 +1,4 @@
-function [dat,hdr] = load_nii_datas(filename,untouch)
+function [dat,hdr, list] = load_nii_datas(filename,untouch)
 if ~isdeployed
     A = which('nii_tool');
     if isempty(A)

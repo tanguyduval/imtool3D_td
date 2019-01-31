@@ -790,12 +790,13 @@ classdef imtool3D < handle
             end
             range = tool.Climits{1};
             
-            if isempty(mask)
-                mask=false([size(I{1},1) size(I{1},2) size(I{1},3)]);
+            if isempty(mask) && (isempty(tool.mask) || size(tool.mask,1)~=size(I{1},1) || size(tool.mask,2)~=size(I{1},2) || size(tool.mask,3)~=size(I{1},3))
+                tool.mask=zeros([size(I{1},1) size(I{1},2) size(I{1},3)],'uint8');
+            elseif ~isempty(mask)
+                tool.mask=uint8(mask);
             end
                         
             tool.I=I;
-            tool.mask=uint8(mask);
             
             tool.Nvol = 1;
 
