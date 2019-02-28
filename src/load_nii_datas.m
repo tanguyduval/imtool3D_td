@@ -1,4 +1,22 @@
 function [dat,hdr,list] = load_nii_datas(filename,untouch)
+% [dat,hdr,list] = load_nii_datas(filename,untouch) loads nifti files
+% if multiple files, the first image is used as reference
+% INPUT
+%   filename        char (handles wildcards **/ and *) or cell array of char
+%   untouch         if false or empty, matrix is rotated to be in LPI
+%                    orientation
+%
+% OUTPUT
+%   dat             cell array of 4D matrix
+%   hdr             header of the reference image (first image)
+%   list            cell array of char listing filenames (useful if wildcards were used)
+%
+% EXAMPLE
+%   [dat,hdr,list] = load_nii_datas('**\*.nii.gz')
+%   img = cat(5,dat{:});
+%   img = mean(img,5);
+%   save_nii_datas(img,hdr,'Tmean.nii.gz')
+
 if ~isdeployed
     A = which('nii_tool');
     if isempty(A)

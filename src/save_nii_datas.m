@@ -1,4 +1,6 @@
 function save_nii_datas(img,hdr,FileName)
+% save_nii_datas(img,hdr,FileName) save the matrix img in nifti
+
 nii.img = unxform_nii(hdr,img);
 nii.hdr = hdr.original;
 nii_tool('save',nii,FileName)
