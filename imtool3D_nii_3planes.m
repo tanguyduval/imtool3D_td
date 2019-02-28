@@ -5,7 +5,8 @@ if nargin==0
     filename = fullfile(path,filename); 
 end
 if ~exist('maskname','var'), maskname=[]; end
-[dat, hdr] = load_nii_datas(filename,0);
+[dat, hdr, list] = load_nii_datas(filename,0);
+if iscell(maskname), maskname = maskname{1}; end
 if ~isempty(maskname)
     mask = load_nii_datas(maskname,0); mask = mask{1};
 else
@@ -13,6 +14,12 @@ else
 end
 % Call imtool3D_3planes
 tool = imtool3D_3planes(dat,mask);
+
+% Name figure
+[path,file,ext] = fileparts(list{1});
+set(tool(1).getHandles.fig,'Name',['imtool3D: ' file,ext ' (reference space)']);
+set(tool(1).getHandles.fig,'NumberTitle','off');
+
 % set voxelsize
 for ii=1:3
 tool(ii).setAspectRatio(hdr.pixdim(2:4));
@@ -28,7 +35,7 @@ Loadbut           =   uicontrol(tool(1).getHandles.Panels.Tools,'Style','pushbut
 [iptdir, MATLABdir] = ipticondir;
 icon_load = makeToolbarIconFromPNG([MATLABdir '/file_open.png']);
 set(Loadbut,'CData',icon_load);
-fun=@(hObject,evnt) loadImage(tool,hdr);
+fun=@(hObject,evnt) loadImage(hObject,tool,hdr,path);
 set(Loadbut,'Callback',fun)
 set(Loadbut,'TooltipString','Load NIFTI (Mask or Image)')
 
@@ -59,8 +66,13 @@ switch S{get(H.Tools.SaveOptions,'value')}
         tool.saveImage;
 end
 
-function loadImage(tool,hdr)
-[FileName,PathName] = uigetfile('*.nii;*.nii.gz','Load NIFTI','MultiSelect', 'on');
+function loadImage(hObject,tool,hdr,path)
+% unselect button to prevent activation with spacebar
+set(hObject, 'Enable', 'off');
+drawnow;
+set(hObject, 'Enable', 'on');
+
+[FileName,PathName] = uigetfile('*.nii;*.nii.gz','Load NIFTI',path,'MultiSelect', 'on');
 if isequal(FileName,0)
     return;
 end
@@ -79,7 +91,8 @@ switch S{get(H.Tools.SaveOptions,'value')}
     case 'Image'
         I = tool(1).getImage(1);
         for ii=1:3
-            tool(ii).setImage(cat(5,I,dat{:}))
+            tool(ii).setImage(cat(5,I{:},dat{:}))
+            tool(ii).setNvol(length(dat)+size(I,5));
         end
 end
 
@@ -89,7 +102,7 @@ if isempty(hdr.rot_orient)
     outblock=inblock;
 else
     [~, unrotate_orient] = sort(hdr.rot_orient);
-    outblock = permute(inblock, unrotate_orient);
+    outblock = permute(inblock, [unrotate_orient 4 5 6 7]);
 end
 
 if ~isempty(hdr.flip_orient)

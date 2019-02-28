@@ -127,7 +127,7 @@ classdef imtool3DROI_rect < imtool3DROI
             position = ROI.position;
         end
         
-        function newPosition(ROI,position)
+        function newPosition(ROI,position, notifoff)
             
             %Adjust the position if the aspect ratio should be fixed
             if ROI.fixedAspectRatio
@@ -164,7 +164,9 @@ classdef imtool3DROI_rect < imtool3DROI
             set(ROI.textHandle,'String',str,'Position',[pos(1) pos(2)-ROI.tbuff]);
             
             %notify a new position
-            notify(ROI,'newROIPosition');
+            if ~exist('notifoff','var') || ~notifoff
+                notify(ROI,'newROIPosition');
+            end
             
             
         end

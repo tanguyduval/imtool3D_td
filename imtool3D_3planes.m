@@ -88,6 +88,11 @@ crossX3 = plot(H.Axes,[x3 x3],[0 S(1)],'r-');
 crossY3 = plot(H.Axes,[0 S(2)],[y3 y3],'r-');
 
 hidecross(crossX1,crossY1,crossX2,crossY2,crossX3,crossY3)
+% add tooltip
+for ii=1:3
+    set(tool(ii).getHandles.Slider,'TooltipString',sprintf('Change Slice (use the scroll wheel)\nAlso, use and hold the [X] key to navigate in the volume based on mouse location)'));
+end
+
 
 % Add mouse/keyboard interactions
 h = tool(1).getHandles.fig;
@@ -165,6 +170,7 @@ msg = {'imtool3D, written by Justin Solomon',...
 function scrollWheel(src, evnt, tool)
 currentobj = hittest;
 for ii=1:length(tool)
+    try
     if ismember(currentobj,findobj(tool(ii).getHandles.Axes))
         newSlice=tool(ii).getCurrentSlice-evnt.VerticalScrollCount;
         dim = tool(ii).getImageSize;
@@ -172,6 +178,7 @@ for ii=1:length(tool)
             tool(ii).setCurrentSlice(newSlice);
         end
         
+    end
     end
 end
 

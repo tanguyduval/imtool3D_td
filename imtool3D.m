@@ -200,6 +200,7 @@ classdef imtool3D < handle
         upsample = false;
         upsampleMethod = 'lanczos3'; %Can be any of {'bilinear','bicubic','box','triangle','cubic','lanczos2','lanczos3'}
         Visible = true;              %lets the user hide the imtool3D panel
+        brushsize = 5;
     end
     
     properties (Dependent = true)
@@ -324,7 +325,7 @@ classdef imtool3D < handle
             tool.handles.Info=uicontrol(tool.handles.Panels.Info,'Style','text','String','(x,y) val','Units','Normalized','Position',[0 .1 .5 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Left');
             fun=@(src,evnt)getImageInfo(src,evnt,tool);
             set(tool.handles.fig,'WindowButtonMotionFcn',fun);
-            tool.handles.SliceText=uicontrol(tool.handles.Panels.Info,'Style','text','String',['Vol: 1/' num2str(size(I,5)) '    Time: 1/' num2str(size(I,4)) '    Slice: 1/' num2str(size(I,tool.viewplane))],'Units','Normalized','Position',[.5 .1 .48 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Right');
+            tool.handles.SliceText=uicontrol(tool.handles.Panels.Info,'Style','text','String',['Vol: 1/' num2str(size(I,5)) '    Time: 1/' num2str(size(I,4)) '    Slice: 1/' num2str(size(I,tool.viewplane))],'Units','Normalized','Position',[.5 .1 .48 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Right', 'TooltipString', 'Use arrows to navigate through time (4th dim) and volumes (5th dim)');
 
             %Set up mouse button controls
             fun=@(hObject,eventdata) imageButtonDownFunction(hObject,eventdata,tool);
@@ -378,10 +379,10 @@ classdef imtool3D < handle
 
             
             %Create window and level boxes
-            tool.handles.Tools.TL       =   uicontrol(tool.handles.Panels.Tools,'Style','text','String','L','Position',[lp+buff buff w w],'BackgroundColor','k','ForegroundColor','w','TooltipString','Window Width');
-            tool.handles.Tools.L        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String','0','Position',[lp+buff+w buff 2*w w],'TooltipString','Window Width','BackgroundColor',[.2 .2 .2],'ForegroundColor','w'); 
-            tool.handles.Tools.TU       =   uicontrol(tool.handles.Panels.Tools,'Style','text','String','U','Position',[lp+2*buff+3*w buff w w],'BackgroundColor','k','ForegroundColor','w','TooltipString','Window Level');
-            tool.handles.Tools.U        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String','1','Position',[lp+2*buff+4*w buff 2*w w],'TooltipString','Window Level','BackgroundColor',[.2 .2 .2],'ForegroundColor','w');
+            tool.handles.Tools.TL       =   uicontrol(tool.handles.Panels.Tools,'Style','text','String','L','Position',[lp+buff buff w w],'BackgroundColor','k','ForegroundColor','w','TooltipString',sprintf('Intensity Window Lower Bound\n(left click and drag on the image to control window width and level)'));
+            tool.handles.Tools.L        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String','0','Position',[lp+buff+w buff 2*w w],'TooltipString',sprintf('Intensity Window Lower Bound\n(left click and drag on the image to control window width and level)'),'BackgroundColor',[.2 .2 .2],'ForegroundColor','w'); 
+            tool.handles.Tools.TU       =   uicontrol(tool.handles.Panels.Tools,'Style','text','String','U','Position',[lp+2*buff+3*w buff w w],'BackgroundColor','k','ForegroundColor','w','TooltipString',sprintf('Intensity Window Upper Bound\n(left click and drag on the image to control window width and level)'));
+            tool.handles.Tools.U        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String','1','Position',[lp+2*buff+4*w buff 2*w w],'TooltipString',sprintf('Intensity Window Upper Bound\n(left click and drag on the image to control window width and level)'),'BackgroundColor',[.2 .2 .2],'ForegroundColor','w');
             lp=lp+buff+7*w;
             
             %Creat window and level callbacks
@@ -390,7 +391,7 @@ classdef imtool3D < handle
             set(tool.handles.Tools.U,'Callback',fun);
             
             %Create view restore button
-            tool.handles.Tools.ViewRestore           =   uicontrol(tool.handles.Panels.Tools,'Style','pushbutton','String','','Position',[lp buff w w],'TooltipString','Reset Pan and Zoom');
+            tool.handles.Tools.ViewRestore           =   uicontrol(tool.handles.Panels.Tools,'Style','pushbutton','String','','Position',[lp buff w w],'TooltipString',sprintf('Reset Pan and Zoom\n(Right Click (Ctrl+Click) to Pan and Middle (Shift+Click) Click to zoom)'));
             [iptdir, MATLABdir] = ipticondir;
             icon_save = makeToolbarIconFromPNG([iptdir '/overview_zoom_in.png']);
             set(tool.handles.Tools.ViewRestore,'CData',icon_save);
@@ -428,7 +429,7 @@ classdef imtool3D < handle
             lp=lp+2.5*w;
             
             %Create the mask view switch
-            tool.handles.Tools.Mask           =   uicontrol(tool.handles.Panels.Tools,'Style','checkbox','String','Mask?','Position',[lp buff 3*w w],'BackgroundColor','k','ForegroundColor','w','TooltipString','Toggle Binary Mask','Value',1);
+            tool.handles.Tools.Mask           =   uicontrol(tool.handles.Panels.Tools,'Style','checkbox','String','Mask?','Position',[lp buff 3*w w],'BackgroundColor','k','ForegroundColor','w','TooltipString','Toggle Binary Mask (spacebar)','Value',1);
             fun=@(hObject,evnt) toggleMask(hObject,evnt,tool);
             set(tool.handles.Tools.Mask,'Callback',fun)
             lp=lp+3*w;
@@ -516,7 +517,7 @@ classdef imtool3D < handle
             addlistener(tool,'maskUndone',@tool.maskEvents);
 
             %Paint brush tool button
-            tool.handles.Tools.PaintBrush        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','String','','Position',[buff buff+8*w w w],'TooltipString','Paint Brush Tool');
+            tool.handles.Tools.PaintBrush        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','String','','Position',[buff buff+8*w w w],'TooltipString','Paint Brush Tool (B)');
             icon_profile = makeToolbarIconFromPNG([MATLABdir '/tool_data_brush.png']);
             set(tool.handles.Tools.PaintBrush ,'Cdata',icon_profile)
             fun=@(hObject,evnt) PaintBrushCallback(hObject,evnt,tool,'Normal');
@@ -524,14 +525,14 @@ classdef imtool3D < handle
             tool.handles.PaintBrushObject=[];
             
             %Smart Paint brush tool button
-            tool.handles.Tools.SmartBrush        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','String','','Position',[buff buff+9*w w w],'TooltipString','Smart Brush Tool');
+            tool.handles.Tools.SmartBrush        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','String','','Position',[buff buff+9*w w w],'TooltipString','Smart Brush Tool (S)');
             icon_profile = makeToolbarIconFromPNG('tool_data_brush_smart.png');
             set(tool.handles.Tools.SmartBrush ,'Cdata',icon_profile)
             fun=@(hObject,evnt) PaintBrushCallback(hObject,evnt,tool,'Smart');
             set(tool.handles.Tools.SmartBrush ,'Callback',fun)
 
             %undo mask button
-            tool.handles.Tools.undoMask        = uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+10*w w w],'TooltipString','Undo');
+            tool.handles.Tools.undoMask        = uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+10*w w w],'TooltipString','Undo (Z)');
             icon_profile = load([MATLABdir filesep 'undo.mat']);
             set(tool.handles.Tools.undoMask ,'Cdata',icon_profile.undoCData)
             fun=@(hObject,evnt) maskUndo(tool);
@@ -750,9 +751,11 @@ classdef imtool3D < handle
             [I, position, h, range, tools, mask, enablehist] = parseinputs(varargin{:});            
             
             if isempty(I)
-                phantom3 = min(1,max(0,cat(5,phantom,1 - phantom, -phantom.^2+phantom)));
-                I=rand([256 256 3 20 3])*.3+repmat(phantom3,[1 1 3 20 1]);
-                tool.setAspectRatio([1/256 1/256 1/3]);
+                S = 64;
+                phantom3 = phantom3d('Modified Shepp-Logan',S);
+                phantom3 = min(1,max(0,cat(5,phantom3,1 - phantom3, -phantom3.^2+phantom3)));
+                I=randn([S S S 20 3])*.02+repmat(phantom3,[1 1 1 20 1]);
+                tool.setAspectRatio([1/S 1/S 1/S]);
             end
             
             if iscell(I)
@@ -789,6 +792,10 @@ classdef imtool3D < handle
                 tool.Climits{1} = range;
             end
             range = tool.Climits{1};
+            
+            if ~isempty(tool.mask) && isempty(mask)
+                mask = tool.mask;
+            end
             
             if isempty(mask)
                 mask=false([size(I{1},1) size(I{1},2) size(I{1},3)]);
@@ -1359,7 +1366,6 @@ classdef imtool3D < handle
                 case 2
                     tool=varargin{1};
                     n=varargin{2};
-                    set(tool.handles.Slider,'value',n);
                 otherwise
                     tool=varargin{1};
                     n=round(get(tool.handles.Slider,'value'));    
@@ -1372,6 +1378,7 @@ classdef imtool3D < handle
             if n > size(tool.I{tool.Nvol},tool.viewplane)
                 n=size(tool.I{tool.Nvol},tool.viewplane);
             end
+            set(tool.handles.Slider,'value',n);
             
             set(tool.handles.I,'AlphaData',1)
             In = squeeze(tool.getCurrentImageSlice);
@@ -1388,11 +1395,10 @@ classdef imtool3D < handle
             set(tool.handles.SliceText,'String',['Vol: ' num2str(tool.Nvol) '/' num2str(length(tool.I)) '    Time: ' num2str(tool.Ntime) '/' num2str(size(tool.I{tool.Nvol},4)) '    Slice: ' num2str(n) '/' num2str(size(tool.I{tool.Nvol},tool.viewplane))])
 
             if isfield(tool.handles.Tools,'Hist') && get(tool.handles.Tools.Hist,'value')
-                maskrgb=In;
                 range = tool.range{tool.Nvol};
-                maskrgb(maskrgb<range(1) | maskrgb>range(2)) = [];
-                err = (max(maskrgb(:)) - min(maskrgb(:)))*1e-10;
-                nelements=hist(maskrgb(maskrgb>(min(maskrgb(:))+err) & maskrgb<max(maskrgb(:)-err)),tool.centers); nelements=nelements./max(nelements);
+                In(In<range(1) | In>range(2)) = [];
+                err = (max(In(:)) - min(In(:)))*1e-10;
+                nelements=hist(In(In>(min(In(:))+err) & In<max(In(:)-err)),tool.centers); nelements=nelements./max(nelements);
                 set(tool.handles.HistLine,'YData',nelements);
                 set(tool.handles.HistLine,'XData',tool.centers);
             end
@@ -2204,8 +2210,8 @@ msg = {'imtool3D, written by Justin Solomon',...
        'KEYBOARD SHORTCUTS:',...
        'Left/right arrows        navigate through time (4th dimension)',...
        'Top/bottom arrows        navigate through volumes (5th dimension)',...
-       'Middle Click and drag    Zoom in/out',...
-       'Left   Click and drag    Contrast/Brightness',...
+       'Middle (shift+) Click and drag    Zoom in/out',...
+       'Left   (ctrl+)  Click and drag    Contrast/Brightness',...
        'Right  Click and drag    Pan',...
        '',...
        'Spacebar                 Show/hide mask',...
@@ -2234,4 +2240,202 @@ function togglebutton(h)
 set(h,'Value',~get(h,'Value'))
 fun = get(h,'Callback');
 fun(h,1)
+end
+
+function [p,ellipse]=phantom3d(varargin)
+%PHANTOM3D Three-dimensional analogue of MATLAB Shepp-Logan phantom
+%   P = PHANTOM3D(DEF,N) generates a 3D head phantom that can   
+%   be used to test 3-D reconstruction algorithms.
+%
+%   DEF is a string that specifies the type of head phantom to generate.
+%   Valid values are: 
+%         
+%      'Shepp-Logan'            A test image used widely by researchers in
+%                               tomography
+%      'Modified Shepp-Logan'   (default) A variant of the Shepp-Logan phantom
+%                               in which the contrast is improved for better  
+%                               visual perception.
+%
+%   N is a scalar that specifies the grid size of P.
+%   If you omit the argument, N defaults to 64.
+% 
+%   P = PHANTOM3D(E,N) generates a user-defined phantom, where each row
+%   of the matrix E specifies an ellipsoid in the image.  E has ten columns,
+%   with each column containing a different parameter for the ellipsoids:
+%   
+%     Column 1:  A      the additive intensity value of the ellipsoid
+%     Column 2:  a      the length of the x semi-axis of the ellipsoid 
+%     Column 3:  b      the length of the y semi-axis of the ellipsoid
+%     Column 4:  c      the length of the z semi-axis of the ellipsoid
+%     Column 5:  x0     the x-coordinate of the center of the ellipsoid
+%     Column 6:  y0     the y-coordinate of the center of the ellipsoid
+%     Column 7:  z0     the z-coordinate of the center of the ellipsoid
+%     Column 8:  phi    phi Euler angle (in degrees) (rotation about z-axis)
+%     Column 9:  theta  theta Euler angle (in degrees) (rotation about x-axis)
+%     Column 10: psi    psi Euler angle (in degrees) (rotation about z-axis)
+%
+%   For purposes of generating the phantom, the domains for the x-, y-, and 
+%   z-axes span [-1,1].  Columns 2 through 7 must be specified in terms
+%   of this range.
+%
+%   [P,E] = PHANTOM3D(...) returns the matrix E used to generate the phantom.
+%
+%   Class Support
+%   -------------
+%   All inputs must be of class double.  All outputs are of class double.
+%
+%   Remarks
+%   -------
+%   For any given voxel in the output image, the voxel's value is equal to the
+%   sum of the additive intensity values of all ellipsoids that the voxel is a 
+%   part of.  If a voxel is not part of any ellipsoid, its value is 0.  
+%
+%   The additive intensity value A for an ellipsoid can be positive or negative;
+%   if it is negative, the ellipsoid will be darker than the surrounding pixels.
+%   Note that, depending on the values of A, some voxels may have values outside
+%   the range [0,1].
+%    
+%   Example
+%   -------
+%        ph = phantom3d(128);
+%        figure, imshow(squeeze(ph(64,:,:)))
+%
+%   Copyright 2005 Matthias Christian Schabel (matthias @ stanfordalumni . org)
+%   University of Utah Department of Radiology
+%   Utah Center for Advanced Imaging Research
+%   729 Arapeen Drive
+%   Salt Lake City, UT 84108-1218
+%   
+%   This code is released under the Gnu Public License (GPL). For more information, 
+%   see : http://www.gnu.org/copyleft/gpl.html
+%
+%   Portions of this code are based on phantom.m, copyrighted by the Mathworks
+%
+[ellipse,n] = parse_inputs(varargin{:});
+p = zeros([n n n]);
+rng =  ( (0:n-1)-(n-1)/2 ) / ((n-1)/2); 
+[x,y,z] = meshgrid(rng,rng,rng);
+coord = [flatten(x); flatten(y); flatten(z)];
+p = flatten(p);
+for k = 1:size(ellipse,1)    
+   A = ellipse(k,1);            % Amplitude change for this ellipsoid
+   asq = ellipse(k,2)^2;        % a^2
+   bsq = ellipse(k,3)^2;        % b^2
+   csq = ellipse(k,4)^2;        % c^2
+   x0 = ellipse(k,5);           % x offset
+   y0 = ellipse(k,6);           % y offset
+   z0 = ellipse(k,7);           % z offset
+   phi = ellipse(k,8)*pi/180;   % first Euler angle in radians
+   theta = ellipse(k,9)*pi/180; % second Euler angle in radians
+   psi = ellipse(k,10)*pi/180;  % third Euler angle in radians
+   
+   cphi = cos(phi);
+   sphi = sin(phi);
+   ctheta = cos(theta);
+   stheta = sin(theta);
+   cpsi = cos(psi);
+   spsi = sin(psi);
+   
+   % Euler rotation matrix
+   alpha = [cpsi*cphi-ctheta*sphi*spsi   cpsi*sphi+ctheta*cphi*spsi  spsi*stheta;
+            -spsi*cphi-ctheta*sphi*cpsi  -spsi*sphi+ctheta*cphi*cpsi cpsi*stheta;
+            stheta*sphi                  -stheta*cphi                ctheta];        
+   
+   % rotated ellipsoid coordinates
+   coordp = alpha*coord;
+   
+   idx = find((coordp(1,:)-x0).^2./asq + (coordp(2,:)-y0).^2./bsq + (coordp(3,:)-z0).^2./csq <= 1);
+   p(idx) = p(idx) + A;
+end
+p = reshape(p,[n n n]);
+end
+function out = flatten(in)
+out = reshape(in,[1 prod(size(in))]);
+end
+   
+   
+function [e,n] = parse_inputs(varargin)
+%  e is the m-by-10 array which defines ellipsoids
+%  n is the size of the phantom brain image
+n = 128;     % The default size
+e = [];
+defaults = {'shepp-logan', 'modified shepp-logan', 'yu-ye-wang'};
+for i=1:nargin
+   if ischar(varargin{i})         % Look for a default phantom
+      def = lower(varargin{i});
+      idx = strmatch(def, defaults);
+      if isempty(idx)
+         eid = sprintf('Images:%s:unknownPhantom',mfilename);
+         msg = 'Unknown default phantom selected.';
+         error(eid,'%s',msg);
+      end
+      switch defaults{idx}
+      case 'shepp-logan'
+         e = shepp_logan;
+      case 'modified shepp-logan'
+         e = modified_shepp_logan;
+      case 'yu-ye-wang'
+         e = yu_ye_wang;
+      end
+   elseif numel(varargin{i})==1 
+      n = varargin{i};            % a scalar is the image size
+   elseif ndims(varargin{i})==2 && size(varargin{i},2)==10 
+      e = varargin{i};            % user specified phantom
+   else
+      eid = sprintf('Images:%s:invalidInputArgs',mfilename);
+      msg = 'Invalid input arguments.';
+      error(eid,'%s',msg);
+   end
+end
+% ellipse is not yet defined
+if isempty(e)                    
+   e = modified_shepp_logan;
+end
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  Default head phantoms:   %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function e = shepp_logan
+e = modified_shepp_logan;
+e(:,1) = [1 -.98 -.02 -.02 .01 .01 .01 .01 .01 .01];
+end
+      
+function e = modified_shepp_logan
+%
+%   This head phantom is the same as the Shepp-Logan except 
+%   the intensities are changed to yield higher contrast in
+%   the image.  Taken from Toft, 199-200.
+%      
+%         A      a     b     c     x0      y0      z0    phi  theta    psi
+%        -----------------------------------------------------------------
+e =    [  1  .6900  .920  .810      0       0       0      0      0      0
+        -.8  .6624  .874  .780      0  -.0184       0      0      0      0
+        -.2  .1100  .310  .220    .22       0       0    -18      0     10
+        -.2  .1600  .410  .280   -.22       0       0     18      0     10
+         .1  .2100  .250  .410      0     .35    -.15      0      0      0
+         .1  .0460  .046  .050      0      .1     .25      0      0      0
+         .1  .0460  .046  .050      0     -.1     .25      0      0      0
+         .1  .0460  .023  .050   -.08   -.605       0      0      0      0
+         .1  .0230  .023  .020      0   -.606       0      0      0      0
+         .1  .0230  .046  .020    .06   -.605       0      0      0      0 ];
+       
+end
+          
+function e = yu_ye_wang
+%
+%   Yu H, Ye Y, Wang G, Katsevich-Type Algorithms for Variable Radius Spiral Cone-Beam CT
+%      
+%         A      a     b     c     x0      y0      z0    phi  theta    psi
+%        -----------------------------------------------------------------
+e =    [  1  .6900  .920  .900      0       0       0      0      0      0
+        -.8  .6624  .874  .880      0       0       0      0      0      0
+        -.2  .4100  .160  .210   -.22       0    -.25    108      0      0
+        -.2  .3100  .110  .220    .22       0    -.25     72      0      0
+         .2  .2100  .250  .500      0     .35    -.25      0      0      0
+         .2  .0460  .046  .046      0      .1    -.25      0      0      0
+         .1  .0460  .023  .020   -.08    -.65    -.25      0      0      0
+         .1  .0460  .023  .020    .06    -.65    -.25     90      0      0
+         .2  .0560  .040  .100    .06   -.105    .625     90      0      0
+        -.2  .0560  .056  .100      0    .100    .625      0      0      0 ];
+       
 end

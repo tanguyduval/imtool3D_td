@@ -1,4 +1,4 @@
-function [dat,hdr] = load_nii_datas(filename,untouch)
+function [dat,hdr,list] = load_nii_datas(filename,untouch)
 if ~isdeployed
     A = which('nii_tool');
     if isempty(A)
@@ -16,17 +16,43 @@ if ~iscell(filename)
 else
     list = filename;
 end
-
-%reslice images
-for ff=2:length(list)
-    originalfilename = list{ff};
-    list{ff} = [tempname '.nii'];
-    nii_xform(originalfilename,list{1},list{ff})
-end
+list(cellfun(@ischar,list)) = cellfun(@(X) X{1},cellfun(@(X) strsplit(X,','),list(cellfun(@ischar,list)),'uni',0),'uni',0);
 
 if isempty(list)
     error(['no files match ' filename])
 end
+
+%reslice images
+if isstruct(list{1})
+    hdr0 = list{1};
+else
+    hdr0 = nii_tool('hdr', list{1});
+end
+quat2R = nii_viewer('func_handle', 'quat2R');
+if hdr0.sform_code>0
+    R0 = [hdr0.srow_x; hdr0.srow_y; hdr0.srow_z; 0 0 0 1];
+elseif hdr0.qform_code>0
+    R0 = quat2R(hdr0);
+end
+
+del = [];
+for ff=2:length(list)
+    % same sapce???
+    hdr = nii_tool('hdr', list{ff});
+    if hdr.sform_code>0
+        R1 = [hdr.srow_x; hdr.srow_y; hdr.srow_z; 0 0 0 1];
+    elseif hdr.qform_code>0
+        R1 = quat2R(hdr);
+    end
+    % reslice
+    if max(max(abs(R0-R1)))>1e-5
+        originalfilename = list{ff};
+        list{ff} = [tempname '.nii'];
+        nii_xform(originalfilename,list{1},list{ff})
+        del = [del ff];
+    end
+end
+
 dat = {};
 for iii=1:length(list)
     if isstruct(list{iii}) && isfield(list{iii},'img')
@@ -49,7 +75,7 @@ for iii=1:length(list)
 end
 
 % delete resliced images
-for ff=2:length(list)
+for ff=del
     delete(list{ff})
 end
 
