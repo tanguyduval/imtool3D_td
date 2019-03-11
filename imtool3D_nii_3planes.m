@@ -81,7 +81,7 @@ end
 
 I = tool(1).getImage(1);
 for ii=1:3
-    tool(ii).setImage([I,dat])
+    tool(ii).setImage([I(:)',dat(:)'])
     tool(ii).setNvol(1+length(I));
 end
 
