@@ -6,6 +6,7 @@ if nargin==0
 end
 if ~exist('maskname','var'), maskname=[]; end
 [dat, hdr, list] = load_nii_datas(filename,0);
+disp(list)
 if iscell(maskname), maskname = maskname{1}; end
 if ~isempty(maskname)
     mask = load_nii_datas(maskname,0); mask = mask{1};
