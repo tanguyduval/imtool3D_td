@@ -1,23 +1,28 @@
-function tool = imtool3D_nii_3planes(filename,maskname)
+function tool = imtool3D_nii_3planes(filename,maskname,hdr)
 if nargin==0
     [filename, path] = uigetfile({'*.nii;*.nii.gz','NIFTI Files (*.nii,*.nii.gz)'},'Select an image','MultiSelect', 'on'); 
     if isequal(filename,0), return; end
     filename = fullfile(path,filename); 
 end
-if ~exist('maskname','var'), maskname=[]; end
-[dat, hdr, list] = load_nii_datas(filename,0);
-disp(list)
-if iscell(maskname), maskname = maskname{1}; end
-if ~isempty(maskname)
-    mask = load_nii_datas(maskname,0); mask = mask{1};
+if nargin==3
+    dat = filename;
+    mask = maskname;
 else
-    mask = [];
+    if ~exist('maskname','var'), maskname=[]; end
+    [dat, hdr, list] = load_nii_datas(filename,0);
+    disp(list)
+    if iscell(maskname), maskname = maskname{1}; end
+    if ~isempty(maskname)
+        mask = load_nii_datas(maskname,0); mask = mask{1};
+    else
+        mask = [];
+    end
 end
 % Call imtool3D_3planes
 tool = imtool3D_3planes(dat,mask);
 
 % Name figure
-[path,file,ext] = fileparts(list{1});
+[path,file,ext] = fileparts(hdr.file_name);
 set(tool(1).getHandles.fig,'Name',['imtool3D: ' file,ext ' (reference space)']);
 set(tool(1).getHandles.fig,'NumberTitle','off');
 
@@ -27,7 +32,8 @@ tool(ii).setAspectRatio(hdr.pixdim(2:4));
 end
 % save Mask
 H = tool(3).getHandles;
-set(H.Tools.maskSave,'Callback',@(hObject,evnt)saveMask(tool(3),hdr))
+set(H.Tools.maskSave,'Callback',@(hObject,evnt)saveMask(tool(3),hObject,hdr))
+set(H.Tools.maskLoad,'Callback',@(hObject,evnt)loadMask(tool(3),hObject,hdr,path))
 
 % add load Image features
 Pos = get(tool(1).getHandles.Tools.Save,'Position');
@@ -38,30 +44,7 @@ icon_load = makeToolbarIconFromPNG([MATLABdir '/file_open.png']);
 set(Loadbut,'CData',icon_load);
 fun=@(hObject,evnt) loadImage(hObject,tool,hdr,path);
 set(Loadbut,'Callback',fun)
-set(Loadbut,'TooltipString','Load NIFTI (Mask or Image)')
-
-
-function saveMask(tool,hdr)
-Mask = tool.getMask(1);
-if any(Mask(:))
-    [FileName,PathName, ext] = uiputfile({'*.nii.gz';'*.mat'},'Save Mask','Mask.nii.gz');
-    if isequal(FileName,0)
-        return;
-    end
-    FileName = strrep(FileName,'.gz','.nii.gz');
-    FileName = strrep(FileName,'.nii.nii','.nii');
-    if ext==1 % .nii.gz
-        masknii.img = unxform_nii(hdr,Mask);
-        masknii.hdr = hdr.original;
-        nii_tool('save',masknii,fullfile(PathName,FileName))
-    elseif ext==2 % .mat
-        Mask = tool.getMask(1);
-        save(fullfile(PathName,FileName),'Mask');
-    end
-    
-else
-    warndlg('Mask empty... Draw a mask using the brush tools on the right')
-end
+set(Loadbut,'TooltipString','Load Image')
 
 function loadImage(hObject,tool,hdr,path)
 % unselect button to prevent activation with spacebar
@@ -85,24 +68,32 @@ for ii=1:3
     tool(ii).setNvol(1+length(I));
 end
 
-function outblock = unxform_nii(hdr, inblock)
+function loadMask(tool,hObject,hdr,path)
+% unselect button to prevent activation with spacebar
+set(hObject, 'Enable', 'off');
+drawnow;
+set(hObject, 'Enable', 'on');
 
-if isempty(hdr.rot_orient)
-    outblock=inblock;
-else
-    [~, unrotate_orient] = sort(hdr.rot_orient);
-    outblock = permute(inblock, [unrotate_orient 4 5 6 7]);
-end
-
-if ~isempty(hdr.flip_orient)
-    flip_orient = hdr.flip_orient(unrotate_orient);
-    
-    for i = 1:3
-        if flip_orient(i)
-            outblock = flip(outblock, i);
-        end
+[FileName,PathName, ext] = uigetfile({'*.nii.gz','NIFTI file (*.nii.gz)';'*.mat','MATLAB File (*.mat)';'*.tif','Image Stack (*.tif)'},'Load Mask',fullfile(path,'Mask.nii.gz'));
+if ext==1 % .nii.gz
+    Mask = load_nii_datas([{hdr.original} fullfile(PathName,FileName)]);
+    Mask = Mask{1};
+elseif ext==2 % .mat
+    load(fullfile(PathName,FileName));
+elseif ext==3 % .tif
+    info = imfinfo(fullfile(PathName,FileName));
+    num_images = numel(info);
+    for k = 1:num_images
+        Mask(:,:,k) = imread(fullfile(PathName,FileName), k);
     end
+else
+    return
 end
+S = tool.getImageSize(0);
+if ~isequal([size(Mask,1) size(Mask,2) size(Mask,3)],S(1:3))
+    errordlg(sprintf('Inconsistent Mask size (%dx%dx%d). Please select a mask of size %dx%dx%d',size(Mask,1),size(Mask,2),size(Mask,3),S(1),S(2),S(3)))
+end
+tool.setMask(uint8(Mask));
 
 function icon = makeToolbarIconFromPNG(filename)
 % makeToolbarIconFromPNG  Creates an icon with transparent

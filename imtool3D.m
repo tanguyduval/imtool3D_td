@@ -807,7 +807,11 @@ classdef imtool3D < handle
                 tool.Climits{1} = range;
             end
             range = tool.Climits{1};
-                        
+               
+            if ~isempty(mask) && (size(mask,1)~=size(I{1},1) || size(mask,2)~=size(I{1},2) || size(mask,3)~=size(I{1},3))
+                warning(sprintf('Mask (%dx%dx%d) is inconsistent with Image (%dx%dx%d)',size(mask,1),size(mask,2),size(mask,3),size(I{1},1),size(I{1},2),size(I{1},3)))
+                mask = [];
+            end
             if isempty(mask) && (isempty(tool.mask) || size(tool.mask,1)~=size(I{1},1) || size(tool.mask,2)~=size(I{1},2) || size(tool.mask,3)~=size(I{1},3))
                 tool.mask=zeros([size(I{1},1) size(I{1},2) size(I{1},3)],'uint8');
             elseif ~isempty(mask)
@@ -925,8 +929,10 @@ classdef imtool3D < handle
 
         function setClimits(tool,range)
             if iscell(range)
+                tool.setDisplayRange(range{tool.getNvol})
                 tool.Climits = range;
             else
+                tool.setDisplayRange(range)
                 tool.Climits{tool.getNvol} = range;
             end
         end
@@ -1121,14 +1127,18 @@ classdef imtool3D < handle
             alpha = tool.alpha;
         end
         
-        function S = getImageSize(tool)
+        function S = getImageSize(tool,withVP)
+            if ~exist('VP','var'), withVP = true; end
+            
             S=size(tool.I{tool.Nvol});
             if length(S)<3, S(3) = 1; end
-            switch tool.viewplane
-                case 1
-                    S = S([2 3 1]);
-                case 2
-                    S = S([1 3 2]);
+            if withVP
+                switch tool.viewplane
+                    case 1
+                        S = S([2 3 1]);
+                    case 2
+                        S = S([1 3 2]);
+                end
             end
         end
         
@@ -1331,57 +1341,67 @@ classdef imtool3D < handle
             end
         end
         
-        function saveMask(tool,hObject)
+        function saveMask(tool,hObject,hdr)
             % unselect button to prevent activation with spacebar
             set(hObject, 'Enable', 'off');
             drawnow;
             set(hObject, 'Enable', 'on');
-
-            [FileName,PathName, ext] = uiputfile({'*.nii.gz','NIFTI file (*.nii.gz)';'*.mat','MATLAB File (*.mat)';'*.tif','Image Stack (*.tif)'},'Save Mask','Mask.nii.gz');
-            if isequal(FileName,0)
-                return;
-            end
-            if ext==1 % .nii.gz
-                err=1;
-                while(err)
-                    answer = inputdlg2({'save as:','browse reference scan'},'save mask',[1 50],{fullfile(PathName,FileName), ''});
-                    if isempty(answer), err=0; break; end
-                    if ~isempty(answer{1})
-                        answer{1} = strrep(answer{1},'.gz','.nii.gz');
-                        answer{1} = strrep(answer{1},'.nii.nii','.nii');
-                        if ~isempty(answer{2})
-                            try
-                                save_nii_v2(tool.getMask(1),answer{1},answer{2},8);
-                                err=0;
-                            catch bug
-                                uiwait(warndlg(bug.message,'wrong reference','modal'))
+            
+            Mask = tool.getMask(1);
+            if any(Mask(:))
+                [FileName,PathName, ext] = uiputfile({'*.nii.gz';'*.mat';'*.tif'},'Save Mask','Mask.nii.gz');
+                if isequal(FileName,0)
+                    return;
+                end
+                FileName = strrep(FileName,'.gz','.nii.gz');
+                FileName = strrep(FileName,'.nii.nii','.nii');
+                if ext==1 % .nii.gz
+                    if ~exist('hdr','var')
+                        err=1;
+                        while(err)
+                            answer = inputdlg2({'save as:','browse reference scan'},'save mask',[1 50],{fullfile(PathName,FileName), ''});
+                            if isempty(answer), err=0; break; end
+                            if ~isempty(answer{1})
+                                answer{1} = strrep(answer{1},'.gz','.nii.gz');
+                                answer{1} = strrep(answer{1},'.nii.nii','.nii');
+                                if ~isempty(answer{2})
+                                    try
+                                        save_nii_v2(tool.getMask(1),answer{1},answer{2},8);
+                                        err=0;
+                                    catch bug
+                                        uiwait(warndlg(bug.message,'wrong reference','modal'))
+                                    end
+                                else
+                                    save_nii_v2(make_nii(uint8(tool.getMask(1))),answer{1},[],8);
+                                    err=0;
+                                end
                             end
+                        end
+                    else
+                        save_nii_datas(Mask,hdr,fullfile(PathName,FileName))
+                    end
+                elseif ext==2 % .mat
+                    save(fullfile(PathName,FileName),'Mask');
+                elseif ext==3 % .tif
+                    Mask = tool.getMask(1);
+                    for z=1:size(Mask,tool.viewplane)
+                        switch tool.viewplane
+                            case 1
+                                Maskz = Mask(z,:,:);
+                            case 2
+                                Maskz = Mask(:,z,:);
+                            case 3
+                                Maskz = Mask(:,:,z);
+                        end
+                        if z==1
+                            imwrite(uint8(Maskz), [PathName FileName], 'WriteMode', 'overwrite',  'Compression','none');
                         else
-                            save_nii_v2(make_nii(uint8(tool.getMask(1))),answer{1},[],8);
-                            err=0;
+                            imwrite(uint8(Maskz), [PathName FileName], 'WriteMode', 'append',  'Compression','none');
                         end
                     end
                 end
-            elseif ext==2 % .mat
-                Mask = tool.getMask(1);
-                save(fullfile(PathName,FileName),'Mask');
-            elseif ext==3 % .tif
-                Mask = tool.getMask(1);
-                for z=1:size(Mask,tool.viewplane)
-                    switch tool.viewplane
-                        case 1
-                            Maskz = Mask(z,:,:);
-                        case 2
-                            Maskz = Mask(:,z,:);
-                        case 3
-                            Maskz = Mask(:,:,z);
-                    end
-                    if z==1
-                        imwrite(uint8(Maskz), [PathName FileName], 'WriteMode', 'overwrite',  'Compression','none');
-                    else
-                        imwrite(uint8(Maskz), [PathName FileName], 'WriteMode', 'append',  'Compression','none');
-                    end
-                end
+            else
+                warndlg('Mask empty... Draw a mask using the brush tools on the right')
             end
         end
         
@@ -1405,6 +1425,11 @@ classdef imtool3D < handle
                 end
             else
                 return
+            end
+            S = tool.getImageSize(0);
+            if ~isequal([size(Mask,1) size(Mask,2) size(Mask,3)],S(1:3))
+                errordlg(sprintf('Inconsistent Mask size (%dx%dx%d). Please select a mask of size %dx%dx%d',size(Mask,1),size(Mask,2),size(Mask,3),S(1),S(2),S(3)))
+                return;
             end
             tool.setMask(uint8(Mask));
         end
