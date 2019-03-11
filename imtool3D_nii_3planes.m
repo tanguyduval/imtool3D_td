@@ -26,10 +26,10 @@ for ii=1:3
 tool(ii).setAspectRatio(hdr.pixdim(2:4));
 end
 % save Mask
-H = tool(1).getHandles;
-set(H.Tools.Save,'Callback',@(hObject,evnt)saveMask(tool(1),hdr))
+H = tool(3).getHandles;
+set(H.Tools.maskSave,'Callback',@(hObject,evnt)saveMask(tool(3),hdr))
 
-% add load Mask and Image features
+% add load Image features
 Pos = get(tool(1).getHandles.Tools.Save,'Position');
 Pos(1) = Pos(1) + Pos(3)+5;
 Loadbut           =   uicontrol(tool(1).getHandles.Panels.Tools,'Style','pushbutton','String','','Position',Pos);
@@ -42,29 +42,25 @@ set(Loadbut,'TooltipString','Load NIFTI (Mask or Image)')
 
 
 function saveMask(tool,hdr)
-H = tool.getHandles;
-S = get(H.Tools.SaveOptions,'String');
-switch S{get(H.Tools.SaveOptions,'value')}
-    case 'Mask'
+Mask = tool.getMask(1);
+if any(Mask(:))
+    [FileName,PathName, ext] = uiputfile({'*.nii.gz';'*.mat'},'Save Mask','Mask.nii.gz');
+    if isequal(FileName,0)
+        return;
+    end
+    FileName = strrep(FileName,'.gz','.nii.gz');
+    FileName = strrep(FileName,'.nii.nii','.nii');
+    if ext==1 % .nii.gz
+        masknii.img = unxform_nii(hdr,Mask);
+        masknii.hdr = hdr.original;
+        nii_tool('save',masknii,fullfile(PathName,FileName))
+    elseif ext==2 % .mat
         Mask = tool.getMask(1);
-        if any(Mask(:))        
-        [FileName,PathName, ext] = uiputfile({'*.nii.gz';'*.mat'},'Save Mask','Mask');
-        FileName = strrep(FileName,'.gz','.nii.gz');
-        FileName = strrep(FileName,'.nii.nii','.nii');
-        if ext==1 % .nii.gz
-            masknii.img = unxform_nii(hdr,Mask);
-            masknii.hdr = hdr.original;
-            nii_tool('save',masknii,fullfile(PathName,FileName))
-        elseif ext==2 % .mat
-            Mask = tool.getMask(1);
-            save(fullfile(PathName,FileName),'Mask');
-        end
-
-        else
-            warndlg('Mask empty... Draw a mask using the brush tools on the right')
-        end
-    otherwise
-        tool.saveImage;
+        save(fullfile(PathName,FileName),'Mask');
+    end
+    
+else
+    warndlg('Mask empty... Draw a mask using the brush tools on the right')
 end
 
 function loadImage(hObject,tool,hdr,path)
@@ -82,19 +78,11 @@ if iscell(FileName)
 else
     dat = load_nii_datas({hdr.original,fullfile(PathName,FileName)});
 end
-H = tool.getHandles;
-S = get(H.Tools.SaveOptions,'String');
-switch S{get(H.Tools.SaveOptions,'value')}
-    case 'Mask'
-        for ii=1:3
-            tool(ii).setMask(uint8(dat{1}))
-        end
-    case 'Image'
-        I = tool(1).getImage(1);
-        for ii=1:3
-            tool(ii).setImage(cat(5,I{:},dat{:}))
-            tool(ii).setNvol(length(dat)+size(I,5));
-        end
+
+I = tool(1).getImage(1);
+for ii=1:3
+    tool(ii).setImage([I,dat])
+    tool(ii).setNvol(1+length(I));
 end
 
 function outblock = unxform_nii(hdr, inblock)
