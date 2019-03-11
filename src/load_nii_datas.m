@@ -55,12 +55,14 @@ end
 
 del = [];
 for ff=2:length(list)
-    % same sapce???
+    % same space???
     hdr = nii_tool('hdr', list{ff});
     if hdr.sform_code>0
         R1 = [hdr.srow_x; hdr.srow_y; hdr.srow_z; 0 0 0 1];
     elseif hdr.qform_code>0
         R1 = quat2R(hdr);
+    else
+        R1 = diag([1 1 1 1]);
     end
     % reslice
     if max(max(abs(R0-R1)))>1e-5
