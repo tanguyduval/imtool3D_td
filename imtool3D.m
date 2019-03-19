@@ -1274,10 +1274,18 @@ classdef imtool3D < handle
                 case 'l'
                     setlockMask(tool)
                 case 'leftarrow'
-                    tool.Ntime = max(tool.Ntime-1,1);
+                    if isprop(evnt,'Modifier') && ~isempty(evnt.Modifier) && strcmp(evnt.Modifier,'shift')
+                        tool.Ntime = max(tool.Ntime-10,1);
+                    else
+                        tool.Ntime = max(tool.Ntime-1,1);
+                    end
                     showSlice(tool);
                 case 'rightarrow'
-                    tool.Ntime = min(tool.Ntime+1,size(tool.I{tool.Nvol},4));
+                    if isprop(evnt,'Modifier') && ~isempty(evnt.Modifier) && strcmp(evnt.Modifier,'shift')
+                        tool.Ntime = min(tool.Ntime+10,size(tool.I{tool.Nvol},4));
+                    else
+                        tool.Ntime = min(tool.Ntime+1,size(tool.I{tool.Nvol},4));
+                    end
                     showSlice(tool);
                 case 'uparrow'
                     setNvol(tool,tool.Nvol+1)
