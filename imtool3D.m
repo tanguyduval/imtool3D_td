@@ -633,6 +633,18 @@ classdef imtool3D < handle
         end
         
         function setMask(tool,mask)
+            % 4D mask --> indice along 4th dim
+            if ndims(mask)>3, [~,masktmp] = max(uint8(mask(:,:,:,:)),[],4); mask = uint8(masktmp).*uint8(any(mask(:,:,:,:),4)); end
+            if ~isempty(mask) && (size(mask,1)~=size(tool.I{1},1) || size(mask,2)~=size(tool.I{1},2) || size(mask,3)~=size(tool.I{1},3))
+                warning(sprintf('Mask (%dx%dx%d) is inconsistent with Image (%dx%dx%d)',size(mask,1),size(mask,2),size(mask,3),size(tool.I{1},1),size(tool.I{1},2),size(tool.I{1},3)))
+                mask = [];
+            end
+            if isempty(mask) && (isempty(tool.mask) || size(tool.mask,1)~=size(tool.I{1},1) || size(tool.mask,2)~=size(tool.I{1},2) || size(tool.mask,3)~=size(tool.I{1},3))
+                tool.mask=zeros([size(tool.I{1},1) size(tool.I{1},2) size(tool.I{1},3)],'uint8');
+            elseif ~isempty(mask)
+                tool.mask=uint8(mask);
+            end            
+
             if islogical(mask)
                 maskOld = tool.mask;
                 maskOld(maskOld==tool.maskSelected)=0;
@@ -643,7 +655,6 @@ classdef imtool3D < handle
                 end
                 mask=maskOld;
             end
-            tool.mask=mask;
             showSlice(tool)
             notify(tool,'maskChanged')
         end
@@ -818,17 +829,9 @@ classdef imtool3D < handle
             end
             range = tool.Climits{1};
                
-            if ~isempty(mask) && (size(mask,1)~=size(I{1},1) || size(mask,2)~=size(I{1},2) || size(mask,3)~=size(I{1},3))
-                warning(sprintf('Mask (%dx%dx%d) is inconsistent with Image (%dx%dx%d)',size(mask,1),size(mask,2),size(mask,3),size(I{1},1),size(I{1},2),size(I{1},3)))
-                mask = [];
-            end
-            if isempty(mask) && (isempty(tool.mask) || size(tool.mask,1)~=size(I{1},1) || size(tool.mask,2)~=size(I{1},2) || size(tool.mask,3)~=size(I{1},3))
-                tool.mask=zeros([size(I{1},1) size(I{1},2) size(I{1},3)],'uint8');
-            elseif ~isempty(mask)
-                tool.mask=uint8(mask);
-            end
-                        
             tool.I=I;
+            
+            tool.setMask(mask);
             
             tool.Nvol = 1;
 
@@ -1449,7 +1452,7 @@ classdef imtool3D < handle
                 errordlg(sprintf('Inconsistent Mask size (%dx%dx%d). Please select a mask of size %dx%dx%d',size(Mask,1),size(Mask,2),size(Mask,3),S(1),S(2),S(3)))
                 return;
             end
-            tool.setMask(uint8(Mask));
+            tool.setMask(Mask);
         end
 
     end
@@ -1470,7 +1473,7 @@ classdef imtool3D < handle
             end
             
             if n < 1
-                n=1;
+                n=round(size(tool.I{tool.Nvol},tool.viewplane)/2);
             end
             
             if n > size(tool.I{tool.Nvol},tool.viewplane)
