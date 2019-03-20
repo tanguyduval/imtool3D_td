@@ -642,19 +642,20 @@ classdef imtool3D < handle
             if isempty(mask) && (isempty(tool.mask) || size(tool.mask,1)~=size(tool.I{1},1) || size(tool.mask,2)~=size(tool.I{1},2) || size(tool.mask,3)~=size(tool.I{1},3))
                 tool.mask=zeros([size(tool.I{1},1) size(tool.I{1},2) size(tool.I{1},3)],'uint8');
             elseif ~isempty(mask)
-                tool.mask=uint8(mask);
+                if islogical(mask)
+                    maskOld = tool.mask;
+                    maskOld(maskOld==tool.maskSelected)=0;
+                    if tool.lockMask
+                        maskOld(mask & maskOld==0) = tool.maskSelected;
+                    else
+                        maskOld(mask) = tool.maskSelected;
+                    end
+                    tool.mask=maskOld;
+                else
+                    tool.mask=uint8(mask);
+                end
             end            
 
-            if islogical(mask)
-                maskOld = tool.mask;
-                maskOld(maskOld==tool.maskSelected)=0;
-                if tool.lockMask
-                    maskOld(mask & maskOld==0) = tool.maskSelected;
-                else
-                    maskOld(mask) = tool.maskSelected;
-                end
-                mask=maskOld;
-            end
             showSlice(tool)
             notify(tool,'maskChanged')
         end
