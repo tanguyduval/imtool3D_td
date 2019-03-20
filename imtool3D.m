@@ -1371,7 +1371,13 @@ classdef imtool3D < handle
             
             Mask = tool.getMask(1);
             if any(Mask(:))
-                [FileName,PathName, ext] = uiputfile({'*.nii.gz';'*.mat';'*.tif'},'Save Mask','Mask.nii.gz');
+                if ~exist('hdr','var')
+                    maskfname = 'Mask.nii.gz';
+                else
+                    path = fileparts(hdr.file_name);
+                    maskfname = fullfile(path,'Mask.nii.gz');
+                end
+                [FileName,PathName, ext] = uiputfile({'*.nii.gz';'*.mat';'*.tif'},'Save Mask',maskfname);
                 if isequal(FileName,0)
                     return;
                 end
