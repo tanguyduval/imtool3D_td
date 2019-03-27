@@ -569,7 +569,7 @@ classdef imtool3D < handle
 
             % mask statistics
             tool.handles.Tools.maskStats        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','Position',[buff pos(4)-(islct+2)*w w w], 'Value', 1, 'TooltipString', 'Statistics');
-            icon_hist = makeToolbarIconFromPNG([MATLABdir '/plottype-histogram.png']);
+            icon_hist = makeToolbarIconFromPNG('plottype-histogram.png');
             icon_hist = min(1,max(0,imresize(icon_hist,[16 16])));
             set(tool.handles.Tools.maskStats ,'Cdata',icon_hist)
             set(tool.handles.Tools.maskStats ,'Callback',@(hObject,evnt) StatsCallback(hObject,evnt,tool))
@@ -658,6 +658,10 @@ classdef imtool3D < handle
 
             showSlice(tool)
             notify(tool,'maskChanged')
+        end
+        
+        function label = getmaskSelected(tool)
+            label = tool.maskSelected;
         end
         
         function mask = getMask(tool,all)
