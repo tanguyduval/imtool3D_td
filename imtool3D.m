@@ -834,11 +834,11 @@ classdef imtool3D < handle
             end
             range = tool.Climits{1};
                
+            tool.Nvol = 1;
+            
             tool.I=I;
             
             tool.setMask(mask);
-            
-            tool.Nvol = 1;
 
             %Update the histogram
             if isfield(tool.handles,'HistAxes')
@@ -1814,7 +1814,7 @@ function [I, position, h, range, tools, mask, enableHist] = parseinputs(varargin
 end
 
 function measureImageCallback(hObject,evnt,tool,type)
-
+removeBrushObject(tool)
 switch type
     case 'ellipse'
         h = getHandles(tool);
