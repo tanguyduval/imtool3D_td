@@ -124,7 +124,7 @@ set(h,'WindowScrollWheelFcn',@(src, evnt) scrollWheel(src, evnt, tool) )
 set(h,'Windowkeypressfcn', @(hobject, event) shortcutCallback(hobject, event,tool,crossX1,crossY1,crossX2,crossY2,crossX3,crossY3))
 set(h,'WindowButtonMotionFcn',@(src,evnt) Callback3(CB_Motion1,CB_Motion2,CB_Motion3,src,evnt))
 set(h,'WindowKeyReleaseFcn',@(hobject,key) setappdata(hobject,'HoldX',0))
-setappdata(h,'HoldX',1)
+setappdata(h,'HoldX',0)
 
 addlistener(tool(1).getHandles.Tools.L,'String','PostSet',@(x,y) setWL(tool));
 addlistener(tool(1).getHandles.Tools.U,'String','PostSet',@(x,y) setWL(tool));
