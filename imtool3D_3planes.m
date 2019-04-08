@@ -2,12 +2,12 @@ function tool = imtool3D_3planes(dat,mask)
 if ~exist('mask','var'), mask=[]; end
 if ~exist('dat','var'), dat=[]; end
 
-tool = imtool3D(dat,[],[],[],[],mask,[]);
+tool = imtool3D(dat,[],[],[],[],mask);
 range = tool.getClimits;
 CB_Motion1 = get(gcf,'WindowButtonMotionFcn');
-tool(2) = imtool3D(dat,[],tool(1).getHandles.fig,range,[],mask,[]);
+tool(2) = imtool3D(dat,[],tool(1).getHandles.fig,range,[],mask);
 CB_Motion2 = get(gcf,'WindowButtonMotionFcn');
-tool(3) = imtool3D(dat,[],tool(1).getHandles.fig,range,[],mask,[]);
+tool(3) = imtool3D(dat,[],tool(1).getHandles.fig,range,[],mask);
 CB_Motion3 = get(gcf,'WindowButtonMotionFcn');
 
 setviewplane(tool(2),'sagittal');
