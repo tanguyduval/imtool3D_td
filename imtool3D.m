@@ -1458,7 +1458,7 @@ classdef imtool3D < handle
             [FileName,PathName, ext] = uigetfile({'*.nii.gz','NIFTI file (*.nii.gz)';'*.mat','MATLAB File (*.mat)';'*.tif','Image Stack (*.tif)'},'Load Mask',path);
             if ext==1 % .nii.gz
                 if exist('hdr','var')
-                    Mask = load_nii_datas([{hdr.original} fullfile(PathName,FileName)]);
+                    Mask = load_nii_datas([{hdr} fullfile(PathName,FileName)]);
                 else
                     Mask = load_nii_datas(fullfile(PathName,FileName));
                 end
