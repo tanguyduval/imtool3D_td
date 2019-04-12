@@ -40,45 +40,13 @@ if isempty(list)
     error(['no files match ' filename])
 end
 
-%reslice images
-if isstruct(list{1})
-    hdr0 = list{1};
-else
-    hdr0 = nii_tool('hdr', list{1});
-end
-quat2R = nii_viewer('func_handle', 'quat2R');
-if hdr0.sform_code>0
-    R0 = [hdr0.srow_x; hdr0.srow_y; hdr0.srow_z; 0 0 0 1];
-elseif hdr0.qform_code>0
-    R0 = quat2R(hdr0);
-end
-
-del = [];
-for ff=2:length(list)
-    % same space???
-    hdr = nii_tool('hdr', list{ff});
-    if hdr.sform_code>0
-        R1 = [hdr.srow_x; hdr.srow_y; hdr.srow_z; 0 0 0 1];
-    elseif hdr.qform_code>0
-        R1 = quat2R(hdr);
-    else
-        R1 = diag([1 1 1 1]);
-    end
-    % reslice
-    if max(max(abs(R0-R1)))>1e-5
-        originalfilename = list{ff};
-        list{ff} = [tempname '.nii'];
-        nii_xform(originalfilename,list{1},list{ff})
-        del = [del ff];
-    end
-end
-
 dat = {};
-for iii=1:length(list)
-    if isstruct(list{iii}) && isfield(list{iii},'img')
-        nii = list{iii};
-    elseif ischar(list{iii})
-        nii = nii_tool('load',list{iii});
+for ff=1:length(list)
+    if isstruct(list{ff}) && isfield(list{ff},'img') % already loaded
+        nii = list{ff};
+    elseif ischar(list{ff})
+        % LOAD AND RESLICE
+        nii = nii_xform(list{ff},list{1});
     else
         continue
     end
@@ -86,17 +54,13 @@ for iii=1:length(list)
         orient = get_orient_hdr(nii.hdr);
         nii = rotateimage(nii,orient);
     end
-    if iii==1
+    if ff==1
         hdr = nii.hdr;
     end
     nii = nii.img;
     dat(end+1:end+size(nii(:,:,:,:,:),5)) = mat2cell(nii(:,:,:,:,:),size(nii,1),size(nii,2),size(nii,3),size(nii,4),ones(1,size(nii(:,:,:,:,:),5)));
 end
 
-% delete resliced images
-for ff=del
-    delete(list{ff})
-end
 
 function [list, path]=tools_ls(fname, keeppath, keepext, folders,arborescence,select)
 % [list, path]=tools_ls(fname, keeppath?, keepext?, folders?,recursive?)
