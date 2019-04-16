@@ -588,7 +588,6 @@ classdef imtool3D < handle
             % mask load
             tool.handles.Tools.maskLoad        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','Position',[buff pos(4)-(islct+4)*w w w], 'Value', 1, 'TooltipString', 'Load mask');
             icon_load = makeToolbarIconFromPNG([MATLABdir '/file_open.png']);
-            icon_load = min(1,max(0,imresize(icon_load,[16 16])));
             set(tool.handles.Tools.maskLoad ,'Cdata',icon_load)
             fun=@(hObject,evnt) loadMask(tool,hObject);
             set(tool.handles.Tools.maskLoad ,'Callback',fun)
@@ -621,6 +620,10 @@ classdef imtool3D < handle
             result = license('test','image_toolbox');
             if result==0
                 warning('Image processing toolbox is missing... ROI tools will not work')
+                set(findobj(tool.handles.Panels.ROItools,'type','uicontrol'),'visible','off');
+                set(tool.handles.Tools.maskLoad,'visible','on');
+                set(tool.handles.Tools.maskStats,'visible','on');
+                set(tool.handles.Tools.maskSelected,'visible','on');
             end
         end
         
@@ -1345,7 +1348,7 @@ classdef imtool3D < handle
                 viewtype = get(tool.handles.Axes,'View');
                 if viewtype(1)==-90, I=rot90(I);  end
                 lims=get(h.Axes,'CLim');
-                I=gray2ind(mat2gray(I,lims),size(cmap,1));
+                I = uint8(max(0,min(1,(I-lims(1))/diff(lims)))*(size(cmap,1)-1));
                 
                 if FileName == 0
                 else
