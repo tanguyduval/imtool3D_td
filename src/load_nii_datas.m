@@ -50,6 +50,10 @@ end
 
 dat = {};
 for ff=1:length(list)
+    if isstruct(list{ff}) && ~isfield(list{ff},'img') % skip... header only
+        continue
+    end
+    
     % LOAD AND RESLICE
     nii = nii_xform(list{ff},list{1});
     
