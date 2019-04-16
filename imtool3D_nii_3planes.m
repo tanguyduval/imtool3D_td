@@ -75,9 +75,9 @@ if isequal(FileName,0)
     return;
 end
 if iscell(FileName)
-    dat = load_nii_datas([{hdr.original},fullfile(PathName,FileName)]);
+    dat = load_nii_datas([{hdr},fullfile(PathName,FileName)]);
 else
-    dat = load_nii_datas({hdr.original,fullfile(PathName,FileName)});
+    dat = load_nii_datas({hdr,fullfile(PathName,FileName)});
 end
 
 I = tool(1).getImage(1);

@@ -1451,7 +1451,7 @@ classdef imtool3D < handle
             drawnow;
             set(hObject, 'Enable', 'on');
             if exist('hdr','var')
-                path=fullfile(hdr.file_name,'Mask.nii.gz');
+                path=fullfile(fileparts(hdr.file_name),'Mask.nii.gz');
             else
                 path = 'Mask.nii.gz';
             end
