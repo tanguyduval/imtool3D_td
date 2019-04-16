@@ -1,4 +1,6 @@
 function orient = get_orient_hdr(hdr)
+% orient = get_orient_hdr(hdr) GET orientation from the header of a NIFTI file
+%
 % OUTPUT
 %   orient      1x3 vector of integers
 %         1		% Left to Right
