@@ -1,8 +1,8 @@
-function tool = imtool3D_3planes(dat,mask)
+function tool = imtool3D_3planes(dat,mask,parent,range)
 if ~exist('mask','var'), mask=[]; end
 if ~exist('dat','var'), dat=[]; end
 
-tool = imtool3D(dat,[],[],[],[],mask);
+tool = imtool3D(dat,[],parent,range,[],mask);
 range = tool.getClimits;
 CB_Motion1 = get(gcf,'WindowButtonMotionFcn');
 tool(2) = imtool3D(dat,[],tool(1).getHandles.fig,range,[],mask);
