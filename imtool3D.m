@@ -192,7 +192,7 @@ classdef imtool3D < handle
         alpha        %transparency of the overlaid mask (default is .2)
         aspectRatio = [1 1 1];
         viewplane    = 3; % Direction of the 3rd dimension 
-        
+        label        = {''};
         
     end
     
@@ -321,12 +321,12 @@ classdef imtool3D < handle
             grid off
             axis fill
             
-            
             %Set up image info display
             tool.handles.Info=uicontrol(tool.handles.Panels.Info,'Style','text','String','(x,y) val','Units','Normalized','Position',[0 .1 .5 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Left');
             fun=@(src,evnt)getImageInfo(src,evnt,tool);
             set(tool.handles.fig,'WindowButtonMotionFcn',fun);
             tool.handles.SliceText=uicontrol(tool.handles.Panels.Info,'Style','text','String',['Vol: 1/' num2str(size(I,5)) '    Time: 1/' num2str(size(I,4)) '    Slice: 1/' num2str(size(I,tool.viewplane))],'Units','Normalized','Position',[.5 .1 .48 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Right', 'TooltipString', 'Use arrows to navigate through time (4th dim) and volumes (5th dim)');
+            tool.handles.LabelText=uicontrol(tool.handles.Panels.Info,'Style','text','Units','Normalized','Position',[.25 .1 .3 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Center');
 
             %Set up mouse button controls
             fun=@(hObject,eventdata) imageButtonDownFunction(hObject,eventdata,tool);
@@ -1058,6 +1058,15 @@ classdef imtool3D < handle
             setAspectRatio(tool,tool.aspectRatio)
         end
         
+        function setlabel(tool,label)
+            if ischar(label) || isstring(label)
+                tool.label{tool.Nvol} = char(label);
+            elseif iscellstr(label)
+                tool.label = label;
+            end
+            showSlice(tool)
+        end
+        
         function setDisplayRange(tool,range)
             W=diff(range);
             L=mean(range);
@@ -1523,6 +1532,16 @@ classdef imtool3D < handle
             maskrgb = ind2rgb(maskn,tool.maskColor);
             set(tool.handles.mask,'CData',maskrgb);
             set(tool.handles.mask,'AlphaData',tool.alpha*logical(maskn))
+            try
+                label = tool.label{tool.Nvol};
+                set(tool.handles.LabelText,'TooltipString',label)
+                if length(label)>20
+                    label =  ['..' label(max(1,length(label)-20):end)];
+                end
+            catch
+                label='';
+            end
+            set(tool.handles.LabelText,'String',label)
             set(tool.handles.SliceText,'String',['Vol: ' num2str(tool.Nvol) '/' num2str(length(tool.I)) '    Time: ' num2str(tool.Ntime) '/' num2str(size(tool.I{tool.Nvol},4)) '    Slice: ' num2str(n) '/' num2str(size(tool.I{tool.Nvol},tool.viewplane))])
 
             if isfield(tool.handles.Tools,'Hist') && get(tool.handles.Tools.Hist,'value')

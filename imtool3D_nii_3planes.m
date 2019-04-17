@@ -25,6 +25,9 @@ tool = imtool3D_3planes(dat,mask);
 [path,file,ext] = fileparts(hdr.file_name);
 set(tool(1).getHandles.fig,'Name',['imtool3D: ' file,ext ' (reference space)']);
 set(tool(1).getHandles.fig,'NumberTitle','off');
+for ii=1:3
+    tool(ii).setlabel(list);
+end
 
 % set voxelsize
 for ii=1:3
@@ -84,6 +87,7 @@ I = tool(1).getImage(1);
 for ii=1:3
     tool(ii).setImage([I(:)',dat(:)'])
     tool(ii).setNvol(1+length(I));
+    tool(ii).setlabel(fullfile(PathName,FileName))
 end
 
 function icon = makeToolbarIconFromPNG(filename)
