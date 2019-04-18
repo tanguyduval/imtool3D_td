@@ -1861,7 +1861,7 @@ switch type
         ROI = imtool3DROI_poly(h.I,[],tool);
     case 'profile'
         h = getHandles(tool);
-        ROI = imtool3DROI_line(h.I);
+        ROI = imtool3DROI_line(h.I,[],tool);
     otherwise
 end
 

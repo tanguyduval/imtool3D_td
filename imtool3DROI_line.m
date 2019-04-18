@@ -59,6 +59,19 @@ classdef imtool3DROI_line < imtool3DROI
                 case 2 %user inputs both the parent handle and a position
                     imageHandle = varargin{1};
                     position = varargin{2};
+                case 3
+                    imageHandle = varargin{1};
+                    position = varargin{2};
+                    if isempty(position)
+                        parent = get(imageHandle,'Parent');
+                        h = imline(parent);
+                        position = getPosition(h);
+                        if position(1,1) == position(1,2) && position(2,1) == position(2,2)
+                            position(2,:) = position(2,:)+5;
+                        end
+                        delete(h);
+                    end
+                    tool = varargin{3};
             end
            
             %get the parent axis handle
@@ -78,11 +91,12 @@ classdef imtool3DROI_line < imtool3DROI
             
             %Define the context menu options (i.e., what happens when you
             %right click on the ROI)
-            menuLabels = {'Export stats','Plot profile','Hide Text','Hide profile', 'Delete'};
+            menuLabels = {'Export stats','Plot profile','Hide Text','Hide profile', 'Delete', 'Symmetrize mask'};
+            if ~exist('tool','var') || isempty(tool), menuLabels(end) = []; tool = []; end
             menuFunction = @contextMenuCallback;
             
             %create the ROI object from the superclass
-            ROI@imtool3DROI(imageHandle,graphicsHandles,menuLabels,menuFunction);
+            ROI@imtool3DROI(imageHandle,graphicsHandles,menuLabels,menuFunction,tool);
             
             %create the text object and line profile object
             [x,y] = findTextPosition(position,ROI.tbuff);
@@ -258,7 +272,7 @@ x = min(position(:,1)); y = max(position(:,2))+tbuff;
 
 end
 
-function contextMenuCallback(source,callbackdata,ROI)
+function contextMenuCallback(source,callbackdata,ROI,tool)
 switch get(source,'Label')
     case 'Delete'
         delete(ROI);
@@ -295,6 +309,21 @@ switch get(source,'Label')
                 set(source,'Checked','off');
                 profileVisible(ROI,1)
         end
+    case 'Symmetrize mask'
+        Pos = ROI.getPosition;
+        Mask = tool.getCurrentMaskSlice;
+        % symetrize Mask using axis Pos
+        [v,u] = find(tool.getCurrentMaskSlice);
+        UV = [u,v]- repmat(Pos(1,:),[length(u) 1]);
+        symAxis = Pos(2,:)-Pos(1,:);
+        symAxis = symAxis/norm(symAxis);
+        UV_Sym = UV - 2*(UV-repmat(UV*symAxis',[1 2]).*repmat(symAxis,[length(u) 1]));
+        UV_Sym = UV_Sym + repmat(Pos(1,:),[length(u) 1]);
+        % save
+        ind = sub2ind(size(Mask),min(size(Mask,1),max(1,round(UV_Sym(:,2)))),min(size(Mask,2),max(1,round(UV_Sym(:,1)))));
+        Mask(ind)=true;
+        tool.setCurrentMaskSlice(Mask);
+        notify(tool,'maskChanged')
 end
 
 
