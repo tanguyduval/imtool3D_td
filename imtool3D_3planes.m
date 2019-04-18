@@ -1,6 +1,8 @@
 function tool = imtool3D_3planes(dat,mask,parent,range)
 if ~exist('mask','var'), mask=[]; end
 if ~exist('dat','var'), dat=[]; end
+if ~exist('parent','var'), parent=[]; end
+if ~exist('range','var'), range=[]; end
 
 tool = imtool3D(dat,[],parent,range,[],mask);
 range = tool.getClimits;
