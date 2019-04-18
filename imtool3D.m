@@ -1401,13 +1401,13 @@ classdef imtool3D < handle
                     path = fileparts(hdr.file_name);
                     maskfname = fullfile(path,'Mask.nii.gz');
                 end
-                [FileName,PathName, ext] = uiputfile({'*.nii.gz';'*.mat';'*.tif'},'Save Mask',maskfname);
+                [FileName,PathName, ext] = uiputfile({'*.nii.gz;*.nii';'*.mat';'*.tif'},'Save Mask',maskfname);
                 if isequal(FileName,0)
                     return;
                 end
                 FileName = strrep(FileName,'.gz','.nii.gz');
                 FileName = strrep(FileName,'.nii.nii','.nii');
-                if ext==1 % .nii.gz
+                if ext==1 || ext>3  % .nii.gz
                     if ~exist('hdr','var')
                         err=1;
                         while(err)
@@ -1430,6 +1430,8 @@ classdef imtool3D < handle
                             end
                         end
                     else
+                        hdr.scl_slope=1; % no slope for Mask
+                        hdr.scl_inter=0;
                         save_nii_datas(Mask,hdr,fullfile(PathName,FileName))
                     end
                 elseif ext==2 % .mat
@@ -1467,10 +1469,10 @@ classdef imtool3D < handle
             else
                 path = 'Mask.nii.gz';
             end
-            [FileName,PathName, ext] = uigetfile({'*.nii.gz','NIFTI file (*.nii.gz)';'*.mat','MATLAB File (*.mat)';'*.tif','Image Stack (*.tif)'},'Load Mask',path);
+            [FileName,PathName, ext] = uigetfile({'*.nii;*.nii.gz','NIFTI file (*.nii,*.nii.gz)';'*.mat','MATLAB File (*.mat)';'*.tif','Image Stack (*.tif)'},'Load Mask',path);
             if ext==1 % .nii.gz
                 if exist('hdr','var')
-                    Mask = load_nii_datas([{hdr} fullfile(PathName,FileName)]);
+                    Mask = load_nii_datas([{hdr} fullfile(PathName,FileName)],0,'nearest');
                 else
                     Mask = load_nii_datas(fullfile(PathName,FileName));
                 end

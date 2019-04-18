@@ -1,4 +1,4 @@
-function [dat,hdr,list] = load_nii_datas(filename,untouch)
+function [dat,hdr,list] = load_nii_datas(filename,untouch,intrp)
 % [dat,hdr,list] = load_nii_datas(filename,untouch) loads nifti files in
 % LPI orientation
 %
@@ -29,6 +29,7 @@ if ~isdeployed
     end
 end
 
+if ~exist('intrp','var'), intrp = 'linear'; end
 if isstruct(filename)% nii structure loaded with nii_tool?
     filename = {filename};
 end
@@ -55,7 +56,7 @@ for ff=1:length(list)
     end
     
     % LOAD AND RESLICE
-    nii = nii_xform(list{ff},list{1});
+    nii = nii_xform(list{ff},list{1},[],intrp);
     
     if nargin==1 || (~isempty(untouch) && ~untouch)
         orient = get_orient_hdr(nii.hdr);
