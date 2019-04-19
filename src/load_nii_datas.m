@@ -1,5 +1,7 @@
 function [dat,hdr,list] = load_nii_datas(filename,untouch)
-% [dat,hdr,list] = load_nii_datas(filename,untouch) loads nifti files
+% [dat,hdr,list] = load_nii_datas(filename,untouch) loads nifti files in
+% LPI orientation
+%
 % if multiple files, the first image is used as reference
 % INPUT
 %   filename        char (handles wildcards **/ and *) or cell array of char
@@ -16,6 +18,8 @@ function [dat,hdr,list] = load_nii_datas(filename,untouch)
 %   img = cat(5,dat{:});
 %   img = mean(img,5);
 %   save_nii_datas(img,hdr,'Tmean.nii.gz')
+%
+% See also: save_nii_datas, get_orient_hdr, rotateimage
 
 if ~isdeployed
     A = which('nii_tool');
@@ -25,7 +29,11 @@ if ~isdeployed
     end
 end
 
-if ~iscell(filename)
+if isstruct(filename)% nii structure loaded with nii_tool?
+    filename = {filename};
+end
+
+if ~iscell(filename) % not a cell array of filenames
     if strcmp(filename(1:min(3,end)),'**/') || strcmp(filename(1:min(3,end)),'**\')
         list = tools_ls(filename(4:end),1,1,2,1);
     else
@@ -42,14 +50,13 @@ end
 
 dat = {};
 for ff=1:length(list)
-    if isstruct(list{ff}) && isfield(list{ff},'img') % already loaded
-        nii = list{ff};
-    elseif ischar(list{ff})
-        % LOAD AND RESLICE
-        nii = nii_xform(list{ff},list{1});
-    else
+    if isstruct(list{ff}) && ~isfield(list{ff},'img') % skip... header only
         continue
     end
+    
+    % LOAD AND RESLICE
+    nii = nii_xform(list{ff},list{1});
+    
     if nargin==1 || (~isempty(untouch) && ~untouch)
         orient = get_orient_hdr(nii.hdr);
         nii = rotateimage(nii,orient);
@@ -116,106 +123,6 @@ if arborescence
 end
 
 if select, list=list{select}; end
-
-function nii = rotateimage(nii,orient)
-if ~isequal(orient, [1 2 3])
-    nii.hdr.dim(nii.hdr.dim==0)=1;
-    old_dim = nii.hdr.dim([2:4]);
-    
-    %  More than 1 time frame
-    %
-    if ndims(nii.img) > 3
-        pattern = 1:prod(old_dim);
-    else
-        pattern = [];
-    end
-    
-    if ~isempty(pattern)
-        pattern = reshape(pattern, old_dim);
-    end
-    
-    %  calculate for rotation after flip
-    %
-    rot_orient = mod(orient + 2, 3) + 1;
-    
-    %  do flip:
-    %
-    flip_orient = orient - rot_orient;
-    
-    for ii = 1:3
-        if flip_orient(ii)
-            if ~isempty(pattern)
-                pattern = flipdim(pattern, ii);
-            else
-                nii.img = flipdim(nii.img, ii);
-            end
-        end
-    end
-    
-    %  get index of orient (rotate inversely)
-    %
-    [~, rot_orient] = sort(rot_orient);
-    
-    new_dim = old_dim;
-    new_dim = new_dim(rot_orient);
-    nii.hdr.dim([2:4]) = new_dim;
-    
-    new_pixdim = nii.hdr.pixdim([2:4]);
-    new_pixdim = new_pixdim(rot_orient);
-    nii.hdr.pixdim([2:4]) = new_pixdim;
-    
-    %  re-calculate originator
-
-    flip_orient = flip_orient(rot_orient);
-    nii.hdr.rot_orient = rot_orient;
-    nii.hdr.flip_orient = flip_orient;
-    
-    %  do rotation:
-    %
-    if ~isempty(pattern)
-        pattern = permute(pattern, rot_orient);
-        pattern = pattern(:);
-        
-        if nii.hdr.datatype == 32 | nii.hdr.datatype  == 1792 | ...
-                nii.hdr.datatype  == 128 | nii.hdr.datatype  == 511
-            
-            tmp = reshape(nii.img(:,:,:,1), [prod(new_dim) nii.hdr.dim(5:8)]);
-            tmp = tmp(pattern, :);
-            nii.img(:,:,:,1) = reshape(tmp, [new_dim       nii.hdr.dim(5:8)]);
-            
-            tmp = reshape(nii.img(:,:,:,2), [prod(new_dim) nii.hdr.dim(5:8)]);
-            tmp = tmp(pattern, :);
-            nii.img(:,:,:,2) = reshape(tmp, [new_dim       nii.hdr.dim(5:8)]);
-            
-            if nii.hdr.datatype == 128 | nii.hdr.datatype == 511
-                tmp = reshape(nii.img(:,:,:,3), [prod(new_dim) nii.hdr.dim(5:8)]);
-                tmp = tmp(pattern, :);
-                nii.img(:,:,:,3) = reshape(tmp, [new_dim       nii.hdr.dim(5:8)]);
-            end
-            
-        else
-            nii.img = reshape(nii.img, [prod(new_dim) nii.hdr.dim(5:8)]);
-            nii.img = nii.img(pattern, :);
-            nii.img = reshape(nii.img, [new_dim       nii.hdr.dim(5:8)]);
-        end
-    else
-        if nii.hdr.datatype == 32 | nii.hdr.datatype == 1792 | ...
-                nii.hdr.datatype == 128 | nii.hdr.datatype == 511
-            
-            nii.img(:,:,:,1) = permute(nii.img(:,:,:,1), rot_orient);
-            nii.img(:,:,:,2) = permute(nii.img(:,:,:,2), rot_orient);
-            
-            if nii.hdr.datatype == 128 | nii.hdr.datatype == 511
-                nii.img(:,:,:,3) = permute(nii.img(:,:,:,3), rot_orient);
-            end
-        else
-            nii.img = permute(nii.img, rot_orient);
-        end
-    end
-else
-    nii.hdr.rot_orient = [];
-    nii.hdr.flip_orient = [];
-end
 
 function [cs,index] = sort_nat(c,mode)
 %sort_nat: Natural order sort of cell array of strings.
