@@ -726,6 +726,10 @@ classdef imtool3D < handle
         end
         
         function maskClean(tool,islct)
+            if islct == 5
+                islct = str2num(get(tool.handles.Tools.maskSelected(5),'String'));
+            end
+                
             tool.mask(tool.mask==islct)=0;
             showSlice(tool)
             notify(tool,'maskChanged')
@@ -782,6 +786,9 @@ classdef imtool3D < handle
                 % Get statistics
                 I = tool.getImage;
                 for ii=1:length(tool.handles.Tools.maskSelected)
+                    if ii == 5
+                        ii = str2num(get(tool.handles.Tools.maskSelected(5),'String'));
+                    end
                     mask_ii = tool.mask==ii;
                     I_ii = I(mask_ii);
                     mean_ii = mean(I_ii);
@@ -791,7 +798,7 @@ classdef imtool3D < handle
                         sprintf('%-12s%.2f\n','STD:',std_ii),...
                         sprintf('%-12s%i','Area:',area_ii) 'px'];
                     
-                    set(tool.handles.Tools.maskSelected(ii),'TooltipString',str)
+                    set(tool.handles.Tools.maskSelected(min(5,ii)),'TooltipString',str)
                 end
             end
         end
