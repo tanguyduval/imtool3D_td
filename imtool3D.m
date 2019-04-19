@@ -466,6 +466,14 @@ classdef imtool3D < handle
             fun=@(hObject,evnt) setviewplane(tool,hObject);
             set(tool.handles.Tools.ViewPlane,'Callback',fun)
             
+            %Create montage button
+            tool.handles.Tools.montage    =   uicontrol(tool.handles.Panels.Tools,'Style','togglebutton','Position',[lp buff w w],'Value',0);
+            icon_profile = makeToolbarIconFromPNG('icon_montage.png');
+            set(tool.handles.Tools.montage ,'Cdata',icon_profile)
+            lp=lp+w+buff;
+            fun=@(hObject,evnt) showSlice(tool);
+            set(tool.handles.Tools.montage,'Callback',fun)
+
             %Create Help Button
             pos = get(tool.handles.Panels.Tools,'Position');
             tool.handles.Tools.Help             =   uicontrol(tool.handles.Panels.Tools,'Style','pushbutton','String','?','Position',[pos(3)-w-buff buff w w],'TooltipString','Help with imtool3D','BackgroundColor',[0, 0.65, 1]);
@@ -1081,6 +1089,7 @@ classdef imtool3D < handle
 
             % permute aspect ratio
             setAspectRatio(tool,tool.aspectRatio)
+            showSlice(tool)
         end
         
         function setDisplayRange(tool,range)
@@ -1540,16 +1549,43 @@ classdef imtool3D < handle
             set(tool.handles.Slider,'value',n);
             
             set(tool.handles.I,'AlphaData',1)
-            In = squeeze(tool.getCurrentImageSlice);
-            maskn = squeeze(tool.getCurrentMaskSlice(1));
+            if get(tool.handles.Tools.montage,'Value')
+                n = max(n,3);
+                I = tool.getImage;
+                M = tool.getMask(1);
+                S = tool.getImageSize;
+                switch tool.viewplane
+                    case 1
+                        Indices = unique(round(linspace(1,size(I,1),n)));
+                        [In,Mrows,Mcols]    = imagemontage(permute(I(Indices,:,:),[2 3 1]));
+                        maskn = imagemontage(permute(M(unique(round(linspace(1,end,n))),:,:),[2 3 1]));
+                        newAspectRatio = size(In)./[size(I,2) size(I,3)];
+                    case 2
+                        Indices = unique(round(linspace(1,size(I,2),n)));
+                        [In,Mrows,Mcols] = imagemontage(permute(I(:,Indices,:),[1 3 2]));
+                        maskn = imagemontage(permute(M(:,unique(round(linspace(1,end,n))),:),[1 3 2]));
+                        newAspectRatio = size(In)./[size(I,1) size(I,3)];
+                    case 3
+                        [In,Mrows,Mcols,Indices] = imagemontage(I,unique(round(linspace(1,size(I,3),n))));
+                        maskn = imagemontage(M(:,:,unique(round(linspace(1,end,n)))));
+                        newAspectRatio = size(In)./[size(I,1) size(I,2)];
+                end
+                maskn = uint8(maskn);
+                set(tool.handles.Tools.montage,'UserData',[Mrows Mcols Indices(:)']);
+                set(tool.handles.Axes,'DataAspectRatio',tool.aspectRatio.*[newAspectRatio 1]);
+            else
+                In = squeeze(tool.getCurrentImageSlice);
+                maskn = squeeze(tool.getCurrentMaskSlice(1));
+                set(tool.handles.Axes,'DataAspectRatio',tool.aspectRatio)
+            end
             
-            if ~tool.upsample
+            if ~tool.upsample || get(tool.handles.Tools.montage,'Value')
                 set(tool.handles.I,'CData',In)
             else
                 set(tool.handles.I,'CData',imresize(In,tool.rescaleFactor,tool.upsampleMethod),'XData',get(tool.handles.I,'XData'),'YData',get(tool.handles.I,'YData'))
             end
-            maskrgb = ind2rgb(maskn,tool.maskColor);
-            set(tool.handles.mask,'CData',maskrgb);
+            maskrgb = ind2rgb8(maskn,tool.maskColor);
+            set(tool.handles.mask,'CData',maskrgb,'XData',get(tool.handles.I,'XData'),'YData',get(tool.handles.I,'YData'));
             set(tool.handles.mask,'AlphaData',tool.alpha*logical(maskn))
             set(tool.handles.SliceText,'String',['Vol: ' num2str(tool.Nvol) '/' num2str(length(tool.I)) '    Time: ' num2str(tool.Ntime) '/' num2str(size(tool.I{tool.Nvol},4)) '    Slice: ' num2str(n) '/' num2str(size(tool.I{tool.Nvol},tool.viewplane))])
 
@@ -2198,22 +2234,33 @@ if ~isequal(h.Axes,current_object) && ~isequal(h.I,current_object) && ~isequal(h
     return
 end
 
-pos=round(get(h.Axes,'CurrentPoint'));
+pos=get(h.Axes,'CurrentPoint');
 pos=pos(1,1:2);
 n=round(get(h.Slider,'value'));
 if n==0
     n=1;
 end
 
+if get(tool.handles.Tools.montage,'Value')
+    Msize = get(tool.handles.Tools.montage,'UserData');
+    if ~isempty(Msize)
+        S = tool.getImageSize(1);
+        pos = pos.*Msize(1:2);
+        n = Msize(min(end,2+floor(pos(1)/S(2))*Msize(2)+floor(pos(2)/S(1))+1));
+        pos(1) = mod(pos(1),S(2));
+        pos(2) = mod(pos(2),S(1));
+    end
+end
+pos = round(pos);
 posdim = setdiff(1:3, tool.viewplane);
 if pos(1)>0 && pos(1)<=size(tool.I{tool.Nvol},posdim(2)) && pos(2)>0 && pos(2)<=size(tool.I{tool.Nvol},posdim(1))
     switch tool.viewplane
         case 1
-            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I{tool.Nvol}(n,pos(2),pos(1),min(end,tool.Ntime)))])
+            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(n,pos(2),pos(1),min(end,tool.Ntime)))])
         case 2
-            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I{tool.Nvol}(pos(2),n,pos(1),min(end,tool.Ntime)))])
+            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(pos(2),n,pos(1),min(end,tool.Ntime)))])
         case 3
-            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I{tool.Nvol}(pos(2),pos(1),n,min(end,tool.Ntime)))])
+            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(pos(2),pos(1),n,min(end,tool.Ntime)))])
     end
     notify(tool,'newMousePos')
 else
@@ -2614,4 +2661,17 @@ e =    [  1  .6900  .920  .900      0       0       0      0      0      0
          .2  .0560  .040  .100    .06   -.105    .625     90      0      0
         -.2  .0560  .056  .100      0    .100    .625      0      0      0 ];
        
+end
+
+function [M,rows,cols,indices] = imagemontage(I,indices)
+if ~exist('indices','var'), indices = 1:size(I,3); end
+nz = length(indices);
+if nz<8
+    rows = 1;  % show in line if less than 7. Better for articles
+else
+    rows = floor(sqrt(nz));
+end
+cols = ceil(nz/rows);
+M = permute(images.internal.createMontage(permute(I,[2 1 3]), [size(I,2) size(I,1)],...
+    [rows cols], [0 0], [], indices, []),[2 1 3]);
 end
