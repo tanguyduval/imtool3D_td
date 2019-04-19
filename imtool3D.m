@@ -272,6 +272,11 @@ classdef imtool3D < handle
                                 0     1     1;
                                 0     0     1;
                                 1     0     1];
+            try
+                tool.maskColor = cat(1,tool.maskColor,colorcube(30));
+                tool.maskColor(end-5:end,:) = [];
+                tool.maskColor(end+1,:)     = [0.8500    0.3250    0.0980];
+            end
             tool.maskSelected = 1;
             tool.maskHistory  = cell(1,10);
             tool.alpha = .2;
@@ -562,6 +567,9 @@ classdef imtool3D < handle
                 c = uicontextmenu(tool.handles.fig);
                 set(tool.handles.Tools.maskSelected(islct),'UIContextMenu',c)
                 uimenu('Parent',c,'Label','delete','Callback',@(hObject,evnt) maskClean(tool,islct))
+                if islct == 5
+                    uimenu('Parent',c,'Label','Set value','Callback',@(hObject,evnt) maskCustomValue(tool))
+                end
             end
             
             % lock mask
@@ -712,8 +720,32 @@ classdef imtool3D < handle
             notify(tool,'maskChanged')
         end
         
-        function setmaskSelected(tool,islct)
+        function maskCustomValue(tool,islct)
+            if nargin<2
+                islct = inputdlg('Mask Value');
+                if isempty(islct) || isempty(str2num(islct{1}))
+                    return;
+                else
+                    islct = str2num(islct{1});
+                    islct = floor(islct(1));
+                end
+            end
+            togglebutton(tool.handles.Tools.maskSelected(5))
+            Cdata = get(tool.handles.Tools.maskSelected(5),'Cdata');
+            Color = tool.maskColor(min(end,islct+1),:)*tool.alpha+(1-tool.alpha)*[.4 .4 .4];
+            Cdata(:,:,1) = Color(1);
+            Cdata(:,:,2) = Color(2);
+            Cdata(:,:,3) = Color(3);
+            set(tool.handles.Tools.maskSelected(5),'Cdata',Cdata,'String',num2str(islct));
             tool.maskSelected = islct;
+        end
+        
+        function setmaskSelected(tool,islct)
+            if islct == 5
+                tool.maskSelected = str2num(get(tool.handles.Tools.maskSelected(5),'String'));
+            else
+                tool.maskSelected = islct;
+            end
             set(tool.handles.Tools.maskSelected(islct),'FontWeight','bold','FontSize',12,'ForegroundColor',[1 1 1]);
             set(tool.handles.Tools.maskSelected(setdiff(1:5,islct)),'FontWeight','normal','FontSize',9,'ForegroundColor',[0 0 0]);
             notify(tool,'maskChanged')
@@ -783,12 +815,8 @@ classdef imtool3D < handle
                 end
             end
             
-            
-            C = get(tool.handles.mask,'CData');
-            C(:,:,1) = maskColor(1);
-            C(:,:,2) = maskColor(2);
-            C(:,:,3) = maskColor(3);
-            set(tool.handles.mask,'CData',C);
+            tool.maskColor = maskColor;
+            tool.showSlice;
             
         end
         
@@ -1314,8 +1342,11 @@ classdef imtool3D < handle
                             togglebutton(tool.handles.Tools.maskSelected(3))
                         case '4'
                             togglebutton(tool.handles.Tools.maskSelected(4))
-                        case '5'
-                            togglebutton(tool.handles.Tools.maskSelected(5))
+                        otherwise
+                            islct = str2num(evnt.Character);
+                            if ~isempty(islct)
+                                maskCustomValue(tool,islct);
+                            end
                     end
             end
             %      disp(evnt.Key)
