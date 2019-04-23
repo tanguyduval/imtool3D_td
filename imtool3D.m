@@ -277,6 +277,11 @@ classdef imtool3D < handle
                                 0     1     1;
                                 0     0     1;
                                 1     0     1];
+            try
+                tool.maskColor = cat(1,tool.maskColor,colorcube(30));
+                tool.maskColor(end-5:end,:) = [];
+                tool.maskColor(end+1,:)     = [0.8500    0.3250    0.0980];
+            end
             tool.maskSelected = 1;
             tool.maskHistory  = cell(1,10);
             tool.alpha = .2;
@@ -444,6 +449,14 @@ classdef imtool3D < handle
             fun=@(hObject,evnt) setviewplane(tool,hObject);
             set(tool.handles.Tools.ViewPlane,'Callback',fun)
             
+            %Create montage button
+            tool.handles.Tools.montage    =   uicontrol(tool.handles.Panels.Tools,'Style','togglebutton','Position',[lp buff w w],'Value',0);
+            icon_profile = makeToolbarIconFromPNG('icon_montage.png');
+            set(tool.handles.Tools.montage ,'Cdata',icon_profile)
+            lp=lp+w+buff;
+            fun=@(hObject,evnt) showSlice(tool);
+            set(tool.handles.Tools.montage,'Callback',fun)
+
             %Create Help Button
             pos = get(tool.handles.Panels.Tools,'Position');
             tool.handles.Tools.Help             =   uicontrol(tool.handles.Panels.Tools,'Style','pushbutton','String','?','Position',[pos(3)-w-buff buff w w],'TooltipString','Help with imtool3D','BackgroundColor',[0, 0.65, 1]);
@@ -545,6 +558,9 @@ classdef imtool3D < handle
                 c = uicontextmenu(tool.handles.fig);
                 set(tool.handles.Tools.maskSelected(islct),'UIContextMenu',c)
                 uimenu('Parent',c,'Label','delete','Callback',@(hObject,evnt) maskClean(tool,islct))
+                if islct == 5
+                    uimenu('Parent',c,'Label','Set value','Callback',@(hObject,evnt) maskCustomValue(tool))
+                end
             end
             
             % lock mask
@@ -693,13 +709,41 @@ classdef imtool3D < handle
         end
         
         function maskClean(tool,islct)
+            if islct == 5
+                islct = str2num(get(tool.handles.Tools.maskSelected(5),'String'));
+            end
+                
             tool.mask(tool.mask==islct)=0;
             showSlice(tool)
             notify(tool,'maskChanged')
         end
         
-        function setmaskSelected(tool,islct)
+        function maskCustomValue(tool,islct)
+            if nargin<2
+                islct = inputdlg('Mask Value');
+                if isempty(islct) || isempty(str2num(islct{1}))
+                    return;
+                else
+                    islct = str2num(islct{1});
+                    islct = floor(islct(1));
+                end
+            end
+            togglebutton(tool.handles.Tools.maskSelected(5))
+            Cdata = get(tool.handles.Tools.maskSelected(5),'Cdata');
+            Color = tool.maskColor(min(end,islct+1),:)*tool.alpha+(1-tool.alpha)*[.4 .4 .4];
+            Cdata(:,:,1) = Color(1);
+            Cdata(:,:,2) = Color(2);
+            Cdata(:,:,3) = Color(3);
+            set(tool.handles.Tools.maskSelected(5),'Cdata',Cdata,'String',num2str(islct));
             tool.maskSelected = islct;
+        end
+        
+        function setmaskSelected(tool,islct)
+            if islct == 5
+                tool.maskSelected = str2num(get(tool.handles.Tools.maskSelected(5),'String'));
+            else
+                tool.maskSelected = islct;
+            end
             set(tool.handles.Tools.maskSelected(islct),'FontWeight','bold','FontSize',12,'ForegroundColor',[1 1 1]);
             set(tool.handles.Tools.maskSelected(setdiff(1:5,islct)),'FontWeight','normal','FontSize',9,'ForegroundColor',[0 0 0]);
         end
@@ -724,6 +768,9 @@ classdef imtool3D < handle
                 % Get statistics
                 I = tool.getImage;
                 for ii=1:length(tool.handles.Tools.maskSelected)
+                    if ii == 5
+                        ii = str2num(get(tool.handles.Tools.maskSelected(5),'String'));
+                    end
                     mask_ii = tool.mask==ii;
                     I_ii = I(mask_ii);
                     mean_ii = mean(I_ii);
@@ -733,7 +780,7 @@ classdef imtool3D < handle
                         sprintf('%-12s%.2f\n','STD:',std_ii),...
                         sprintf('%-12s%i','Area:',area_ii) 'px'];
                     
-                    set(tool.handles.Tools.maskSelected(ii),'TooltipString',str)
+                    set(tool.handles.Tools.maskSelected(min(5,ii)),'TooltipString',str)
                 end
             end
         end
@@ -768,12 +815,8 @@ classdef imtool3D < handle
                 end
             end
             
-            
-            C = get(tool.handles.mask,'CData');
-            C(:,:,1) = maskColor(1);
-            C(:,:,2) = maskColor(2);
-            C(:,:,3) = maskColor(3);
-            set(tool.handles.mask,'CData',C);
+            tool.maskColor = maskColor;
+            tool.showSlice;
             
         end
         
@@ -1038,6 +1081,7 @@ classdef imtool3D < handle
 
             % permute aspect ratio
             setAspectRatio(tool,tool.aspectRatio)
+            showSlice(tool)
         end
         
         function setlabel(tool,label)
@@ -1308,8 +1352,11 @@ classdef imtool3D < handle
                             togglebutton(tool.handles.Tools.maskSelected(3))
                         case '4'
                             togglebutton(tool.handles.Tools.maskSelected(4))
-                        case '5'
-                            togglebutton(tool.handles.Tools.maskSelected(5))
+                        otherwise
+                            islct = str2num(evnt.Character);
+                            if ~isempty(islct)
+                                maskCustomValue(tool,islct);
+                            end
                     end
             end
             %      disp(evnt.Key)
@@ -1505,16 +1552,43 @@ classdef imtool3D < handle
             set(tool.handles.Slider,'value',n);
             
             set(tool.handles.I,'AlphaData',1)
-            In = squeeze(tool.getCurrentImageSlice);
-            maskn = squeeze(tool.getCurrentMaskSlice(1));
+            if get(tool.handles.Tools.montage,'Value')
+                n = max(n,3);
+                I = tool.getImage;
+                M = tool.getMask(1);
+                S = tool.getImageSize;
+                switch tool.viewplane
+                    case 1
+                        Indices = unique(round(linspace(1,size(I,1),n)));
+                        [In,Mrows,Mcols]    = imagemontage(permute(I(Indices,:,:),[2 3 1]));
+                        maskn = imagemontage(permute(M(unique(round(linspace(1,end,n))),:,:),[2 3 1]));
+                        newAspectRatio = size(In)./[size(I,2) size(I,3)];
+                    case 2
+                        Indices = unique(round(linspace(1,size(I,2),n)));
+                        [In,Mrows,Mcols] = imagemontage(permute(I(:,Indices,:),[1 3 2]));
+                        maskn = imagemontage(permute(M(:,unique(round(linspace(1,end,n))),:),[1 3 2]));
+                        newAspectRatio = size(In)./[size(I,1) size(I,3)];
+                    case 3
+                        [In,Mrows,Mcols,Indices] = imagemontage(I,unique(round(linspace(1,size(I,3),n))));
+                        maskn = imagemontage(M(:,:,unique(round(linspace(1,end,n)))));
+                        newAspectRatio = size(In)./[size(I,1) size(I,2)];
+                end
+                maskn = uint8(maskn);
+                set(tool.handles.Tools.montage,'UserData',[Mrows Mcols Indices(:)']);
+                set(tool.handles.Axes,'DataAspectRatio',tool.aspectRatio.*[newAspectRatio 1]);
+            else
+                In = squeeze(tool.getCurrentImageSlice);
+                maskn = squeeze(tool.getCurrentMaskSlice(1));
+                set(tool.handles.Axes,'DataAspectRatio',tool.aspectRatio)
+            end
             
-            if ~tool.upsample
+            if ~tool.upsample || get(tool.handles.Tools.montage,'Value')
                 set(tool.handles.I,'CData',In)
             else
                 set(tool.handles.I,'CData',imresize(In,tool.rescaleFactor,tool.upsampleMethod),'XData',get(tool.handles.I,'XData'),'YData',get(tool.handles.I,'YData'))
             end
-            maskrgb = ind2rgb(maskn,tool.maskColor);
-            set(tool.handles.mask,'CData',maskrgb);
+            maskrgb = ind2rgb8(maskn,tool.maskColor);
+            set(tool.handles.mask,'CData',maskrgb,'XData',get(tool.handles.I,'XData'),'YData',get(tool.handles.I,'YData'));
             set(tool.handles.mask,'AlphaData',tool.alpha*logical(maskn))
             try
                 label = tool.label{tool.Nvol};
@@ -2175,22 +2249,33 @@ if ~isequal(h.Axes,current_object) && ~isequal(h.I,current_object) && ~isequal(h
     return
 end
 
-pos=round(get(h.Axes,'CurrentPoint'));
+pos=get(h.Axes,'CurrentPoint');
 pos=pos(1,1:2);
 n=round(get(h.Slider,'value'));
 if n==0
     n=1;
 end
 
+if get(tool.handles.Tools.montage,'Value')
+    Msize = get(tool.handles.Tools.montage,'UserData');
+    if ~isempty(Msize)
+        S = tool.getImageSize(1);
+        pos = pos.*Msize(1:2);
+        n = Msize(min(end,2+floor(pos(1)/S(2))*Msize(2)+floor(pos(2)/S(1))+1));
+        pos(1) = mod(pos(1),S(2));
+        pos(2) = mod(pos(2),S(1));
+    end
+end
+pos = round(pos);
 posdim = setdiff(1:3, tool.viewplane);
 if pos(1)>0 && pos(1)<=size(tool.I{tool.Nvol},posdim(2)) && pos(2)>0 && pos(2)<=size(tool.I{tool.Nvol},posdim(1))
     switch tool.viewplane
         case 1
-            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I{tool.Nvol}(n,pos(2),pos(1),min(end,tool.Ntime)))])
+            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(n,pos(2),pos(1),min(end,tool.Ntime)))])
         case 2
-            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I{tool.Nvol}(pos(2),n,pos(1),min(end,tool.Ntime)))])
+            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(pos(2),n,pos(1),min(end,tool.Ntime)))])
         case 3
-            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ') ' num2str(tool.I{tool.Nvol}(pos(2),pos(1),n,min(end,tool.Ntime)))])
+            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(pos(2),pos(1),n,min(end,tool.Ntime)))])
     end
     notify(tool,'newMousePos')
 else
@@ -2591,4 +2676,17 @@ e =    [  1  .6900  .920  .900      0       0       0      0      0      0
          .2  .0560  .040  .100    .06   -.105    .625     90      0      0
         -.2  .0560  .056  .100      0    .100    .625      0      0      0 ];
        
+end
+
+function [M,rows,cols,indices] = imagemontage(I,indices)
+if ~exist('indices','var'), indices = 1:size(I,3); end
+nz = length(indices);
+if nz<8
+    rows = 1;  % show in line if less than 7. Better for articles
+else
+    rows = floor(sqrt(nz));
+end
+cols = ceil(nz/rows);
+M = permute(images.internal.createMontage(permute(I,[2 1 3]), [size(I,2) size(I,1)],...
+    [rows cols], [0 0], [], indices, []),[2 1 3]);
 end

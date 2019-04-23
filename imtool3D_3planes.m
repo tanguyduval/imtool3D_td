@@ -3,7 +3,6 @@ if ~exist('mask','var'), mask=[]; end
 if ~exist('dat','var'), dat=[]; end
 if ~exist('parent','var'), parent=[]; end
 if ~exist('range','var'), range=[]; end
-
 tool = imtool3D(dat,[],parent,range,[],mask);
 range = tool.getClimits;
 CB_Motion1 = get(gcf,'WindowButtonMotionFcn');
