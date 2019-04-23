@@ -91,7 +91,7 @@ classdef imtool3DROI_line < imtool3DROI
             
             %Define the context menu options (i.e., what happens when you
             %right click on the ROI)
-            menuLabels = {'Export stats','Plot profile','Hide Text','Hide profile', 'Delete', 'Symmetrize mask'};
+            menuLabels = {'Export stats','Plot profile','Hide Text','Hide profile', 'Delete', 'Symmetrize mask (current slice)', 'Symmetrize mask (all slices)'};
             if ~exist('tool','var') || isempty(tool), menuLabels(end) = []; tool = []; end
             menuFunction = @contextMenuCallback;
             
@@ -158,6 +158,7 @@ classdef imtool3DROI_line < imtool3DROI
             str = ['Length: '  num2str(stats.distance,'%+.2f')];
             set(ROI.textHandle,'String',str,'Position',[x y]);
              
+            notify(ROI,'newROIPosition');
         end
         
         function [stats, x ,y] = getMeasurements(ROI)
@@ -309,7 +310,7 @@ switch get(source,'Label')
                 set(source,'Checked','off');
                 profileVisible(ROI,1)
         end
-    case 'Symmetrize mask'
+    case 'Symmetrize mask (current slice)'
         Pos = ROI.getPosition;
         Mask = tool.getCurrentMaskSlice;
         % symetrize Mask using axis Pos
@@ -324,6 +325,19 @@ switch get(source,'Label')
         Mask(ind)=true;
         tool.setCurrentMaskSlice(Mask);
         notify(tool,'maskChanged')
+    case 'Symmetrize mask (all slices)'
+        set(tool(1).getHandles.fig,'Pointer','watch')
+        drawnow;
+        set(source,'Label','Symmetrize mask (current slice)');
+        zinit = tool.getCurrentSlice;
+        S = tool.getImageSize(1);
+        for iz=1:S(3)
+            tool.setCurrentSlice(iz)
+            contextMenuCallback(source,[],ROI,tool);
+        end
+        tool.setCurrentSlice(zinit)
+        set(source,'Label','Symmetrize mask (all slices)');
+        set(tool(1).getHandles.fig,'Pointer','arrow')
 end
 
 
