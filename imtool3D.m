@@ -234,7 +234,12 @@ classdef imtool3D < handle
                 set(h,'Units','Pixels');
                 pos=get(h,'Position');
                 Af=pos(3)/pos(4);   %input Ratio of the figure
-                AI=size(I,2)/size(I,1); %input Ratio of the image
+                if iscell(I)
+                    S = [size(I{1},1) size(I{1},2) size(I{1},3)];
+                else
+                    S = [size(I,1) size(I,2) size(I,3)];
+                end
+                AI=S(2)/S(1); %input Ratio of the image
                 if Af>AI    %Figure is too wide, make it taller to match
                    pos(4)=pos(3)/AI; 
                 elseif Af<AI    %Figure is too long, make it wider to match
@@ -325,7 +330,7 @@ classdef imtool3D < handle
             tool.handles.Info=uicontrol(tool.handles.Panels.Info,'Style','text','String','(x,y) val','Units','Normalized','Position',[0 .1 .5 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Left');
             fun=@(src,evnt)getImageInfo(src,evnt,tool);
             set(tool.handles.fig,'WindowButtonMotionFcn',fun);
-            tool.handles.SliceText=uicontrol(tool.handles.Panels.Info,'Style','text','String',['Vol: 1/' num2str(size(I,5)) '    Time: 1/' num2str(size(I,4)) '    Slice: 1/' num2str(size(I,tool.viewplane))],'Units','Normalized','Position',[.5 .1 .48 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Right', 'TooltipString', 'Use arrows to navigate through time (4th dim) and volumes (5th dim)');
+            tool.handles.SliceText=uicontrol(tool.handles.Panels.Info,'Style','text','String','','Units','Normalized','Position',[.5 .1 .48 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Right', 'TooltipString', 'Use arrows to navigate through time (4th dim) and volumes (5th dim)');
             tool.handles.LabelText=uicontrol(tool.handles.Panels.Info,'Style','text','Units','Normalized','Position',[.25 .1 .3 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Center');
 
             %Set up mouse button controls
@@ -403,30 +408,8 @@ classdef imtool3D < handle
             set(tool.handles.Tools.ViewRestore,'Callback',fun)
             lp=lp+w+2*buff;
             
-            %Create grid checkbox and grid lines
+            %Create grid checkbox
             tool.handles.Tools.Grid           =   uicontrol(tool.handles.Panels.Tools,'Style','checkbox','String','Grid?','Position',[lp buff 2.5*w w],'BackgroundColor','k','ForegroundColor','w');
-            nGrid=7;
-            nMinor=4;
-            x=linspace(1,size(I,2),nGrid);
-            y=linspace(1,size(I,1),nGrid);
-            hold(tool.handles.Axes, 'on');
-            tool.handles.grid=[];
-            gColor=[255 38 38]./256;
-            mColor=[255 102 102]./256;
-            for i=1:nGrid
-                tool.handles.grid(end+1)=plot(tool.handles.Axes,[.5 size(I,2)-.5],[y(i) y(i)],'-','LineWidth',1.2,'HitTest','off','Color',gColor);
-                tool.handles.grid(end+1)=plot(tool.handles.Axes,[x(i) x(i)],[.5 size(I,1)-.5],'-','LineWidth',1.2,'HitTest','off','Color',gColor);
-                if i<nGrid
-                    xm=linspace(x(i),x(i+1),nMinor+2); xm=xm(2:end-1);
-                    ym=linspace(y(i),y(i+1),nMinor+2); ym=ym(2:end-1);
-                    for j=1:nMinor
-                        tool.handles.grid(end+1)=plot(tool.handles.Axes,[.5 size(I,2)-.5],[ym(j) ym(j)],'-r','LineWidth',.9,'HitTest','off','Color',mColor);
-                        tool.handles.grid(end+1)=plot(tool.handles.Axes,[xm(j) xm(j)],[.5 size(I,1)-.5],'-r','LineWidth',.9,'HitTest','off','Color',mColor);
-                    end
-                end
-            end
-            tool.handles.grid(end+1)=scatter(tool.handles.Axes,.5+size(I,2)/2,.5+size(I,1)/2,'r','filled');
-            set(tool.handles.grid,'Visible','off')
             fun=@(hObject,evnt) toggleGrid(hObject,evnt,tool);
             set(tool.handles.Tools.Grid,'Callback',fun)
             set(tool.handles.Tools.Grid,'TooltipString','Toggle Gridlines')
@@ -1306,7 +1289,7 @@ classdef imtool3D < handle
                     end
                     showSlice(tool);
                 case 'rightarrow'
-                    if isprop(evnt,'Modifier') && ~isempty(evnt.Modifier) && strcmp(evnt.Modifier,'shift')
+                    if isprop(evnt,'Modifier') && ~isempty(evnt.Modifier) && any(strcmp(evnt.Modifier,'shift'))
                         tool.Ntime = min(tool.Ntime+10,size(tool.I{tool.Nvol},4));
                     else
                         tool.Ntime = min(tool.Ntime+1,size(tool.I{tool.Nvol},4));
@@ -1582,7 +1565,9 @@ classdef imtool3D < handle
         
         function setupGrid(tool)
             %Update the gridlines
-            delete(tool.handles.grid)
+            try
+                delete(tool.handles.grid)
+            end
             nGrid=7;
             nMinor=4;
             posdim = setdiff(1:3,tool.viewplane);
