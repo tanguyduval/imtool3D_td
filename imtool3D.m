@@ -702,7 +702,6 @@ classdef imtool3D < handle
             tool.maskSelected = islct;
             set(tool.handles.Tools.maskSelected(islct),'FontWeight','bold','FontSize',12,'ForegroundColor',[1 1 1]);
             set(tool.handles.Tools.maskSelected(setdiff(1:5,islct)),'FontWeight','normal','FontSize',9,'ForegroundColor',[0 0 0]);
-            notify(tool,'maskChanged')
         end
         
         function setmaskstatistics(tool,current_object)

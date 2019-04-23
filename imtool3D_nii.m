@@ -28,7 +28,7 @@ if length(viewplane)>1
     % Call imtool3D_3planes
     tool = imtool3D_3planes(dat,mask,parent,range);
 else
-    tool = imtool3D(dat,[],parent,range,[],mask,[]);
+    tool = imtool3D(dat,[],parent,range,[],mask);
 end
 
 
@@ -57,6 +57,23 @@ set(Loadbut,'CData',icon_load);
 fun=@(hObject,evnt) loadImage(hObject,tool,hdr);
 set(Loadbut,'Callback',fun)
 set(Loadbut,'TooltipString','Load Image')
+
+if length(tool)==1
+Pos = get(tool(1).getHandles.Tools.ViewPlane,'Position');
+Pos(1) = Pos(1) + 25;
+set(tool(1).getHandles.Tools.ViewPlane,'Position',Pos);
+end
+
+% add Header Info button
+Pos(1) = Pos(1)+Pos(3)+5;
+Pos(3) = 20;
+DisplayHeader           =   uicontrol(tool(1).getHandles.Panels.Tools,'Style','pushbutton','String','','Position',Pos);
+icon_header = makeToolbarIconFromPNG([MATLABdir '/help_ex.png']);
+set(DisplayHeader,'CData',icon_header);
+set(DisplayHeader,'Callback',@(hObject,evnt) openvar2(hdr))
+str = evalc('hdr');
+set(DisplayHeader,'TooltipString',str)
+
 
 % add LPI labels
 if untouch
@@ -157,3 +174,8 @@ for p = 1:3
     icon(:,:,p) = tmp;
     
 end
+
+
+function openvar2(hdr)
+assignin('base', 'hdr',hdr);
+evalin('base', ['openvar hdr']);
