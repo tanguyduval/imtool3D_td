@@ -744,7 +744,7 @@ classdef imtool3D < handle
             else
                 tool.maskSelected = islct;
             end
-            set(tool.handles.Tools.maskSelected(islct),'FontWeight','bold','FontSize',12,'ForegroundColor',[1 1 1]);
+            set(tool.handles.Tools.maskSelected(min(5,islct)),'FontWeight','bold','FontSize',12,'ForegroundColor',[1 1 1]);
             set(tool.handles.Tools.maskSelected(setdiff(1:5,islct)),'FontWeight','normal','FontSize',9,'ForegroundColor',[0 0 0]);
         end
         
@@ -1150,7 +1150,7 @@ classdef imtool3D < handle
             if tool.lockMask
                 maskOld(mask & maskOld==0) = tool.maskSelected;
             else
-                maskOld(mask) = tool.maskSelected;
+                maskOld(logical(mask)) = tool.maskSelected;
             end
             % update mask
             switch tool.viewplane

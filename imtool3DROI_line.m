@@ -91,7 +91,7 @@ classdef imtool3DROI_line < imtool3DROI
             
             %Define the context menu options (i.e., what happens when you
             %right click on the ROI)
-            menuLabels = {'Export stats','Plot profile','Hide Text','Hide profile', 'Delete', 'Symmetrize mask (current slice)', 'Symmetrize mask (all slices)'};
+            menuLabels = {'Export stats','Plot profile','Hide Text','Hide profile', 'Delete', 'Symmetrize mask (current slice)', 'Symmetrize mask (all slices)', 'Split mask (current slice)', 'Split mask (all slices)'};
             if ~exist('tool','var') || isempty(tool), menuLabels(end) = []; tool = []; end
             menuFunction = @contextMenuCallback;
             
@@ -273,7 +273,7 @@ x = min(position(:,1)); y = max(position(:,2))+tbuff;
 
 end
 
-function contextMenuCallback(source,callbackdata,ROI,tool)
+function contextMenuCallback(source,callbackdata,ROI,tool,islct)
 switch get(source,'Label')
     case 'Delete'
         delete(ROI);
@@ -326,6 +326,7 @@ switch get(source,'Label')
         tool.setCurrentMaskSlice(Mask);
         notify(tool,'maskChanged')
     case 'Symmetrize mask (all slices)'
+        % todo: implement all slices in a clean way (maybe with tilted plane)
         set(tool(1).getHandles.fig,'Pointer','watch')
         drawnow;
         set(source,'Label','Symmetrize mask (current slice)');
@@ -338,6 +339,63 @@ switch get(source,'Label')
         tool.setCurrentSlice(zinit)
         set(source,'Label','Symmetrize mask (all slices)');
         set(tool(1).getHandles.fig,'Pointer','arrow')
+    case 'Split mask (current slice)'
+        Pos = ROI.getPosition;
+        Mask = tool.getCurrentMaskSlice;
+        % find side
+        [v,u] = find(tool.getCurrentMaskSlice);
+        UV = [u,v]- repmat(Pos(1,:),[length(u) 1]);
+        symAxis = Pos(2,:)-Pos(1,:);
+        symAxis = symAxis/norm(symAxis);
+        side = sign(UV*[-symAxis(2) symAxis(1)]');
+        ind = sub2ind(size(Mask),v(side>0),u(side>0));
+
+        val = tool.getmaskSelected;
+
+        if ~exist('islct','var')
+            islct = inputdlg('Left side value');
+            if isempty(islct) || isempty(str2num(islct{1}))
+                return;
+            else
+                islct = str2num(islct{1});
+                islct = floor(islct(1));
+            end
+        end
+        tool.setmaskSelected(islct);
+
+        newMask = tool.getCurrentMaskSlice;
+        newMask(ind) = 1;
+        tool.setCurrentMaskSlice(newMask);
+        tool.setlockMask; % switch if lock 
+        tool.setCurrentMaskSlice(newMask);
+        tool.setlockMask; % set back
+
+        tool.setmaskSelected(val);
+        notify(tool,'maskChanged')
+        
+    case 'Split mask (all slices)'
+        % todo: implement all slices in a clean way (maybe with tilted plane)
+        islct = inputdlg('Left side value');
+        if isempty(islct) || isempty(str2num(islct{1}))
+            return;
+        else
+            islct = str2num(islct{1});
+            islct = floor(islct(1));
+        end
+
+        set(tool(1).getHandles.fig,'Pointer','watch')
+        drawnow;
+        set(source,'Label','Split mask (current slice)');
+        zinit = tool.getCurrentSlice;
+        S = tool.getImageSize(1);
+        for iz=1:S(3)
+            tool.setCurrentSlice(iz)
+            contextMenuCallback(source,[],ROI,tool,islct);
+        end
+        tool.setCurrentSlice(zinit)
+        set(source,'Label','Split mask (all slices)');
+        set(tool(1).getHandles.fig,'Pointer','arrow')
+
 end
 
 
