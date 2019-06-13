@@ -1579,7 +1579,7 @@ classdef imtool3D < handle
             else
                 In = squeeze(tool.getCurrentImageSlice);
                 maskn = squeeze(tool.getCurrentMaskSlice(1));
-                set(tool.handles.Axes,'DataAspectRatio',tool.aspectRatio)
+                tool.setAspectRatio(tool.aspectRatio)
             end
             
             if ~tool.upsample || get(tool.handles.Tools.montage,'Value')
