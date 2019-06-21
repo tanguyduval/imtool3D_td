@@ -24,8 +24,7 @@ function [dat,hdr,list] = load_nii_datas(filename,untouch,intrp)
 if ~isdeployed
     A = which('nii_tool');
     if isempty(A)
-        warning('Dependency to Xiangrui Li NIFTI tools is missing. http://www.mathworks.com/matlabcentral/fileexchange/42997');
-        return
+        error('Dependency to Xiangrui Li NIFTI tools is missing. http://www.mathworks.com/matlabcentral/fileexchange/42997');
     end
 end
 
