@@ -654,13 +654,14 @@ classdef imtool3D < handle
             elseif ~isempty(mask)
                 if islogical(mask)
                     maskOld = tool.mask;
+                    if isempty(maskOld), maskOld = mask; end
                     maskOld(maskOld==tool.maskSelected)=0;
                     if tool.lockMask
                         maskOld(mask & maskOld==0) = tool.maskSelected;
                     else
                         maskOld(mask) = tool.maskSelected;
                     end
-                    tool.mask=maskOld;
+                    tool.mask=uint8(maskOld);
                 else
                     tool.mask=uint8(mask);
                 end
