@@ -849,7 +849,7 @@ classdef imtool3D < handle
                     end
                 end
             else
-                I = mat2cell(I,size(I,1),size(I,2),size(I,3),size(I,4),ones(1,size(I,5)));
+                I = mat2cell(I,size(I,1),size(I,2),size(I,3),size(I,4),ones(1,size(I,5)),size(I,6));
             end
             
             if islogical(I{1})
@@ -1169,11 +1169,11 @@ classdef imtool3D < handle
             slice = getCurrentSlice(tool);
             switch tool.viewplane
                 case 1
-                    im = tool.I{tool.Nvol}(slice,:,:,min(end,tool.Ntime));
+                    im = tool.I{tool.Nvol}(slice,:,:,min(end,tool.Ntime),:,:);
                 case 2
-                    im = tool.I{tool.Nvol}(:,slice,:,min(end,tool.Ntime));
+                    im = tool.I{tool.Nvol}(:,slice,:,min(end,tool.Ntime),:,:);
                 case 3
-                    im = tool.I{tool.Nvol}(:,:,slice,min(end,tool.Ntime));
+                    im = tool.I{tool.Nvol}(:,:,slice,min(end,tool.Ntime),:,:);
             end
             im = squeeze(im);
         end
@@ -1462,7 +1462,7 @@ classdef imtool3D < handle
                     else
                         hdr.scl_slope=1; % no slope for Mask
                         hdr.scl_inter=0;
-                        save_nii_datas(Mask,hdr,fullfile(PathName,FileName))
+                        nii_save(Mask,hdr,fullfile(PathName,FileName))
                     end
                 elseif ext==2 % .mat
                     save(fullfile(PathName,FileName),'Mask');
@@ -1502,9 +1502,9 @@ classdef imtool3D < handle
             [FileName,PathName, ext] = uigetfile({'*.nii;*.nii.gz','NIFTI file (*.nii,*.nii.gz)';'*.mat','MATLAB File (*.mat)';'*.tif','Image Stack (*.tif)'},'Load Mask',path);
             if ext==1 % .nii.gz
                 if exist('hdr','var')
-                    Mask = load_nii_datas([{hdr} fullfile(PathName,FileName)],0,'nearest');
+                    Mask = nii_load([{hdr} fullfile(PathName,FileName)],0,'nearest');
                 else
-                    Mask = load_nii_datas(fullfile(PathName,FileName));
+                    Mask = nii_load(fullfile(PathName,FileName));
                 end
                 Mask = Mask{1};
             elseif ext==2 % .mat
@@ -1580,7 +1580,7 @@ classdef imtool3D < handle
             else
                 In = squeeze(tool.getCurrentImageSlice);
                 maskn = squeeze(tool.getCurrentMaskSlice(1));
-                set(tool.handles.Axes,'DataAspectRatio',tool.aspectRatio)
+                tool.setAspectRatio(tool.aspectRatio)
             end
             
             if ~tool.upsample || get(tool.handles.Tools.montage,'Value')

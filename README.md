@@ -11,7 +11,21 @@ imtool3D is used heavily by several other RAI labs projects:
 * [lesionTool](https://gitlab.oit.duke.edu/railabs/SameiResearchGroup/lesionTool)
 
 # Dependencies
-* Matlab's image processing toolbox
+* Matlab's image processing toolbox (ROI tools are disabled otherwise)
+
+# Tuto
+## include in a GUI
+````matlab
+% Add viewer in a panel in the middle of the GUI
+GUI = figure;
+panel = uipanel(GUI,'Position',[.2 .2 .5 .8]);
+tool = imtool3D([],[],panel)
+
+% set MRI image
+load mri % example mri image provided by MATLAB
+D = squeeze(D);
+tool.setImage(D)
+````
 
 # what is new in this fork? 
 * Support for 5D volumes (scroll through time and volumeS with arrows)

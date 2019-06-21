@@ -1,5 +1,5 @@
-function [dat,hdr,list] = load_nii_datas(filename,untouch,intrp)
-% [dat,hdr,list] = load_nii_datas(filename,untouch) loads nifti files in
+function [dat,hdr,list] = nii_load(filename,untouch,intrp)
+% [dat,hdr,list] = nii_load(filename,untouch) loads nifti files in
 % LPI orientation
 %
 % if multiple files, the first image is used as reference
@@ -14,12 +14,12 @@ function [dat,hdr,list] = load_nii_datas(filename,untouch,intrp)
 %   list            cell array of char listing filenames (useful if wildcards were used)
 %
 % EXAMPLE
-%   [dat,hdr,list] = load_nii_datas('**\*.nii.gz')
+%   [dat,hdr,list] = nii_load('**\*.nii.gz')
 %   img = cat(5,dat{:});
 %   img = mean(img,5);
-%   save_nii_datas(img,hdr,'Tmean.nii.gz')
+%   nii_save(img,hdr,'Tmean.nii.gz')
 %
-% See also: save_nii_datas, get_orient_hdr, rotateimage
+% See also: nii_save, nii_get_orient, nii_set_orient, nii_reset_orient
 
 if ~isdeployed
     A = which('nii_tool');
@@ -55,11 +55,12 @@ for ff=1:length(list)
     end
     
     % LOAD AND RESLICE
-    nii = nii_xform(list{ff},list{1},[],intrp);
+    hdr_ref = nii_reset_orient(list{1}); % Set hdr.dim back to initial orientation
+    nii = nii_xform(list{ff},hdr_ref,[],intrp);
     
     if nargin==1 || (~isempty(untouch) && ~untouch)
-        orient = get_orient_hdr(nii.hdr);
-        nii = rotateimage(nii,orient);
+        orient = nii_get_orient(nii.hdr);
+        nii = nii_set_orient(nii);
     end
     if ff==1
         hdr = nii.hdr;

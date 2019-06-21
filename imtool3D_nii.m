@@ -15,11 +15,11 @@ if isempty(viewplane), untouch = true; viewplane=3; else, untouch = false; end
 if ~exist('range','var'), range=[]; end
 
 if ~exist('maskfname','var'), maskfname=[]; end
-[dat, hdr, list] = load_nii_datas(filename,untouch);
+[dat, hdr, list] = nii_load(filename,untouch);
 disp(list)
 if iscell(maskfname), maskfname = maskfname{1}; end
 if ~isempty(maskfname)
-    mask = load_nii_datas({hdr,maskfname},untouch); mask = mask{1};
+    mask = nii_load({hdr,maskfname},untouch); mask = mask{1};
 else
     mask = [];
 end
@@ -77,7 +77,7 @@ set(DisplayHeader,'TooltipString',str)
 
 % add LPI labels
 if untouch
-    [~,orient] = get_orient_hdr(hdr);
+    [~,orient] = nii_get_orient(hdr);
 else
     orient = {'L' 'P' 'I';
               'R' 'A' 'S'};
@@ -110,9 +110,9 @@ if isequal(FileName,0)
     return;
 end
 if iscell(FileName)
-    dat = load_nii_datas([{hdr},fullfile(PathName,FileName)]);
+    dat = nii_load([{hdr},fullfile(PathName,FileName)]);
 else
-    dat = load_nii_datas({hdr,fullfile(PathName,FileName)});
+    dat = nii_load({hdr,fullfile(PathName,FileName)});
 end
 
 I = tool(1).getImage(1);

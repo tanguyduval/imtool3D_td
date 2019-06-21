@@ -1,4 +1,13 @@
-function nii = rotateimage(nii,orient)
+function nii = nii_set_orient(nii)
+% nii = nii_set_orient(nii)   Rotate nii.img into LPI orientation 
+%
+% Add the following fields:
+%   nii.hdr.rot_orient      permute dimensions
+%   nii.hdr.flip_orient     flip    dimensions
+
+% get orient
+orient = nii_get_orient(nii);
+
 if ~isequal(orient, [1 2 3])
     nii.hdr.dim(nii.hdr.dim==0)=1;
     old_dim = nii.hdr.dim([2:4]);
