@@ -13,6 +13,7 @@ imtool3D is used heavily by several other projects:
 
 # Dependencies
 * Matlab's image processing toolbox (ROI tools are disabled otherwise)
+* [dicm2nii](https://github.com/xiangruili/dicm2nii) (if NIFTI images are used)
 
 # Tuto
 ## include in a GUI
