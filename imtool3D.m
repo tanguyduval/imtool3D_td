@@ -2721,8 +2721,19 @@ catch
         return;
     end
 end
-movefile(tdir, fileparts(which(mfile)), 'f');
+mfiledir = fileparts(which(mfile));
+% delete subfolders before copying
+listdir = dir(mfiledir);
+listdir = listdir(~cellfun(@(X) strcmp(X(1),'.'),{listdir.name}));
+listdir = listdir([listdir.isdir]);
+for iii = 1:length(listdir)
+    rmdir(fullfile(mfiledir,listdir(iii).name), 's');
+end
+% copy
+movefile([tdir '*.*'], [fileparts(which(mfile)) '/.'], 'f');
+rmdir(tdir, 's');
 rehash;
+addpath(genpath(mfiledir));
 warndlg(['Package updated successfully. Please restart ' mfile ...
          ', otherwise it may give error.'], 'Check update');
 end
