@@ -24,7 +24,10 @@ tool = imtool3D([],[],panel)
 % set MRI image
 load mri % example mri image provided by MATLAB
 D = squeeze(D);
+D = permute(D(end:-1:1,:,:),[2 1 3]); % LPI orientation
 tool.setImage(D)
+tool.setAspectRatio([1 1 2.5]) % set voxel size to 1mm x 1mm x 2.5mm
+
 ````
 
 # what is new in this fork? 
