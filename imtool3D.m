@@ -2721,8 +2721,7 @@ catch
         return;
     end
 end
-movefile([tdir '*.*'], [fileparts(which(mfile)) '/.'], 'f');
-rmdir(tdir, 's');
+movefile(tdir, fileparts(which(mfile)), 'f');
 rehash;
 warndlg(['Package updated successfully. Please restart ' mfile ...
          ', otherwise it may give error.'], 'Check update');
