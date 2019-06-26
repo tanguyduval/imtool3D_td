@@ -18,8 +18,7 @@ imtool3D is used heavily by several other RAI labs projects:
 ````matlab
 % Add viewer in a panel in the middle of the GUI
 GUI = figure;
-panel = uipanel(GUI,'Position',[.2 .2 .5 .8]);
-tool = imtool3D([],[],panel)
+tool = imtool3D([],[.1 .1 .8 .8],GUI)
 
 % set MRI image
 load mri % example mri image provided by MATLAB
