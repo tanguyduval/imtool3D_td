@@ -2464,7 +2464,7 @@ msg = {'imtool3D, written by Justin Solomon',...
        '[...]'};
    h = questdlg(msg,'imtool3D','OK','Update','OK');
    switch h
-       case 'update'
+       case 'Update'
            checkUpdate();
    end
    
@@ -2699,7 +2699,7 @@ end
 function checkUpdate()
 mfile = 'imtool3D';
 if ~isdeployed
-msg = ['Update to the newer version (' latestStr ')?'];
+msg = ['Update to the newest version ?'];
 answer = questdlg(msg, ['Update ' mfile], 'Yes', 'Later', 'Yes');
 if ~strcmp(answer, 'Yes'), return; end
 
