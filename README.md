@@ -6,7 +6,8 @@ This tool is written using the object-oriented features of matlab. This means th
   <img src="Capture.PNG" width="600">
 </p>
   
-imtool3D is used heavily by several other RAI labs projects:
+imtool3D is used heavily by several other projects:
+* [qMRLab](https://github.com/qMRLab/qMRLab)
 * [imquest](https://gitlab.oit.duke.edu/railabs/SameiResearchGroup/imquest)
 * [lesionTool](https://gitlab.oit.duke.edu/railabs/SameiResearchGroup/lesionTool)
 
