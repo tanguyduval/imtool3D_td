@@ -654,13 +654,14 @@ classdef imtool3D < handle
             elseif ~isempty(mask)
                 if islogical(mask)
                     maskOld = tool.mask;
+                    if isempty(maskOld), maskOld = mask; end
                     maskOld(maskOld==tool.maskSelected)=0;
                     if tool.lockMask
                         maskOld(mask & maskOld==0) = tool.maskSelected;
                     else
                         maskOld(mask) = tool.maskSelected;
                     end
-                    tool.mask=maskOld;
+                    tool.mask=uint8(maskOld);
                 else
                     tool.mask=uint8(mask);
                 end
@@ -2463,10 +2464,12 @@ msg = {'imtool3D, written by Justin Solomon',...
        '[1]                        Select mask label 1',...
        '[2]                        Select mask label 2',...
        '[...]'};
-   h = msgbox(msg);
-   set(findall(h,'Type','Text'),'FontName','FixedWidth');
-   Pos = get(h,'Position'); Pos(3) = 380;
-   set(h,'Position',Pos)
+   h = questdlg(msg,'imtool3D','OK','Update','OK');
+   switch h
+       case 'Update'
+           checkUpdate();
+   end
+   
 end
 
 function pos = getPixelPosition(h)
@@ -2691,4 +2694,49 @@ end
 cols = ceil(nz/rows);
 M = permute(images.internal.createMontage(permute(I,[2 1 3]), [size(I,2) size(I,1)],...
     [rows cols], [0 0], [], indices, []),[2 1 3]);
+end
+
+%% Check for newer version on GitHub
+% Simplified from checkVersion in findjobj.m by Yair Altman
+function checkUpdate()
+mfile = 'imtool3D';
+if ~isdeployed
+msg = ['Update to the newest version ?'];
+answer = questdlg(msg, ['Update ' mfile], 'Yes', 'Later', 'Yes');
+if ~strcmp(answer, 'Yes'), return; end
+
+url = 'https://github.com/tanguyduval/imtool3D_td/archive/master.zip';
+tmp = tempdir;
+try
+    fname = websave('imtool3D_github.zip', url); % 2014a
+    unzip(fname, tmp); delete(fname);
+    tdir = [tmp 'imtool3D_td-master/'];
+catch 
+    try
+        fname = [tmp 'imtool3D_github.zip'];
+        urlwrite(url, fname);
+        unzip(fname, tmp); delete(fname);
+        tdir = [tmp 'imtool3D_td-master/'];
+    catch me
+        errordlg(['Error in updating: ' me.message], mfile);
+        web(webUrl, '-browser');
+        return;
+    end
+end
+mfiledir = fileparts(which(mfile));
+% delete subfolders before copying
+listdir = dir(mfiledir);
+listdir = listdir(~cellfun(@(X) strcmp(X(1),'.'),{listdir.name}));
+listdir = listdir([listdir.isdir]);
+for iii = 1:length(listdir)
+    rmdir(fullfile(mfiledir,listdir(iii).name), 's');
+end
+% copy
+movefile([tdir '*.*'], [fileparts(which(mfile)) '/.'], 'f');
+rmdir(tdir, 's');
+rehash;
+addpath(genpath(mfiledir));
+warndlg(['Package updated successfully. Please restart ' mfile ...
+         ', otherwise it may give error.'], 'Check update');
+end
 end
