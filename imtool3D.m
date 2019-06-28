@@ -964,15 +964,17 @@ classdef imtool3D < handle
             tool.setWL(W,L);
             % apply xlim to histogram
             range = tool.range{tool.Nvol};
-            tool.centers = linspace(range(1)-diff(range)*0.05,range(2)+diff(range)*0.05,256);
-            if isfield(tool.handles,'HistAxes')
-                try
-                    xlim(tool.handles.HistAxes,[tool.centers(1) tool.centers(end)])
-                catch
-                    xlim(tool.handles.HistAxes,[tool.centers(1) tool.centers(end)+.1])
+            if ~any(isnan(range))
+                tool.centers = linspace(range(1)-diff(range)*0.05,range(2)+diff(range)*0.05,256);
+                if isfield(tool.handles,'HistAxes')
+                    try
+                        xlim(tool.handles.HistAxes,[tool.centers(1) tool.centers(end)])
+                    catch
+                        xlim(tool.handles.HistAxes,[tool.centers(1) tool.centers(end)+.1])
+                    end
+                    set(tool.handles.HistImageAxes,'Units','Pixels'); pos=get(tool.handles.HistImageAxes,'Position'); set(tool.handles.HistImageAxes,'Units','Normalized');
+                    set(tool.handles.HistImage,'CData',repmat(tool.centers,[round(pos(4)) 1]));
                 end
-                set(tool.handles.HistImageAxes,'Units','Pixels'); pos=get(tool.handles.HistImageAxes,'Position'); set(tool.handles.HistImageAxes,'Units','Normalized');
-                set(tool.handles.HistImage,'CData',repmat(tool.centers,[round(pos(4)) 1]));
             end
             showSlice(tool);
         end
