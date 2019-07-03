@@ -3,7 +3,7 @@ function tool = imtool3D_nii(filename,viewplane,maskfname, parent, range)
 % imtool3D_nii fmri.nii.gz sagittal
 % imtool3D_nii *fmri*.nii.gz
 % imtool3D_nii({'fmri.nii.gz', 'T1.nii.gz'})
-if nargin==0 || isempty(filename)
+if nargin==0
     [filename, path] = uigetfile({'*.nii;*.nii.gz','NIFTI Files (*.nii,*.nii.gz)'},'Select an image','MultiSelect', 'on');
     if isequal(filename,0), return; end
     filename = fullfile(path,filename);
@@ -15,8 +15,19 @@ if isempty(viewplane), untouch = true; viewplane=3; else, untouch = false; end
 if ~exist('range','var'), range=[]; end
 
 if ~exist('maskfname','var'), maskfname=[]; end
-[dat, hdr, list] = nii_load(filename,untouch);
-disp(list)
+if ~isempty(filename)
+    [dat, hdr, list] = nii_load(filename,untouch);
+    disp(list)
+else
+    load mri % example mri image provided by MATLAB
+    dat = D;
+    dat = squeeze(dat);
+    dat = permute(dat(end:-1:1,:,:),[2 1 3]); % LPI orientation
+    list = {'Template'};
+    hdr.pixdim = [4 1 1 2.5];
+    untouch = false;
+end
+
 if iscell(maskfname), maskfname = maskfname{1}; end
 if ~isempty(maskfname)
     mask = nii_load({hdr,maskfname},untouch); mask = mask{1};
