@@ -4,11 +4,12 @@ if ~exist('dat','var'), dat=[]; end
 if ~exist('parent','var'), parent=[]; end
 if ~exist('range','var'), range=[]; end
 tool = imtool3D(dat,[],parent,range,[],mask);
+if isempty(parent), parent = tool(1).getHandles.fig; end
 range = tool.getClimits;
 CB_Motion1 = get(gcf,'WindowButtonMotionFcn');
-tool(2) = imtool3D(dat,[],tool(1).getHandles.fig,range,[],mask);
+tool(2) = imtool3D(dat,[],parent,range,[],mask);
 CB_Motion2 = get(gcf,'WindowButtonMotionFcn');
-tool(3) = imtool3D(dat,[],tool(1).getHandles.fig,range,[],mask);
+tool(3) = imtool3D(dat,[],parent,range,[],mask);
 CB_Motion3 = get(gcf,'WindowButtonMotionFcn');
 
 setviewplane(tool(2),'sagittal');
