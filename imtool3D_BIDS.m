@@ -35,11 +35,11 @@ if strcmp(listbox,'sub')
 end
 
 if strcmp(listbox,'sub') || strcmp(listbox,'ses')
-    tmodality.String =bids.query(BIDS,'modalities','sub',tsub.String{tsub.Value(1)},'ses',tses.String{tses.Value(1)});
+    tmodality.String =bids.query(BIDS,'modalities','sub',tsub.String(tsub.Value),'ses',tses.String(tses.Value));
     tmodality.Value(tmodality.Value>length(tmodality.String)) = [];
 end
 
-tsequence.String = bids.query(BIDS,'types','sub',tsub.String{tsub.Value(1)},'ses',tses.String{tses.Value(1)},'modality',tmodality.String(tmodality.Value(1)));
+tsequence.String = bids.query(BIDS,'types','sub',tsub.String(tsub.Value),'ses',tses.String(tses.Value),'modality',tmodality.String(tmodality.Value));
 tsequence.Value(tsequence.Value>length(tsequence.String)) = [];
 
 function viewCallback(tool, BIDS,tsub,tses,tmodality,tsequence)
