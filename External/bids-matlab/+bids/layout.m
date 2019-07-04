@@ -49,7 +49,7 @@ BIDS = struct(...
 if ~exist(BIDS.dir,'dir')
     error('BIDS directory does not exist.');
 elseif ~exist(fullfile(BIDS.dir,'dataset_description.json'),'file')
-    error('BIDS directory not valid: missing dataset_description.json.');
+    warning('BIDS directory not valid: missing dataset_description.json.');
 end
 
 %-Dataset description
@@ -57,10 +57,10 @@ end
 try
     BIDS.description = bids.util.jsondecode(fullfile(BIDS.dir,'dataset_description.json'));
 catch
-    error('BIDS dataset description could not be read.');
+    warning('BIDS dataset description could not be read.');
 end
 if ~isfield(BIDS.description,'BIDSVersion') || ~isfield(BIDS.description,'Name')
-    error('BIDS dataset description not valid.');
+    warning('BIDS dataset description not valid.');
 end
 % See also optional README and CHANGES files
 
