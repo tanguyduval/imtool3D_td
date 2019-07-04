@@ -1,6 +1,6 @@
 function imtool3D_BIDS(BidsFolder)
 % PANELS
-h = figure;
+h = figure('Name','imtool3D BIDS Viewer','MenuBar','none');
 ptool = uipanel(h);
 ptool.Position = [0,0,1,.8];
 plb = uipanel(h);
