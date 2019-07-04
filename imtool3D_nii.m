@@ -1,8 +1,28 @@
 function tool = imtool3D_nii(filename,viewplane,maskfname, parent, range)
-% imtool3D_nii fmri.nii.gz
-% imtool3D_nii fmri.nii.gz sagittal
-% imtool3D_nii *fmri*.nii.gz
-% imtool3D_nii({'fmri.nii.gz', 'T1.nii.gz'})
+% NIFTI Viewer
+%
+% INPUT
+%   filename            String or cell of string with nifti filenames
+%   viewplane           1x1, 1x2 or 1x3 Matrix of integer. 
+%                        Example: 
+%                        3: slices are in the third dimension (axial view)
+%                        [3 2 1]: Axial, saggital and coronal views
+%   maskfname           String. filename of the mask in NIFTI
+%   parent              Handle to a figure or panel
+%   range               1x2 or cell of 1x2 float numbers (min and max intensity)
+%
+% OUTPUT
+%   tool                imtool3D object. 
+%
+% EXAMPLE
+%   imtool3D_nii fmri.nii.gz
+%   imtool3D_nii fmri.nii.gz sagittal
+%   imtool3D_nii *fmri*.nii.gz
+%   imtool3D_nii({'fmri.nii.gz', 'T1.nii.gz'})
+%
+% Tanguy DUVAL, INSERM, 2019
+% SEE ALSO imtool3D, imtool3D_nii_3planes
+
 if nargin==0
     [filename, path] = uigetfile({'*.nii;*.nii.gz','NIFTI Files (*.nii,*.nii.gz)'},'Select an image','MultiSelect', 'on');
     if isequal(filename,0), return; end

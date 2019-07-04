@@ -1,4 +1,17 @@
 function imtool3D_BIDS(BidsFolder)
+% Viewer for BIDS folders
+%  imtool3D_BIDS                 Opens a file browser to select a BIDS directory
+%  imtool3D_BIDS(BidsFolder)     Parse BidsFolder and open the viewer
+%
+% Tanguy DUVAL, INSERM, 2019
+% See also imtool3D_nii, imtool3D_nii_3planes, bids.layout, bids.query, imtool3D
+
+% Load default BIDS folder
+if nargin==0 || isempty(BidsFolder)
+    BidsFolder = uigetdir('Select a BIDS Folder');
+    if isequal(BidsFolder,0), return; end
+end
+
 % PANELS
 h = figure('Name','imtool3D BIDS Viewer','MenuBar','none');
 ptool = uipanel(h);
