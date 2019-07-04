@@ -48,16 +48,24 @@ if strcmp(listbox,'sub')
 end
 
 if strcmp(listbox,'sub') || strcmp(listbox,'ses')
-    tmodality.String =bids.query(BIDS,'modalities','sub',tsub.String(tsub.Value),'ses',tses.String(tses.Value));
+    tmodality.String = bids.query(BIDS,'modalities','sub',tsub.String(tsub.Value),'ses',tses.String(tses.Value));
     tmodality.Value(tmodality.Value>length(tmodality.String)) = [];
 end
 
-tsequence.String = bids.query(BIDS,'types','sub',tsub.String(tsub.Value),'ses',tses.String(tses.Value),'modality',tmodality.String(tmodality.Value));
+if isempty(tses.String(tses.Value)) % no sessions
+    tsequence.String = bids.query(BIDS,'types','sub',tsub.String(tsub.Value),'modality',tmodality.String(tmodality.Value));
+else
+    tsequence.String = bids.query(BIDS,'types','sub',tsub.String(tsub.Value),'ses',tses.String(tses.Value),'modality',tmodality.String(tmodality.Value));
+end
 tsequence.Value(tsequence.Value>length(tsequence.String)) = [];
 
 function viewCallback(tool, BIDS,tsub,tses,tmodality,tsequence)
 ht = wait_msgbox;
-dat = bids.query(BIDS,'data','sub',tsub.String(tsub.Value),'ses',tses.String(tses.Value),'modality',tmodality.String(tmodality.Value),'type',tsequence.String(tsequence.Value));
+if isempty(tses.String(tses.Value)) % no sessions
+    dat = bids.query(BIDS,'data','sub',tsub.String(tsub.Value),'modality',tmodality.String(tmodality.Value),'type',tsequence.String(tsequence.Value));
+else
+    dat = bids.query(BIDS,'data','sub',tsub.String(tsub.Value),'ses',tses.String(tses.Value),'modality',tmodality.String(tmodality.Value),'type',tsequence.String(tsequence.Value));
+end
 [dat, hdr, list] = nii_load(dat);
 for ii=1:length(tool)
     tool(ii).setImage(dat);
