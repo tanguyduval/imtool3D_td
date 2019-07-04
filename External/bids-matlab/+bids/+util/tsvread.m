@@ -142,6 +142,13 @@ else
     var     = arrayfun(@(x) sprintf(fmt,x),(1:N)','UniformOutput',false);
 end
 
+% remove double delim
+try
+    while ~isempty(strfind(S,[delim delim]))
+        S = strrep(S,[delim delim],delim);
+    end
+end
+
 %-Parse file
 %--------------------------------------------------------------------------
 if exist('OCTAVE_VERSION','builtin') % bug #51093

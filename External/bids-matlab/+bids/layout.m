@@ -83,7 +83,9 @@ end
 p = file_utils('FPList',BIDS.dir,'^participants\.tsv$');
 if ~isempty(p)
     try
-    BIDS.participants = bids.util.tsvread(p);
+        BIDS.participants = bids.util.tsvread(p);
+    catch ME
+        warning(['unable to read ' p])
     end
 end
 p = file_utils('FPList',BIDS.dir,'^participants\.json$');
