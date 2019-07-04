@@ -56,6 +56,7 @@ tsequence.String = bids.query(BIDS,'types','sub',tsub.String(tsub.Value),'ses',t
 tsequence.Value(tsequence.Value>length(tsequence.String)) = [];
 
 function viewCallback(tool, BIDS,tsub,tses,tmodality,tsequence)
+ht = wait_msgbox;
 dat = bids.query(BIDS,'data','sub',tsub.String(tsub.Value),'ses',tses.String(tses.Value),'modality',tmodality.String(tmodality.Value),'type',tsequence.String(tsequence.Value));
 [dat, hdr, list] = nii_load(dat);
 for ii=1:length(tool)
@@ -63,3 +64,17 @@ for ii=1:length(tool)
     tool(ii).setAspectRatio(hdr.pixdim(2:4));
     tool(ii).setlabel(list);
 end
+if ishandle(ht), delete(ht); end
+
+function h = wait_msgbox
+txt = 'Loading files. Please wait...';
+h=figure('units','norm','position',[.5 .75 .2 .2],'menubar','none','numbertitle','off','resize','off','units','pixels');
+ha=uicontrol('style','text','units','norm','position',[0 0 1 1],'horizontalalignment','center','string',txt,'units','pixels','parent',h);
+hext=get(ha,'extent');
+hext2=hext(end-1:end)+[60 60];
+hpos=get(h,'position');
+set(h,'position',[hpos(1)-hext2(1)/2,hpos(2)-hext2(2)/2,hext2(1),hext2(2)]);
+set(ha,'position',[30 30 hext(end-1:end)]);
+disp(char(txt));
+drawnow;
+
