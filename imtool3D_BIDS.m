@@ -13,7 +13,7 @@ if nargin==0 || isempty(BidsFolder)
 end
 
 % PANELS
-h = figure('Name','imtool3D BIDS Viewer','MenuBar','none');
+h = figure('Name',['imtool3D BIDS Viewer -- ' BidsFolder],'MenuBar','none');
 ptool = uipanel(h);
 ptool.Position = [0,0,1,.8];
 plb = uipanel(h);
@@ -27,13 +27,13 @@ tmodality = uicontrol(plb,'Style','listbox','Units','normalized','Position',[0.5
 tsequence = uicontrol(plb,'Style','listbox','Units','normalized','Position',[0.75 0 0.25 1],'Max',30);
 % PARSE BIDS
 BIDS = bids.layout(BidsFolder);
+% fill subject listbox
+tsub.String = bids.query(BIDS,'subjects');
 tsub.Callback = @(hobj,evnt) filterDatabase(BIDS,tsub,tses,tmodality,tsequence,'sub');
 tses.Callback = @(hobj,evnt) filterDatabase(BIDS,tsub,tses,tmodality,tsequence,'ses');
 tmodality.Callback = @(hobj,evnt) filterDatabase(BIDS,tsub,tses,tmodality,tsequence,'modality');
 tsequence.Callback = @(hobj,evnt) filterDatabase(BIDS,tsub,tses,tmodality,tsequence,'sequence');
 
-% fill subject listbox
-tsub.String = bids.query(BIDS,'subjects');
 % fill other listbox
 filterDatabase(BIDS,tsub,tses,tmodality,tsequence,'sub');
 
