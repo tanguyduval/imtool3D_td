@@ -117,7 +117,14 @@ for su=1:numel(sub)
         if isempty(BIDS.subjects)
             BIDS.subjects = parse_subject(BIDS.dir, sub{su}, sess{se});
         else
-            BIDS.subjects(end+1) = parse_subject(BIDS.dir, sub{su}, sess{se});
+            subject_tmp = parse_subject(BIDS.dir, sub{su}, sess{se});
+            BIDS.subjects(end+1).name = subject_tmp.name;
+            fields = fieldnames(BIDS.subjects(end));
+            for ff = 1:length(fields)
+                if isfield(subject_tmp,fields{ff})
+                    BIDS.subjects(end).(fields{ff}) = subject_tmp.(fields{ff});
+                end
+            end
         end
     end
 end
@@ -536,5 +543,38 @@ if exist(pth,'dir')
         p = parse_filename(f{i}, {'sub','ses','task','acq','rec','run'});
         subject.pet = [subject.pet p];
         
+    end
+end
+
+%--------------------------------------------------------------------------
+%-Other imaging data (extension proposal)
+%--------------------------------------------------------------------------
+
+pth = fullfile(subject.path);
+d = dir(pth);
+d = d([d.isdir]);
+d = d(~cellfun(@(f) strcmp(f(1),'.'), {d.name}));
+d = d(~cellfun(@(f) ismember(f,fieldnames(subject)), {d.name})); % rm already parsed folders
+d(end+1).name = ''; % add root folder
+for id = 1:length(d)
+    pth = fullfile(subject.path, d(id).name);
+    if exist(pth,'dir')
+        f = file_utils('List',pth,...
+            sprintf('.*(_)?([a-zA-Z0-9]+){1}\\.nii(\\.gz)?$'));
+        if isempty(f), f = {}; else f = cellstr(f); end
+        if isempty(d(id).name), d(id).name = 'other'; end
+        subject.(d(id).name)     = struct([]); % new imaging data
+        for i=1:numel(f)
+            
+            %-Anatomy imaging data file
+            %------------------------------------------------------------------
+            p = parse_filename(f{i}, {'sub','ses','acq','ce','rec','fa','echo','inv','run'});
+            if isfield(p,'ses') && isempty(p.ses)
+                ses = regexprep(sesname,'^[a-zA-Z0-9]+-','');
+                p.ses = ses;
+            end
+            subject.(d(id).name) = [subject.(d(id).name) p];
+            
+        end
     end
 end
