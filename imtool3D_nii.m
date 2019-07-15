@@ -23,11 +23,7 @@ function tool = imtool3D_nii(filename,viewplane,maskfname, parent, range)
 % Tanguy DUVAL, INSERM, 2019
 % SEE ALSO imtool3D, imtool3D_nii_3planes
 
-if nargin==0
-    [filename, path] = uigetfile({'*.nii;*.nii.gz','NIFTI Files (*.nii,*.nii.gz)'},'Select an image','MultiSelect', 'on');
-    if isequal(filename,0), return; end
-    filename = fullfile(path,filename);
-end
+if nargin==0, filename = []; end
 
 if ~exist('parent','var'), parent=[]; end
 if ~exist('viewplane','var'), viewplane=[]; end
@@ -130,6 +126,13 @@ if length(tool)>1
     annotation(tool(3).getHandles.Panels.Image,'textbox','EdgeColor','none','String','I','Position',[0.5 0 0.05 0.05],'Color',[1 1 1]);
 end
 
+% Add Drag and Drop feature
+%             txt_drop = annotation(tool.handles.Panels.Image,'textbox','Visible','off','EdgeColor','none','FontSize',25,'String','DROP!','Position',[0.5 0.5 0.6 0.1],'FitBoxToText','on','Color',[1 0 0]);
+jFrame = get(tool(1).getHandles.fig, 'JavaFrame');
+jAxis = jFrame.getAxisComponent();
+DropListener(jAxis, ... % The component to be observed
+    'DropFcn', @(s, e)onDrop(tool, s, e)); %,'DragEnterFcn',@(s,e) setVis(txt_drop,1),'DragExitFcn',@(s,e) setVis(txt_drop,0));
+
 function loadImage(hObject,tool,hdr)
 % unselect button to prevent activation with spacebar
 set(hObject, 'Enable', 'off');
@@ -210,3 +213,54 @@ end
 function openvar2(hdr)
 assignin('base', 'hdr',hdr);
 evalin('base', ['openvar hdr']);
+
+
+function onDrop(tool, listener, evtArg)
+ht = wait_msgbox;
+
+% Get back the dropped data
+data = evtArg.GetTransferableData();
+
+% Is it transferable as a list of files
+if (data.IsTransferableAsFileList)
+    if length(data.TransferAsFileList)==1 && isdir(data.TransferAsFileList{1})
+        imtool3D_BIDS(data.TransferAsFileList{1})
+    else
+        [dat, hdr] = nii_load(data.TransferAsFileList);
+        for ii=1:length(tool)
+            tool(ii).setImage(dat)
+            tool(ii).setAspectRatio(hdr.pixdim(2:4));
+            tool(ii).setlabel(data.TransferAsFileList)
+        end
+    end
+    % Indicate to the source that drop has completed
+    evtArg.DropComplete(true);
+    
+elseif (data.IsTransferableAsString)
+    
+    % Not interested
+    evtArg.DropComplete(false);
+    
+else
+    
+    % Not interested
+    evtArg.DropComplete(false);
+    
+end
+if ishandle(ht), delete(ht); end
+
+function h = setVis(h,value)
+h.Visible = value;
+
+function h = wait_msgbox
+txt = 'Loading files. Please wait...';
+h=figure('units','norm','position',[.5 .75 .2 .2],'menubar','none','numbertitle','off','resize','off','units','pixels');
+ha=uicontrol('style','text','units','norm','position',[0 0 1 1],'horizontalalignment','center','string',txt,'units','pixels','parent',h);
+hext=get(ha,'extent');
+hext2=hext(end-1:end)+[60 60];
+hpos=get(h,'position');
+set(h,'position',[hpos(1)-hext2(1)/2,hpos(2)-hext2(2)/2,hext2(1),hext2(2)]);
+set(ha,'position',[30 30 hext(end-1:end)]);
+disp(char(txt));
+drawnow;
+
