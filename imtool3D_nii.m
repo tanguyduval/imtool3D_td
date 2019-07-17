@@ -130,8 +130,9 @@ end
 %             txt_drop = annotation(tool.handles.Panels.Image,'textbox','Visible','off','EdgeColor','none','FontSize',25,'String','DROP!','Position',[0.5 0.5 0.6 0.1],'FitBoxToText','on','Color',[1 0 0]);
 jFrame = get(tool(1).getHandles.fig, 'JavaFrame');
 jAxis = jFrame.getAxisComponent();
-DropListener(jAxis, ... % The component to be observed
-    'DropFcn', @(s, e)onDrop(tool, s, e)); %,'DragEnterFcn',@(s,e) setVis(txt_drop,1),'DragExitFcn',@(s,e) setVis(txt_drop,0));
+dndcontrol.initJava();
+dndobj = dndcontrol(jAxis);
+dndobj.DropFileFcn = @(s, e)onDrop(tool, s, e); %,'DragEnterFcn',@(s,e) setVis(txt_drop,1),'DragExitFcn',@(s,e) setVis(txt_drop,0));
 
 function loadImage(hObject,tool,hdr)
 % unselect button to prevent activation with spacebar
@@ -219,34 +220,20 @@ function onDrop(tool, listener, evtArg)
 ht = wait_msgbox;
 
 % Get back the dropped data
-data = evtArg.GetTransferableData();
+data = evtArg.Data;
 
 % Is it transferable as a list of files
-if (data.IsTransferableAsFileList)
-    if length(data.TransferAsFileList)==1 && isdir(data.TransferAsFileList{1})
-        imtool3D_BIDS(data.TransferAsFileList{1})
-    else
-        [dat, hdr] = nii_load(data.TransferAsFileList);
-        for ii=1:length(tool)
-            tool(ii).setImage(dat)
-            tool(ii).setAspectRatio(hdr.pixdim(2:4));
-            tool(ii).setlabel(data.TransferAsFileList)
-        end
-    end
-    % Indicate to the source that drop has completed
-    evtArg.DropComplete(true);
-    
-elseif (data.IsTransferableAsString)
-    
-    % Not interested
-    evtArg.DropComplete(false);
-    
+if length(data)==1 && isdir(data{1})
+    imtool3D_BIDS(data{1})
 else
-    
-    % Not interested
-    evtArg.DropComplete(false);
-    
+    [dat, hdr] = nii_load(data);
+    for ii=1:length(tool)
+        tool(ii).setImage(dat)
+        tool(ii).setAspectRatio(hdr.pixdim(2:4));
+        tool(ii).setlabel(data)
+    end
 end
+
 if ishandle(ht), delete(ht); end
 
 function h = setVis(h,value)
