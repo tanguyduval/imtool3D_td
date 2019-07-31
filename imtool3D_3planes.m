@@ -4,7 +4,8 @@ if ~exist('dat','var'), dat=[]; end
 if ~exist('parent','var'), parent=[]; end
 if ~exist('range','var'), range=[]; end
 tool = imtool3D(dat,[],parent,range,[],mask);
-if isempty(parent), parent = tool(1).getHandles.fig; end
+resizefactorthree = false;
+if isempty(parent), parent = tool(1).getHandles.fig; resizefactorthree = true; end
 range = tool.getClimits;
 CB_Motion1 = get(gcf,'WindowButtonMotionFcn');
 tool(2) = imtool3D(dat,[],parent,range,[],mask);
@@ -25,18 +26,20 @@ tool(3).setPosition([0.66 0 0.33 1])
 % tool(2).setPosition([0.5 0.5 0.5 0.5])
 % tool(3).setPosition([0 0 0.5 0.5])
 
-% Make figure 3 times larger
-h = tool(1).getHandles.fig;
-set(h,'Units','Pixels');
-pos = get(tool(1).getHandles.fig,'Position');
-pos(3)=3*pos(3);
-screensize = get(0,'ScreenSize');
-pos(3) = min(pos(3),screensize(3)-100);
-pos(4) = min(pos(4),screensize(4)-100);
-pos(1) = ceil((screensize(3)-pos(3))/2);
-pos(2) = ceil((screensize(4)-pos(4))/2);
-set(h,'Position',pos)
-set(h,'Units','normalized');
+if resizefactorthree
+    % Make figure 3 times larger
+    h = tool(1).getHandles.fig;
+    set(h,'Units','Pixels');
+    pos = get(tool(1).getHandles.fig,'Position');
+    pos(3)=3*pos(3);
+    screensize = get(0,'ScreenSize');
+    pos(3) = min(pos(3),screensize(3)-100);
+    pos(4) = min(pos(4),screensize(4)-100);
+    pos(1) = ceil((screensize(3)-pos(3))/2);
+    pos(2) = ceil((screensize(4)-pos(4))/2);
+    set(h,'Position',pos)
+    set(h,'Units','normalized');
+end
 
 
 for ii=2:3
