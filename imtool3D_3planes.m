@@ -117,6 +117,22 @@ crossX3 = plot(H.Axes,[x3 x3],[0 S(1)],'r-');
 crossY3 = plot(H.Axes,[0 S(3)],[y3 y3],'r-');
 
 hidecross(crossX1,crossY1,crossX2,crossY2,crossX3,crossY3)
+
+% add left button options
+hp = tool(2).getHandles.Panels.Tools;
+set(get(hp,'Children'),'Visible','off')
+set(hp,'Visible','on')
+bgc = get(hp,'BackgroundColor');
+for ii=1:3
+    ContrastWBDF{ii} = get(tool(ii).getHandles.I,'ButtonDownFcn');
+end
+txt = uicontrol(hp,'Style','text','String','Mouse Left Click:','Units','Pixels','Position',[5 0 100 20]);
+lbo = uibuttongroup(hp,'Units','Pixels','Position',[105 5 250 20],...
+                    'SelectionChangedFcn',@(source,event) lboselection(source,event,tool,ContrastWBDF,crossX1,crossY1,crossX2,crossY2,crossX3,crossY3));
+lbo1 = uicontrol(lbo,'Style','radiobutton','String','Adjust Contrast','Position',[5 0 100 20]);
+lbo2 = uicontrol(lbo,'Style','radiobutton','String','Cursor (hold [X] key)','Position',[105 0 150 20]);
+set([txt lbo lbo1 lbo2],'BackgroundColor',bgc,'ForegroundColor',[1 1 1],'FontSize',8);
+
 % add tooltip
 for ii=1:3
     set(tool(ii).getHandles.Slider,'TooltipString',sprintf('Change Slice (use the scroll wheel)\nAlso, use and hold the [X] key to navigate in the volume based on mouse location)'));
@@ -237,6 +253,35 @@ switch event.Key
         if ~isequal(CB_Motion_mod{1},CB_Motion_mod{2})
             set(fig,'WindowButtonMotionFcn',@(src,evnt) Callback3(CB_Motion_mod{1},CB_Motion_mod{2},CB_Motion_mod{3},src,evnt));
         end
+end
+
+% change left button mode
+function lboselection(source,event,tool,ContrastWBDF,crossX1,crossY1,crossX2,crossY2,crossX3,crossY3)
+for ii = 1:3
+    switch get(event.NewValue,'String')
+        case 'Adjust Contrast'
+            set(tool(ii).getHandles.I,'ButtonDownFcn',ContrastWBDF{ii})
+            set(tool(ii).getHandles.mask,'ButtonDownFcn',ContrastWBDF{ii})
+            hidecross(crossX1,crossY1,crossX2,crossY2,crossX3,crossY3)
+        case 'Cursor (hold [X] key)'
+            set(tool(ii).getHandles.I,'ButtonDownFcn',@(src,evnt) BTF_syncSlices(src,evnt,ContrastWBDF{ii},tool,crossX1,crossY1,crossX2,crossY2,crossX3,crossY3))
+            set(tool(ii).getHandles.mask,'ButtonDownFcn',@(src,evnt) BTF_syncSlices(src,evnt,ContrastWBDF{ii},tool,crossX1,crossY1,crossX2,crossY2,crossX3,crossY3))
+    end
+end
+
+function BTF_syncSlices(src,evnt,ContrastWBDF,tool,crossX1,crossY1,crossX2,crossY2,crossX3,crossY3)
+fig = tool(1).getHandles.fig;
+WBMF_old = get(fig,'WindowButtonMotionFcn');
+WBUF_old = get(fig,'WindowButtonUpFcn');
+
+switch get(fig,'SelectionType')
+    case 'normal'
+        syncSlices(tool,crossX1,crossY1,crossX2,crossY2,crossX3,crossY3)
+        fun=@(src,evnt) syncSlices(tool,crossX1,crossY1,crossX2,crossY2,crossX3,crossY3);
+        fun2=@(src,evnt) set(src,'WindowButtonMotionFcn',WBMF_old,'WindowButtonUpFcn',WBUF_old);
+        set(fig,'WindowButtonMotionFcn',fun,'WindowButtonUpFcn',fun2)
+    otherwise
+        ContrastWBDF(src,evnt);
 end
 
 function Callback3(CB1,CB2,CB3,varargin)
