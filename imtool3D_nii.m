@@ -226,7 +226,25 @@ data = evtArg.Data;
 if length(data)==1 && isdir(data{1})
     imtool3D_BIDS(data{1})
 else
-    [dat, hdr] = nii_load(data);
+    [~,~,ext] = fileparts(data{1});
+    switch ext
+        case {'.nii','.gz'}
+            [dat, hdr] = nii_load(data);
+        case {'.tif', '.png'}
+            for id = 1:length(data)
+                dat{id} = imread(data{id});
+            end
+            hdr.pixdim = [1 1 1 1];
+        case '.mat'
+            for id = 1:length(data)
+                tmp = load(data{id});
+                ff = fieldnames(tmp);
+                dat{id} = tmp.(ff{1});
+            end
+            hdr.pixdim = [1 1 1 1];
+        otherwise
+            error('unknown format %s',ext)
+    end
     for ii=1:length(tool)
         tool(ii).setImage(dat)
         tool(ii).setAspectRatio(hdr.pixdim(2:4));
