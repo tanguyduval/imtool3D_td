@@ -68,7 +68,12 @@ for ff=1:length(list)
     end
     if ~ismember(nii.hdr.scl_slope, [0,1]) || nii.hdr.scl_inter ~= 0
         if isempty(applyslope) 
-            applyslope = questdlg(sprintf(['Apply scaling slope %.2gx + %.2g?\nData will be converted from %s to double'],nii.hdr.scl_slope,nii.hdr.scl_inter,class(nii.img)), list{ff},'Yes','No','Yes');
+            if isstruct(list{ff})
+                Name = list{ff}.hdr.file_name;
+            else
+                Name = list{ff};
+            end
+            applyslope = questdlg(sprintf(['Apply scaling slope %.2gx + %.2g?\nData will be converted from %s to double'],nii.hdr.scl_slope,nii.hdr.scl_inter,class(nii.img)), Name,'Yes','No','Yes');
         end
     else
         applyslope = 0;
