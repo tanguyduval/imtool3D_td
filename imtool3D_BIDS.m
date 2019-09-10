@@ -59,14 +59,21 @@ else
 end
 tsequence.Value(tsequence.Value>length(tsequence.String)) = [];
 
-function viewCallback(tool, BIDS,tsub,tses,tmodality,tsequence)
+function viewCallback(tool3P, BIDS,tsub,tses,tmodality,tsequence)
 ht = wait_msgbox;
 if isempty(tses.String(tses.Value)) % no sessions
     dat = bids.query(BIDS,'data','sub',tsub.String(tsub.Value),'modality',tmodality.String(tmodality.Value),'type',tsequence.String(tsequence.Value));
 else
     dat = bids.query(BIDS,'data','sub',tsub.String(tsub.Value),'ses',tses.String(tses.Value),'modality',tmodality.String(tmodality.Value),'type',tsequence.String(tsequence.Value));
 end
+if isempty(dat) 
+    if ishandle(ht), delete(ht); end
+    return; 
+end
+
+
 [dat, hdr, list] = nii_load(dat);
+tool = tool3P.getTool();
 for ii=1:length(tool)
     tool(ii).setImage(dat);
     tool(ii).setAspectRatio(hdr.pixdim(2:4));

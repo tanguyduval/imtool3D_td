@@ -31,10 +31,10 @@ classdef imtool3DROI < handle
             ROI.graphicsHandles = graphicsHandles;
             
             %Get the parent axes of the image
-            ROI.axesHandle = get(imageHandle,'Parent');
+            ROI.axesHandle = get(imageHandle(1),'Parent');
             
             %Find the parent figure of the object
-            ROI.figureHandle = getParentFigure(imageHandle);
+            ROI.figureHandle = getParentFigure(imageHandle(1));
             
             %create the context menu
             c = uicontextmenu;

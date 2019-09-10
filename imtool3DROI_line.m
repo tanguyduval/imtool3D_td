@@ -78,7 +78,7 @@ classdef imtool3DROI_line < imtool3DROI
             parent = get(imageHandle,'Parent');
             
             %compute the pheight
-            pheight = min(size(get(imageHandle,'CData')));
+            pheight = min([size(get(imageHandle,'CData'),1) size(get(imageHandle,'CData'),2)]);
             pheight = pheight/10;
             
             %Draw the graphics
@@ -167,6 +167,9 @@ classdef imtool3DROI_line < imtool3DROI
             
             %get the image data
             im = get(ROI.imageHandle,'CData');
+            if size(im,3) == 3
+                im = rgb2gray(im);
+            end
             
             %get the distance
             stats.distance = norm(position(1,:)-position(2,:));
