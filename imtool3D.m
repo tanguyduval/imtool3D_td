@@ -406,8 +406,9 @@ classdef imtool3D < handle
             tool.handles.Tools.U        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String','1','Position',[lp+2*buff+4*w buff 2*w w],'TooltipString',sprintf('Intensity Window Upper Bound\n(left click and drag on the image to control window width and level)'),'BackgroundColor',[.2 .2 .2],'ForegroundColor','w');
             tool.handles.Tools.TO       =   uicontrol(tool.handles.Panels.Tools,'Style','text','String','O','Position',[lp+2*buff+6*w buff w w],'BackgroundColor','k','ForegroundColor','w','TooltipString',sprintf('Opacity'));
             tool.handles.Tools.O        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String','1','Position',[lp+2*buff+7*w buff w w],'TooltipString',sprintf('Opacity'),'BackgroundColor',[.2 .2 .2],'ForegroundColor','w');
+            tool.handles.Tools.SO       =   uicontrol(tool.handles.Panels.Tools,'Style','Slider','Position',[lp+2*buff+8*w buff w/2 w],'TooltipString',sprintf('Opacity'),'Min',0,'Max',1,'Value',1,'SliderStep',[.1 .1]);
 
-            lp=lp+3*buff+8*w;
+            lp=lp+3*buff+8.5*w;
             
             %Creat window and level callbacks
             fun=@(hobject,evnt) WindowLevel_callback(hobject,evnt,tool);
@@ -415,6 +416,7 @@ classdef imtool3D < handle
             set(tool.handles.Tools.U,'Callback',fun);
             fun=@(hobject,evnt) setOpacity(tool,[], hobject);
             set(tool.handles.Tools.O,'Callback',fun);
+            set(tool.handles.Tools.SO,'Callback',fun);
             
             %Create view restore button
             tool.handles.Tools.ViewRestore           =   uicontrol(tool.handles.Panels.Tools,'Style','pushbutton','String','','Position',[lp buff w w],'TooltipString',sprintf('Reset Pan and Zoom\n(Right Click (Ctrl+Click) to Pan and Middle (Shift+Click) Click to zoom)'));
@@ -856,8 +858,8 @@ classdef imtool3D < handle
                 for iii = 1:length(I)
                     Siii = [size(I{iii},1) size(I{iii},2) size(I{iii},3)];
                     if ~isequal(S,Siii)
-                        Iiii = zeros(S,'like',I{iii});
-                        Iiii(1:Siii(1),1:Siii(2),1:Siii(3)) = I{iii};
+                        Iiii = zeros([S size(I{iii},4)],'like',I{iii});
+                        Iiii(1:Siii(1),1:Siii(2),1:Siii(3),:) = I{iii};
                         I{iii} = Iiii;
                     end
                 end
@@ -1159,14 +1161,22 @@ classdef imtool3D < handle
         function setOpacity(tool,O, hObject)
             if ~exist('hObject','var') || isempty(hObject), hObject = tool.handles.Tools.O; end
             if ~exist('O','var') || isempty(O)
-                O=str2num(get(hObject,'String'));
-                if isempty(O)
-                    O=1;
+                switch get(hObject,'Style')
+                    case 'edit'
+                        O=str2num(get(hObject,'String'));
+                    case 'slider'
+                        O = get(hObject,'Value');
                 end
-                O = min(1,max(0,O));
             end
+            
+            if isempty(O)
+                O=1;
+            end
+            O = min(1,max(0,O));
+            
             tool.NvolOpts.Opacity{tool.Nvol} = O;
             set(tool.handles.Tools.O,'String',num2str(O));
+            set(tool.handles.Tools.SO,'Value',O);
             set(tool.handles.I(tool.Nvol),'AlphaData',O);
         end
 
