@@ -239,7 +239,7 @@ classdef imtool3D < handle
                 else
                     S = [size(I,1) size(I,2) size(I,3)];
                 end
-                AI=S(2)/S(1); %input Ratio of the image
+                AI=S(1)/S(2); %input Ratio of the image
                 if Af>AI    %Figure is too wide, make it taller to match
                    pos(4)=pos(3)/AI; 
                 elseif Af<AI    %Figure is too long, make it wider to match
@@ -247,11 +247,11 @@ classdef imtool3D < handle
                 end
                 
                 %set minimal size
-                pos(3)=max(600,pos(3));
-                pos(4)=max(500,pos(4));
+                screensize = get(0,'ScreenSize');
+                pos(3)=min(max(600,pos(3)),screensize(3));
+                pos(4)=min(max(500,pos(4)),screensize(4));
                 
                 %make sure the figure is centered
-                screensize = get(0,'ScreenSize');
                 pos(1) = ceil((screensize(3)-pos(3))/2);
                 pos(2) = ceil((screensize(4)-pos(4))/2); 
                 set(h,'Position',pos)
@@ -572,14 +572,14 @@ classdef imtool3D < handle
             % mask statistics
             tool.handles.Tools.maskStats        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','Position',[buff pos(4)-(islct+2)*w w w], 'Value', 1, 'TooltipString', 'Statistics');
             icon_hist = makeToolbarIconFromPNG('plottype-histogram.png');
-            icon_hist = min(1,max(0,imresize(icon_hist,[16 16])));
+            icon_hist = min(1,max(0,imresize_noIPT(icon_hist,[16 16])));
             set(tool.handles.Tools.maskStats ,'Cdata',icon_hist)
             set(tool.handles.Tools.maskStats ,'Callback',@(hObject,evnt) StatsCallback(hObject,evnt,tool))
             
             % mask save
             tool.handles.Tools.maskSave        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','Position',[buff pos(4)-(islct+3)*w w w], 'Value', 1, 'TooltipString', 'Save mask');
             icon_save = makeToolbarIconFromPNG([MATLABdir '/file_save.png']);
-            icon_save = min(1,max(0,imresize(icon_save,[16 16])));
+            icon_save = min(1,max(0,imresize_noIPT(icon_save,[16 16])));
             set(tool.handles.Tools.maskSave ,'Cdata',icon_save)
             fun=@(hObject,evnt) saveMask(tool,hObject);
             set(tool.handles.Tools.maskSave ,'Callback',fun)
@@ -1588,7 +1588,7 @@ classdef imtool3D < handle
             if ~tool.upsample || get(tool.handles.Tools.montage,'Value')
                 set(tool.handles.I,'CData',In)
             else
-                set(tool.handles.I,'CData',imresize(In,tool.rescaleFactor,tool.upsampleMethod),'XData',get(tool.handles.I,'XData'),'YData',get(tool.handles.I,'YData'))
+                set(tool.handles.I,'CData',imresize_noIPT(In,tool.rescaleFactor,tool.upsampleMethod),'XData',get(tool.handles.I,'XData'),'YData',get(tool.handles.I,'YData'))
             end
             maskrgb = ind2rgb8(maskn,tool.maskColor);
             set(tool.handles.mask,'CData',maskrgb,'XData',get(tool.handles.I,'XData'),'YData',get(tool.handles.I,'YData'));
@@ -2738,5 +2738,17 @@ rehash;
 addpath(genpath(mfiledir));
 warndlg(['Package updated successfully. Please restart ' mfile ...
          ', otherwise it may give error.'], 'Check update');
+end
+end
+
+function Ires = imresize_noIPT(I,S,intrp)
+if ~exist('intrp','var') || isempty(intrp)
+    intrp = 'linear';
+end
+Xq = linspace(1,size(I,1),S(1));
+Yq = linspace(1,size(I,2),S(2));
+Ires = zeros(S(1),S(2),size(I,3),'like',I);
+for iz = 1:size(I,3)
+    Ires(:,:,iz) = interp2(I(:,:,iz),Yq,Xq',intrp);
 end
 end
