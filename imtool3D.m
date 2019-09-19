@@ -2725,14 +2725,15 @@ catch
 end
 mfiledir = fileparts(which(mfile));
 % delete subfolders before copying
-listdir = dir(mfiledir);
+listdir = dir(tdir);
 listdir = listdir(~cellfun(@(X) strcmp(X(1),'.'),{listdir.name}));
 listdir = listdir([listdir.isdir]);
-for iii = 1:length(listdir)
-    rmdir(fullfile(mfiledir,listdir(iii).name), 's');
-end
+listdir(end+1).name = '';
 % copy
-movefile([tdir '*.*'], [fileparts(which(mfile)) '/.'], 'f');
+for iii = 1:length(listdir)
+    movefile(fullfile(tdir,listdir(iii).name,'*.*'), fullfile(mfiledir, listdir(iii).name, '.'), 'f');
+end
+% clean
 rmdir(tdir, 's');
 rehash;
 addpath(genpath(mfiledir));
