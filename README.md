@@ -22,12 +22,6 @@ A = rand(100,100,30,10);
 imtool3D(A)
 ````
 
-## open a 4D volume
-````matlab
-A = rand(100,100,30,10);
-imtool3D(A)
-````
-
 ## open an MRI volume
 ````matlab
 load mri % example mri image provided by MATLAB
