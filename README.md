@@ -16,9 +16,9 @@ imtool3D is used heavily by several other projects:
 * [dicm2nii](https://github.com/xiangruili/dicm2nii) (if NIFTI images are used)
 
 # Tuto
-## open a 4D volume
+## open a 5D volume
 ````matlab
-A = rand(100,100,30,10);
+A = rand(100,100,30,10,3);
 imtool3D(A)
 ````
 
