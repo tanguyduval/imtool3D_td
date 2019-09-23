@@ -16,11 +16,27 @@ imtool3D is used heavily by several other projects:
 * [dicm2nii](https://github.com/xiangruili/dicm2nii) (if NIFTI images are used)
 
 # Tuto
+## open a 5D volume
+````matlab
+A = rand(100,100,30,10,3);
+imtool3D(A)
+````
+
+## open an MRI volume
+````matlab
+load mri % example mri image provided by MATLAB
+D = squeeze(D);
+D = permute(D(end:-1:1,:,:),[2 1 3]); % LPI orientation
+tool = imtool3D(D);
+tool.setAspectRatio([1 1 2.5]) % set voxel size to 1mm x 1mm x 2.5mm
+````
+
 ## include in a GUI
 ````matlab
 % Add viewer in a panel in the middle of the GUI
 GUI = figure;
-tool = imtool3D([],[.1 .1 .8 .8],GUI)
+Position = [0 0 1 .5]; % Bottom. normalized units
+tool = imtool3D([],Position,GUI)
 
 % set MRI image
 load mri % example mri image provided by MATLAB
@@ -28,7 +44,6 @@ D = squeeze(D);
 D = permute(D(end:-1:1,:,:),[2 1 3]); % LPI orientation
 tool.setImage(D)
 tool.setAspectRatio([1 1 2.5]) % set voxel size to 1mm x 1mm x 2.5mm
-
 ````
 
 # what is new in this fork? 
