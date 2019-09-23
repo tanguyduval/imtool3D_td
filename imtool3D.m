@@ -616,13 +616,14 @@ classdef imtool3D < handle
             setImage(tool, varargin{:})
             
             % disable ROI tools if no image processing toolbox
-            result = license('test','image_toolbox');
+            result = license('test','image_toolbox') && ~isempty(which('poly2mask.m'));
             if result==0
                 warning('Image processing toolbox is missing... ROI tools will not work')
                 set(findobj(tool.handles.Panels.ROItools,'type','uicontrol'),'visible','off');
                 set(tool.handles.Tools.maskLoad,'visible','on');
                 set(tool.handles.Tools.maskStats,'visible','on');
                 set(tool.handles.Tools.maskSelected,'visible','on');
+                set(tool.handles.Tools.montage,'visible','on');
             end
         end
         
