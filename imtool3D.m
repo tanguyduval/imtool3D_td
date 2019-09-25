@@ -1676,22 +1676,25 @@ classdef imtool3D < handle
                             [In,Mrows,Mcols]    = imagemontage(permute(I,[2 3 1]));
                             maskn = imagemontage(permute(M(unique(round(linspace(1,end,Nslices))),:,:),[2 3 1]));
                             newAspectRatio = size(In)./[size(I,2) size(I,3)];
+                            aspectRatio = tool.aspectRatio([2 3 1]);
                         case 2
                             Indices = unique(round(linspace(1,S(2),Nslices)));
                             I=tool.I{tool.Nvol}(:,Indices,:,min(end,tool.Ntime));
                             [In,Mrows,Mcols] = imagemontage(permute(I,[1 3 2]));
                             maskn = imagemontage(permute(M(:,unique(round(linspace(1,end,Nslices))),:),[1 3 2]));
                             newAspectRatio = size(In)./[size(I,1) size(I,3)];
+                            aspectRatio = tool.aspectRatio([1 3 2]);
                         case 3
                             Indices = unique(round(linspace(1,S(3),Nslices)));
                             I=tool.I{tool.Nvol}(:,:,Indices,min(end,tool.Ntime));
                             [In,Mrows,Mcols,Indices] = imagemontage(I);
                             maskn = imagemontage(M(:,:,unique(round(linspace(1,end,Nslices)))));
                             newAspectRatio = size(In)./[size(I,1) size(I,2)];
+                            aspectRatio = tool.aspectRatio([1 2 3]);
                     end
                     maskn = uint8(maskn);
                     set(tool.handles.Tools.montage,'UserData',[Mrows Mcols Indices(:)']);
-                    set(tool.handles.Axes,'DataAspectRatio',tool.aspectRatio.*[newAspectRatio 1]);
+                    set(tool.handles.Axes,'DataAspectRatio',aspectRatio.*[newAspectRatio 1]);
                 else
                     Mrows = 1; Mcols = 1;
                     In = squeeze(tool.getCurrentImageSlice());
