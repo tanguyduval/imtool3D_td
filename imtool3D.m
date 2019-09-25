@@ -2390,7 +2390,7 @@ current_object = hittest;
 setmaskstatistics(tool,current_object)
 
 h = tool.getHandles;
-if ~isequal(h.Axes,current_object) && ~isequal(h.I,current_object) && ~isequal(h.mask,current_object)
+if ~isequal(h.Axes,current_object) && ~ismember(current_object,h.I) && ~isequal(h.mask,current_object)
     set(h.Info,'String','(x,y) val')
     return
 end
