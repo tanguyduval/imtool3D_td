@@ -5,6 +5,10 @@ classdef imtool3D_3planes < handle
         cross % cross structure
     end
     
+    properties
+        crossVisible=1; %Show cross?
+    end
+    
     methods
         
         function tool3P = imtool3D_3planes(varargin) % Constructor (dat,mask,parent,range)
@@ -71,6 +75,7 @@ classdef imtool3D_3planes < handle
             for ii=1:3
                 addlistener(tool(ii),'maskChanged',@(x,y) syncMasks(tool,ii));
                 addlistener(tool(ii),'maskUndone',@(x,y) syncMasks(tool,ii));
+                addlistener(tool(ii),'newSlice',@(x,y) tool3P.showcross());
             end
             
             % tool of first block transfert to all
@@ -246,7 +251,8 @@ classdef imtool3D_3planes < handle
             tool3P.tool(1).setNvol(Nvol)
         end
         
-        function showcross(tool3P)
+        function showcross(tool3P)            
+            
             tool = tool3P.tool;
             S = tool(1).getImageSize;
             set(tool3P.cross.X1,'XData',[tool(3).getCurrentSlice tool(3).getCurrentSlice])
@@ -261,22 +267,22 @@ classdef imtool3D_3planes < handle
             set(tool3P.cross.X3,'YData',[0 S(1)])
             set(tool3P.cross.Y3,'YData',[tool(2).getCurrentSlice tool(2).getCurrentSlice])
             set(tool3P.cross.Y3,'XData',[0 S(3)])
-            
-            set(tool3P.cross.X1,'Visible','on')
-            set(tool3P.cross.Y1,'Visible','on')
-            set(tool3P.cross.X2,'Visible','on')
-            set(tool3P.cross.Y2,'Visible','on')
-            set(tool3P.cross.X3,'Visible','on')
-            set(tool3P.cross.Y3,'Visible','on')
+                
+            if tool3P.crossVisible
+            	tool3P.hidecross('on');
+            else
+                tool3P.hidecross('off');
+            end
         end
         
-        function hidecross(tool3P)
-            set(tool3P.cross.X1,'Visible','off')
-            set(tool3P.cross.Y1,'Visible','off')
-            set(tool3P.cross.X2,'Visible','off')
-            set(tool3P.cross.Y2,'Visible','off')
-            set(tool3P.cross.X3,'Visible','off')
-            set(tool3P.cross.Y3,'Visible','off')
+        function hidecross(tool3P,type)
+            if ~exist('type','var'), type = 'off'; end
+            set(tool3P.cross.X1,'Visible',type)
+            set(tool3P.cross.Y1,'Visible',type)
+            set(tool3P.cross.X2,'Visible',type)
+            set(tool3P.cross.Y2,'Visible',type)
+            set(tool3P.cross.X3,'Visible',type)
+            set(tool3P.cross.Y3,'Visible',type)
         end
         
         function addImage(tool3P,I)
@@ -284,6 +290,12 @@ classdef imtool3D_3planes < handle
             
             for ii=1:3
                 tool3P.tool(ii).setImage(cat(2,Iold,{I}))
+            end
+        end
+        
+        function setzoomfactor(tool3P,factor)
+            for ii=1:length(tool3P.tool)
+                tool3P.tool(ii).setzoomfactor(factor);
             end
         end
     end
@@ -379,8 +391,8 @@ for ii=1:length(tool)
     try
         if ismember(currentobj,findobj(tool(ii).getHandles.Axes))
             newSlice=tool(ii).getCurrentSlice-evnt.VerticalScrollCount;
-            dim = tool(ii).getImageSize;
-            if newSlice>=1 && newSlice <=dim(4-ii)
+            dim = tool(ii).getImageSize(1);
+            if newSlice>=1 && newSlice <=dim(3)
                 tool(ii).setCurrentSlice(newSlice);
             end
             

@@ -1,4 +1,4 @@
-
+    
 classdef imtool3D < handle
     %This is a image slice viewer with built in scroll, contrast, zoom and
     %ROI tools. 
@@ -467,7 +467,7 @@ classdef imtool3D < handle
             icon_profile = makeToolbarIconFromPNG('icon_montage.png');
             set(tool.handles.Tools.montage ,'Cdata',icon_profile)
             lp=lp+w+buff;
-            fun=@(hObject,evnt) showSlice(tool,12); % show 12 slices by default
+            fun=@(hObject,evnt) showSlice(tool,12+(1-get(hObject,'Value'))*(round(size(tool.I{tool.Nvol},tool.viewplane)/2)-12)); % show 12 slices by default
             set(tool.handles.Tools.montage,'Callback',fun)
 
             %Create Help Button
@@ -1394,6 +1394,23 @@ classdef imtool3D < handle
             end
             
             
+        end
+        
+        function setzoomfactor(tool,factor)                        
+            %get the new width
+            xlims = get(tool.handles.Axes,'Xlim');
+            S = tool.getImageSize(1);
+            ylims = get(tool.handles.Axes,'Ylim');
+            newXwidth = S(1)/factor;
+            newYwidth = S(2)/factor;
+            cx = mean(xlims);
+            cy = mean(ylims);
+            %set the new axis limits
+            xlims = [cx-newXwidth/2 cx+newXwidth/2];
+            ylims = [cy-newYwidth/2 cy+newYwidth/2];
+            if factor > 0
+                set(tool.handles.Axes,'Xlim',xlims,'Ylim',ylims)
+            end
         end
         
         function set.upsample(tool,upsample)
@@ -2407,7 +2424,7 @@ if get(tool.handles.Tools.montage,'Value')
     if ~isempty(Msize)
         S = tool.getImageSize(1);
         pos = pos.*Msize(1:2);
-        n = Msize(min(end,2+floor(pos(1)/S(2))*Msize(2)+floor(pos(2)/S(1))+1));
+        n = Msize(max(1,min(end,2+floor(pos(1)/S(2))*Msize(2)+floor(pos(2)/S(1))+1)));
         pos(1) = mod(pos(1),S(2));
         pos(2) = mod(pos(2),S(1));
     end
