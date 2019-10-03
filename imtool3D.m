@@ -1488,10 +1488,12 @@ classdef imtool3D < handle
         end
         
         function saveImage(tool,hObject)
-            % unselect button to prevent activation with spacebar
-            set(hObject, 'Enable', 'off');
-            drawnow;
-            set(hObject, 'Enable', 'on');
+            if exist('hObject','var') && ~isempty(hObject)
+                % unselect button to prevent activation with spacebar
+                set(hObject, 'Enable', 'off');
+                drawnow;
+                set(hObject, 'Enable', 'on');
+            end
             
             h = tool.getHandles;
             cmap = colormap(h.Tools.Color.String{h.Tools.Color.Value});
@@ -1542,10 +1544,12 @@ classdef imtool3D < handle
         end
         
         function saveMask(tool,hObject,hdr)
-            % unselect button to prevent activation with spacebar
-            set(hObject, 'Enable', 'off');
-            drawnow;
-            set(hObject, 'Enable', 'on');
+            if exist('hObject','var') && ~isempty(hObject)
+                % unselect button to prevent activation with spacebar
+                set(hObject, 'Enable', 'off');
+                drawnow;
+                set(hObject, 'Enable', 'on');
+            end
             
             Mask = tool.getMask(1);
             if any(Mask(:))
@@ -1614,10 +1618,13 @@ classdef imtool3D < handle
         end
         
         function loadMask(tool,hObject,hdr)
-            % unselect button to prevent activation with spacebar
-            set(hObject, 'Enable', 'off');
-            drawnow;
-            set(hObject, 'Enable', 'on');
+            if exist('hObject','var') && ~isempty(hObject)
+                % unselect button to prevent activation with spacebar
+                set(hObject, 'Enable', 'off');
+                drawnow;
+                set(hObject, 'Enable', 'on');
+            end
+            
             if exist('hdr','var')
                 path=fullfile(fileparts(hdr.file_name),'Mask.nii.gz');
             else

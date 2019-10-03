@@ -7,9 +7,9 @@ function RECTS = imtool3D_3planes_rect(tool)
 
 S = tool(1).getImageSize;
 
-RECT1 = imtool3DROI_rect(tool(1).getHandles.I,round([S(2) S(1) S(2) S(1)]/2));
-RECT2 = imtool3DROI_rect(tool(2).getHandles.I,round([S(3) S(2) S(3) S(2)]/2));
-RECT3 = imtool3DROI_rect(tool(3).getHandles.I,round([S(3) S(1) S(3) S(1)]/2));
+RECT1 = imtool3DROI_rect(tool(1).getHandles.I(tool(1).getNvol()),round([S(2) S(1) S(2) S(1)]/2));
+RECT2 = imtool3DROI_rect(tool(2).getHandles.I(tool(1).getNvol()),round([S(3) S(2) S(3) S(2)]/2));
+RECT3 = imtool3DROI_rect(tool(3).getHandles.I(tool(1).getNvol()),round([S(3) S(1) S(3) S(1)]/2));
 syncPos(RECT1,RECT2,RECT3,1)
 
 % Hide text
