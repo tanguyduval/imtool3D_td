@@ -126,10 +126,10 @@ switch query
         %-Postprocessing output variable
         switch query
             case 'subjects'
-                result = unique(result);
+                %result = unique(result);
                 result = regexprep(result,'^[a-zA-Z0-9]+-','');
             case 'sessions'
-                result = unique(result);
+                %result = unique(result);
                 result = regexprep(result,'^[a-zA-Z0-9]+-','');
                 result(cellfun('isempty',result)) = [];
             case 'data'
