@@ -946,7 +946,7 @@ classdef imtool3D < handle
             tool.Ntime = min(tool.Ntime,size(I{tool.Nvol},4));
             
             %Update the gridlines
-            setupGrid(tool)
+            try, delete(tool.handles.grid); end
             
             % Create missing image objects
             for it = (length(tool.handles.I)+1):length(I)
@@ -1120,7 +1120,8 @@ classdef imtool3D < handle
                     set(tool.handles.I,'YData',[1 max(2,size(tool.I{tool.getNvol},1))]);
             end
             setupSlider(tool)
-            setupGrid(tool)
+            try, delete(tool.handles.grid); end
+
             
             switch dim
                 case 1
@@ -2175,6 +2176,7 @@ try
 end
 
 if get(hObject,'Value')
+    if ~ishandle(tool.handles.grid), setupGrid(tool); end
     set(tool.handles.grid,'Visible','on')
 else
     set(tool.handles.grid,'Visible','off')
