@@ -145,6 +145,14 @@ classdef imtool3D_3planes < handle
             tool3P.cross.X3 = plot(H.Axes,[x3 x3],[0 S(1)],'r-');
             tool3P.cross.Y3 = plot(H.Axes,[0 S(3)],[y3 y3],'r-');
             
+            fun = get(tool(1).getHandles.I(1),'ButtonDownFcn');
+            set(tool3P.cross.X1,'ButtonDownFcn',fun);
+            set(tool3P.cross.Y1,'ButtonDownFcn',fun);
+            set(tool3P.cross.X2,'ButtonDownFcn',fun);
+            set(tool3P.cross.Y2,'ButtonDownFcn',fun);
+            set(tool3P.cross.X3,'ButtonDownFcn',fun);
+            set(tool3P.cross.Y3,'ButtonDownFcn',fun);
+            
             tool3P.hidecross();
             
             % add left button options

@@ -1161,6 +1161,11 @@ classdef imtool3D < handle
         
         function setOpacity(tool,O, hObject)
             if ~exist('hObject','var') || isempty(hObject), hObject = tool.handles.Tools.O; end
+            % unselect button to prevent activation with spacebar
+            set(hObject, 'Enable', 'off');
+            drawnow;
+            set(hObject, 'Enable', 'on');
+
             if ~exist('O','var') || isempty(O)
                 switch get(hObject,'Style')
                     case 'edit'
