@@ -28,7 +28,7 @@ tsequence = uicontrol(plb,'Style','listbox','Units','normalized','Position',[0.7
 % PARSE BIDS
 BIDS = bids.layout(BidsFolder);
 % fill subject listbox
-tsub.String = bids.query(BIDS,'subjects');
+tsub.String = unique(bids.query(BIDS,'subjects'));
 tsub.Callback = @(hobj,evnt) filterDatabase(BIDS,tsub,tses,tmodality,tsequence,'sub');
 tses.Callback = @(hobj,evnt) filterDatabase(BIDS,tsub,tses,tmodality,tsequence,'ses');
 tmodality.Callback = @(hobj,evnt) filterDatabase(BIDS,tsub,tses,tmodality,tsequence,'modality');
@@ -43,12 +43,12 @@ btn_view.Callback = @(hobj,evnt) viewCallback(tool, BIDS,tsub,tses,tmodality,tse
 
 function filterDatabase(BIDS,tsub,tses,tmodality,tsequence,listbox)
 if strcmp(listbox,'sub')
-    tses.String = bids.query(BIDS,'sessions','sub',tsub.String{tsub.Value(1)});
+    tses.String = unique(bids.query(BIDS,'sessions','sub',tsub.String{tsub.Value(1)}));
     tses.Value(tses.Value>length(tses.String)) = [];
 end
 
 if strcmp(listbox,'sub') || strcmp(listbox,'ses')
-    tmodality.String = bids.query(BIDS,'modalities','sub',tsub.String(tsub.Value),'ses',tses.String(tses.Value));
+    tmodality.String = unique(bids.query(BIDS,'modalities','sub',tsub.String(tsub.Value),'ses',tses.String(tses.Value)));
     tmodality.Value(tmodality.Value>length(tmodality.String)) = [];
 end
 
@@ -72,7 +72,7 @@ if isempty(dat)
 end
 
 
-[dat, hdr, list] = nii_load(dat);
+[dat, hdr, list] = nii_load(dat,1);
 tool = tool3P.getTool();
 for ii=1:length(tool)
     tool(ii).setImage(dat);
