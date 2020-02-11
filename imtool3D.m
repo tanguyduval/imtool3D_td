@@ -229,6 +229,8 @@ classdef imtool3D < handle
             
             % display figure
             if isempty(h)
+                Orient = uigetpref('imtool3D','rot90','Set orientation','How to display the first dimension of the matrix?',{'Vertically (Photo)','Horizontally (Medical)'},'HelpString','Help','HelpFcn','helpdlg({''If this option is wrongly set, image will be rotated by 90°.'', ''Horizontal orientation is used in NIFTI Medical format'', '''', ''This preference can be reset in the help button.'', '''', ''Orientation can also be changed while viewing an image using the command: view(tool.getHandles.Axes,ORIENTATION_ANGLE,90)''})');
+
                 h=figure;
                 set(h,'Toolbar','none','Menubar','none','NextPlot','new')
                 set(h,'Units','Pixels');
@@ -239,7 +241,14 @@ classdef imtool3D < handle
                 else
                     S = [size(I,1) size(I,2) size(I,3)];
                 end
-                AI=S(1)/S(2); %input Ratio of the image
+                
+                switch lower(Orient)
+                    case 'vertically (photo)'
+                        AI=S(2)/S(1); %input Ratio of the image
+                    case 'horizontally (medical)'
+                        AI=S(1)/S(2); %input Ratio of the image
+                end
+                
                 if Af>AI    %Figure is too wide, make it taller to match
                    pos(4)=pos(3)/AI; 
                 elseif Af<AI    %Figure is too long, make it wider to match
@@ -319,7 +328,9 @@ classdef imtool3D < handle
             tool.handles.Axes           =   axes('Position',[0 0 1 1],'Parent',tool.handles.Panels.Image,'Color','none');
             tool.handles.I              =   imshow(zeros(3,3),[0 1],'Parent',tool.handles.Axes); hold on;
             set(tool.handles.I,'Clipping','off')
-            view(tool.handles.Axes,-90,90);
+            if strfind(Orient,'Horizontally')
+                view(tool.handles.Axes,-90,90);
+            end
             set(tool.handles.Axes,'XLimMode','manual','YLimMode','manual','Clipping','off');
             
             
@@ -2465,10 +2476,12 @@ msg = {'imtool3D, written by Justin Solomon',...
        '[1]                        Select mask label 1',...
        '[2]                        Select mask label 2',...
        '[...]'};
-   h = questdlg(msg,'imtool3D','OK','Update','OK');
+   h = questdlg(msg,'imtool3D','OK','Reset Preferences','Update','OK');
    switch h
        case 'Update'
            checkUpdate();
+       case 'Reset Preferences'
+           setpref('imtool3D','rot90','ask')
    end
    
 end
