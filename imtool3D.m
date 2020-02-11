@@ -1145,7 +1145,11 @@ classdef imtool3D < handle
                 case 2
                     mask=tool.mask(:,slice,:);
                 case 3
-                    mask=tool.mask(:,:,slice);
+                    if size(tool.mask,3)==1 % prevet slicing
+                        mask=tool.mask;
+                    else
+                        mask=tool.mask(:,:,slice);
+                    end
             end
             
             if ~all
@@ -1187,7 +1191,11 @@ classdef imtool3D < handle
                 case 2
                     im = tool.I{tool.Nvol}(:,slice,:,min(end,tool.Ntime),:,:);
                 case 3
-                    im = tool.I{tool.Nvol}(:,:,slice,min(end,tool.Ntime),:,:);
+                    if size(tool.I{tool.Nvol},3)==1 && size(tool.I{tool.Nvol},4)==1
+                        im = tool.I{tool.Nvol};
+                    else
+                        im = tool.I{tool.Nvol}(:,:,slice,min(end,tool.Ntime),:,:);
+                    end
             end
             im = squeeze(im);
         end
@@ -1302,6 +1310,34 @@ classdef imtool3D < handle
             
             
         end
+
+        function set.rescaleFactor(tool, value)
+            %Get aspect ratio of image as currently being displayed
+            w = diff(get(tool.handles.Axes,'Xlim'))+1;
+            h = diff(get(tool.handles.Axes,'Ylim'))+1;
+            Ai  = w/h;
+            
+            %Get aspect ratio of parent axes
+            pos = getPixelPosition(tool.handles.Axes);
+            Aa = pos(3)/pos(4);
+            
+            %get the rescale factor
+            if Aa>=Ai
+                h = pos(4)/value;
+                w = Ai*h;
+            else
+                w = pos(3)/value;
+                h = w/Ai;
+            end
+            
+            mid = mean(get(tool.handles.Axes,'Xlim'));
+            set(tool.handles.Axes,'Xlim',[mid-(w-1)/2 mid+(w-1)/2])
+            mid = mean(get(tool.handles.Axes,'Ylim'));
+            set(tool.handles.Axes,'Ylim',[mid-(h-1)/2 mid+(h-1)/2])
+            
+            
+        end
+
         
         function set.upsample(tool,upsample)
             tool.upsample = logical(upsample);
@@ -1340,7 +1376,7 @@ classdef imtool3D < handle
                 case 'l'
                     setlockMask(tool)
                 case 'leftarrow'
-                    if isprop(evnt,'Modifier') && ~isempty(evnt.Modifier) && strcmp(evnt.Modifier,'shift')
+                    if isprop(evnt,'Modifier') && ~isempty(evnt.Modifier) && any(strcmp(evnt.Modifier,'shift'))
                         tool.Ntime = max(tool.Ntime-10,1);
                     else
                         tool.Ntime = max(tool.Ntime-1,1);
@@ -1600,11 +1636,20 @@ classdef imtool3D < handle
             if ~tool.upsample || get(tool.handles.Tools.montage,'Value')
                 set(tool.handles.I,'CData',In)
             else
-                set(tool.handles.I,'CData',imresize_noIPT(In,tool.rescaleFactor,tool.upsampleMethod),'XData',get(tool.handles.I,'XData'),'YData',get(tool.handles.I,'YData'))
+                set(tool.handles.I,'CData',imresize_noIPT(In,size(In)*2,tool.upsampleMethod),'XData',get(tool.handles.I,'XData'),'YData',get(tool.handles.I,'YData'))
             end
-            maskrgb = ind2rgb8(maskn,tool.maskColor);
+            if numel(maskn)>10e7
+                maskrgb = maskn;
+            else
+                maskrgb = ind2rgb8(maskn,tool.maskColor);
+            end
             set(tool.handles.mask,'CData',maskrgb,'XData',get(tool.handles.I,'XData'),'YData',get(tool.handles.I,'YData'));
-            set(tool.handles.mask,'AlphaData',tool.alpha*logical(maskn))
+            if numel(maskn)>10e7
+                alphaLayer = tool.alpha;
+            else
+                alphaLayer = tool.alpha*logical(maskn);
+            end
+            set(tool.handles.mask,'AlphaData',alphaLayer)
             try
                 label = tool.label{tool.Nvol};
                 set(tool.handles.LabelText,'TooltipString',label)
@@ -2706,8 +2751,12 @@ else
     rows = floor(sqrt(nz));
 end
 cols = ceil(nz/rows);
-M = permute(images.internal.createMontage(permute(I,[2 1 3]), [size(I,2) size(I,1)],...
+try
+    M = permute(images.internal.createMontage(permute(I,[2 1 3]), [size(I,2) size(I,1)],...
     [rows cols], [0 0], [], indices, []),[2 1 3]);
+catch
+    M = reshape(I(:,:,indices),[size(I,1)*rows size(I,2)*cols]);
+end
 end
 
 %% Check for newer version on GitHub
