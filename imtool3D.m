@@ -328,7 +328,7 @@ classdef imtool3D < handle
             tool.handles.Axes           =   axes('Position',[0 0 1 1],'Parent',tool.handles.Panels.Image,'Color','none');
             tool.handles.I              =   imshow(zeros(3,3),[0 1],'Parent',tool.handles.Axes); hold on;
             set(tool.handles.I,'Clipping','off')
-            if strfind(Orient,'Horizontally')
+            if strfind(lower(Orient),'horizontally')
                 view(tool.handles.Axes,-90,90);
             end
             set(tool.handles.Axes,'XLimMode','manual','YLimMode','manual','Clipping','off');
