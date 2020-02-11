@@ -22,9 +22,17 @@ for Selected = values
     Stats = cell(length(fields),7);
     for iii=1:length(fields)
         if iscell(I)
-            datiii = nanmean(I{length(fields)+1-iii},4); % average 4D data along time
+            try
+                datiii = nanmean(I{length(fields)+1-iii},4); % average 4D data along time
+            catch
+                datiii = mean(I{length(fields)+1-iii},4); % average 4D data along time
+            end
         else
-            datiii = nanmean(I(:,:,:,:,length(fields)+1-iii),4);
+            try
+                datiii = nanmean(I(:,:,:,:,length(fields)+1-iii),4);
+            catch
+                datiii = mean(I(:,:,:,:,length(fields)+1-iii),4);
+            end
         end
         datiii = datiii(Mask);
         Stats{iii,1} = sum(Mask(:));
