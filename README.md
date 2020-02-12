@@ -34,7 +34,9 @@ tool.setAspectRatio([1 1 2.5]) % set voxel size to 1mm x 1mm x 2.5mm
 ## include in a GUI
 ````matlab
 % Add viewer in a panel in the middle of the GUI
-GUI = figure;
+GUI = figure('Name','GUI with imtool3D embedded');
+annotation(GUI,'textbox',[0 .5 1 .5],'String','Create your own GUI here',...
+               'HorizontalAlignment','center','VerticalAlignment','middle');
 Position = [0 0 1 .5]; % Bottom. normalized units
 tool = imtool3D([],Position,GUI)
 

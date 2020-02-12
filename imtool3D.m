@@ -228,8 +228,8 @@ classdef imtool3D < handle
             [I, position, h, range, tools, mask, enableHist] = parseinputs(varargin{:});
             
             % display figure
+            Orient = uigetpref('imtool3D','rot90','Set orientation','How to display the first dimension of the matrix?',{'Vertically (Photo)','Horizontally (Medical)'},'HelpString','Help','HelpFcn','helpdlg({''If this option is wrongly set, image will be rotated by 90°.'', ''Horizontal orientation is used in NIFTI Medical format'', '''', ''This preference can be reset in the help button.'', '''', ''Orientation can also be changed while viewing an image using the command: view(tool.getHandles.Axes,ORIENTATION_ANGLE,90)''})');
             if isempty(h)
-                Orient = uigetpref('imtool3D','rot90','Set orientation','How to display the first dimension of the matrix?',{'Vertically (Photo)','Horizontally (Medical)'},'HelpString','Help','HelpFcn','helpdlg({''If this option is wrongly set, image will be rotated by 90°.'', ''Horizontal orientation is used in NIFTI Medical format'', '''', ''This preference can be reset in the help button.'', '''', ''Orientation can also be changed while viewing an image using the command: view(tool.getHandles.Axes,ORIENTATION_ANGLE,90)''})');
 
                 h=figure;
                 set(h,'Toolbar','none','Menubar','none','NextPlot','new')
@@ -1026,10 +1026,9 @@ classdef imtool3D < handle
             handles=tool.handles;
         end
         
-        function setAspectRatio(tool,psize)
-            %This sets the proper aspect ratio of the viewer for cases
+        function aspectRatio = getAspectRatio(tool)
+            %This gets the aspect ratio of the viewer for cases
             %where you have non-square pixels
-            tool.aspectRatio = psize;
             switch tool.viewplane
                 case 1
                     aspectRatio = tool.aspectRatio([2 3 1]);
@@ -1038,6 +1037,13 @@ classdef imtool3D < handle
                 case 3
                     aspectRatio = tool.aspectRatio([1 2 3]);
             end
+        end
+        
+        function setAspectRatio(tool,psize)
+            %This sets the proper aspect ratio of the viewer for cases
+            %where you have non-square pixels
+            tool.aspectRatio = psize;
+            aspectRatio = getAspectRatio(tool);
             set(tool.handles.Axes,'DataAspectRatio',aspectRatio)
         end
         
@@ -1191,7 +1197,7 @@ classdef imtool3D < handle
                 case 2
                     im = tool.I{tool.Nvol}(:,slice,:,min(end,tool.Ntime),:,:);
                 case 3
-                    if size(tool.I{tool.Nvol},3)==1 && size(tool.I{tool.Nvol},4)==1
+                    if size(tool.I{tool.Nvol},3)==1 && size(tool.I{tool.Nvol},4)==1 % no slicing to save memory
                         im = tool.I{tool.Nvol};
                     else
                         im = tool.I{tool.Nvol}(:,:,slice,min(end,tool.Ntime),:,:);
@@ -1607,26 +1613,36 @@ classdef imtool3D < handle
                 n = max(n,3);
                 I = tool.getImage;
                 M = tool.getMask(1);
-                S = tool.getImageSize;
+                Orient = get(tool.handles.Axes,'view');
+                Orient = Orient(1);
+                Indices = unique(round(linspace(1,size(I,tool.viewplane),n)));
                 switch tool.viewplane
                     case 1
-                        Indices = unique(round(linspace(1,size(I,1),n)));
-                        [In,Mrows,Mcols]    = imagemontage(permute(I(Indices,:,:),[2 3 1]));
-                        maskn = imagemontage(permute(M(unique(round(linspace(1,end,n))),:,:),[2 3 1]));
-                        newAspectRatio = size(In)./[size(I,2) size(I,3)];
+                        order = [2 3 1];
                     case 2
-                        Indices = unique(round(linspace(1,size(I,2),n)));
-                        [In,Mrows,Mcols] = imagemontage(permute(I(:,Indices,:),[1 3 2]));
-                        maskn = imagemontage(permute(M(:,unique(round(linspace(1,end,n))),:),[1 3 2]));
-                        newAspectRatio = size(In)./[size(I,1) size(I,3)];
+                        order = [1 3 2];
                     case 3
-                        [In,Mrows,Mcols,Indices] = imagemontage(I,unique(round(linspace(1,size(I,3),n))));
-                        maskn = imagemontage(M(:,:,unique(round(linspace(1,end,n)))));
-                        newAspectRatio = size(In)./[size(I,1) size(I,2)];
+                        order = [1 2 3];
                 end
+                if Orient
+                    I = permute(I,order([2 1 3]));
+                    M = permute(M,order([2 1 3]));
+                else
+                    I = permute(I,order);
+                    M = permute(M,order);
+                end
+                S = size(I);
+                [In,Mrows,Mcols]    = imagemontage(I,Indices);
+                maskn = imagemontage(M,Indices);
+                if Orient
+                    In = permute(In,[2 1 3]);
+                    maskn = permute(maskn,[2 1 3]);
+                    S = S([2 1]);
+                end
+                newAspectRatio = size(In)./[S(1) S(2)];
                 maskn = uint8(maskn);
                 set(tool.handles.Tools.montage,'UserData',[Mrows Mcols Indices(:)']);
-                set(tool.handles.Axes,'DataAspectRatio',tool.aspectRatio.*[newAspectRatio 1]);
+                set(tool.handles.Axes,'DataAspectRatio',tool.getAspectRatio.*[newAspectRatio 1]);
             else
                 In = squeeze(tool.getCurrentImageSlice);
                 maskn = squeeze(tool.getCurrentMaskSlice(1));
@@ -2310,6 +2326,7 @@ if ~isequal(h.Axes,current_object) && ~isequal(h.I,current_object) && ~isequal(h
 end
 
 pos=get(h.Axes,'CurrentPoint');
+rot90on = get(h.Axes,'view'); rot90on = rot90on(1);
 pos=pos(1,1:2);
 n=round(get(h.Slider,'value'));
 if n==0
@@ -2318,9 +2335,14 @@ end
 
 if get(tool.handles.Tools.montage,'Value')
     Msize = get(tool.handles.Tools.montage,'UserData');
+    if ~rot90on
+        Msize([2 1]) = Msize([1 2]);
+    end
+
     if ~isempty(Msize)
         S = tool.getImageSize(1);
         pos = pos.*Msize(1:2);
+        pos = max(0,pos);
         n = Msize(min(end,2+floor(pos(1)/S(2))*Msize(2)+floor(pos(2)/S(1))+1));
         pos(1) = mod(pos(1),S(2));
         pos(2) = mod(pos(2),S(1));
@@ -2331,11 +2353,11 @@ posdim = setdiff(1:3, tool.viewplane);
 if pos(1)>0 && pos(1)<=size(tool.I{tool.Nvol},posdim(2)) && pos(2)>0 && pos(2)<=size(tool.I{tool.Nvol},posdim(1))
     switch tool.viewplane
         case 1
-            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(n,pos(2),pos(1),min(end,tool.Ntime)))])
+            set(h.Info,'String',['(' num2str(pos(2)) ',' num2str(pos(1)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(n,pos(2),pos(1),min(end,tool.Ntime)))])
         case 2
-            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(pos(2),n,pos(1),min(end,tool.Ntime)))])
+            set(h.Info,'String',['(' num2str(pos(2)) ',' num2str(pos(1)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(pos(2),n,pos(1),min(end,tool.Ntime)))])
         case 3
-            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(pos(2),pos(1),n,min(end,tool.Ntime)))])
+            set(h.Info,'String',['(' num2str(pos(2)) ',' num2str(pos(1)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(pos(2),pos(1),n,min(end,tool.Ntime)))])
     end
     notify(tool,'newMousePos')
 else
@@ -2752,10 +2774,14 @@ else
 end
 cols = ceil(nz/rows);
 try
-    M = permute(images.internal.createMontage(permute(I,[2 1 3]), [size(I,2) size(I,1)],...
-    [rows cols], [0 0], [], indices, []),[2 1 3]);
+    
+    M = images.internal.createMontage(I, [size(I,2) size(I,1)],...
+        [rows cols], [0 0], [], indices, []);
 catch
-    M = reshape(I(:,:,indices),[size(I,1)*rows size(I,2)*cols]);
+    rows = 1;
+    cols = ceil(nz/rows);
+    Ipad = cat(3,I(:,:,indices),zeros(size(I,1),size(I,2),cols*rows-nz));
+    M = reshape(Ipad,[size(I,1)*rows size(I,2)*cols]);
 end
 end
 
