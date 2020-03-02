@@ -50,6 +50,7 @@ tool.setAspectRatio([1 1 2.5]) % set voxel size to 1mm x 1mm x 2.5mm
 
 # Demo
 [GBM tumor segmentation](https://www.dailymotion.com/embed/video/x7okm8h)
+[Integration in qMRLab](https://qmrlab.readthedocs.io/en/master/gui_usage.html#data-viewer)
 
 
 
