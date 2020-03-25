@@ -1078,6 +1078,9 @@ classdef imtool3D < handle
             tool.Nvol = max(1,min(Nvol,length(tool.I)));
             % move Mask to current volume
             set(tool.handles.mask,'Parent',tool.handles.Axes(tool.Nvol))
+            if ishandle(tool.handles.grid)
+                set(tool.handles.grid,'Parent',tool.handles.Axes(tool.Nvol))
+            end
             % load new window and level
             NewRange = tool.NvolOpts.Climits{tool.Nvol};
             W=NewRange(2)-NewRange(1); L=mean(NewRange);
@@ -1204,7 +1207,7 @@ classdef imtool3D < handle
                     set(tool.handles.I,'YData',[1 max(2,size(tool.I{tool.getNvol},1))]);
             end
             setupSlider(tool)
-            try, delete(tool.handles.grid); end
+            try, setupGrid(tool); end
 
             
             switch dim
@@ -2140,18 +2143,18 @@ classdef imtool3D < handle
             gColor=[255 38 38]./256;
             mColor=[255 102 102]./256;
             for i=1:nGrid
-                tool.handles.grid(end+1)=plot([.5 size(tool.I{tool.Nvol},posdim(2))-.5],[y(i) y(i)],'-','LineWidth',1.2,'HitTest','off','Color',gColor,'Parent',tool.handles.Axes(end));
-                tool.handles.grid(end+1)=plot([x(i) x(i)],[.5 size(tool.I{tool.Nvol},posdim(1))-.5],'-','LineWidth',1.2,'HitTest','off','Color',gColor,'Parent',tool.handles.Axes(end));
+                tool.handles.grid(end+1)=plot([.5 size(tool.I{tool.Nvol},posdim(2))-.5],[y(i) y(i)],'-','LineWidth',1.2,'HitTest','off','Color',gColor,'Parent',tool.handles.Axes(1));
+                tool.handles.grid(end+1)=plot([x(i) x(i)],[.5 size(tool.I{tool.Nvol},posdim(1))-.5],'-','LineWidth',1.2,'HitTest','off','Color',gColor,'Parent',tool.handles.Axes(1));
                 if i<nGrid
                     xm=linspace(x(i),x(i+1),nMinor+2); xm=xm(2:end-1);
                     ym=linspace(y(i),y(i+1),nMinor+2); ym=ym(2:end-1);
                     for j=1:nMinor
-                        tool.handles.grid(end+1)=plot([.5 size(tool.I{tool.Nvol},posdim(2))-.5],[ym(j) ym(j)],'-r','LineWidth',.9,'HitTest','off','Color',mColor,'Parent',tool.handles.Axes(end));
-                        tool.handles.grid(end+1)=plot([xm(j) xm(j)],[.5 size(tool.I{tool.Nvol},posdim(1))-.5],'-r','LineWidth',.9,'HitTest','off','Color',mColor,'Parent',tool.handles.Axes(end));
+                        tool.handles.grid(end+1)=plot([.5 size(tool.I{tool.Nvol},posdim(2))-.5],[ym(j) ym(j)],'-r','LineWidth',.9,'HitTest','off','Color',mColor,'Parent',tool.handles.Axes(1));
+                        tool.handles.grid(end+1)=plot([xm(j) xm(j)],[.5 size(tool.I{tool.Nvol},posdim(1))-.5],'-r','LineWidth',.9,'HitTest','off','Color',mColor,'Parent',tool.handles.Axes(1));
                     end
                 end
             end
-            tool.handles.grid(end+1)=scatter(.5+size(tool.I,posdim(2))/2,.5+size(tool.I{tool.Nvol},posdim(1))/2,'r','filled','Parent',tool.handles.Axes(end));
+            tool.handles.grid(end+1)=scatter(.5+size(tool.I,posdim(2))/2,.5+size(tool.I{tool.Nvol},posdim(1))/2,'r','filled','Parent',tool.handles.Axes(1));
             
             if get(tool.handles.Tools.Grid,'Value')
                 set(tool.handles.grid,'Visible','on')

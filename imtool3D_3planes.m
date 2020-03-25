@@ -128,22 +128,22 @@ classdef imtool3D_3planes < handle
             S = tool(1).getImageSize;
             y1 = tool(2).getCurrentSlice;
             x1 = tool(3).getCurrentSlice;
-            tool3P.cross.X1 = plot(H.Axes,[x1 x1],[0 S(1)],'r-');
-            tool3P.cross.Y1 = plot(H.Axes,[0 S(2)],[y1 y1],'r-');
+            tool3P.cross.X1 = plot(H.Axes(1),[x1 x1],[0 S(1)],'r-');
+            tool3P.cross.Y1 = plot(H.Axes(1),[0 S(2)],[y1 y1],'r-');
             
             H = tool(2).getHandles;
             S = tool(2).getImageSize;
             y2 = tool(3).getCurrentSlice;
             x2 = tool(1).getCurrentSlice;
-            tool3P.cross.X2 = plot(H.Axes,[x2 x2],[0 S(1)],'r-');
-            tool3P.cross.Y2 = plot(H.Axes,[0 S(3)],[y2 y2],'r-');
+            tool3P.cross.X2 = plot(H.Axes(1),[x2 x2],[0 S(1)],'r-');
+            tool3P.cross.Y2 = plot(H.Axes(1),[0 S(3)],[y2 y2],'r-');
             
             H = tool(3).getHandles;
             S = tool(3).getImageSize;
             y3 = tool(2).getCurrentSlice;
             x3 = tool(1).getCurrentSlice;
-            tool3P.cross.X3 = plot(H.Axes,[x3 x3],[0 S(1)],'r-');
-            tool3P.cross.Y3 = plot(H.Axes,[0 S(3)],[y3 y3],'r-');
+            tool3P.cross.X3 = plot(H.Axes(1),[x3 x3],[0 S(1)],'r-');
+            tool3P.cross.Y3 = plot(H.Axes(1),[0 S(3)],[y3 y3],'r-');
             
             fun = get(tool(1).getHandles.I(1),'ButtonDownFcn');
             set(tool3P.cross.X1,'ButtonDownFcn',fun);
@@ -255,9 +255,13 @@ classdef imtool3D_3planes < handle
         end
 
         function setNvol(tool3P,Nvol)
-            tool3P.tool(2).setNvol(Nvol,0)
-            tool3P.tool(3).setNvol(Nvol,0)
-            tool3P.tool(1).setNvol(Nvol)
+            for ii = [2 3 1]
+                tool3P.tool(ii).setNvol(Nvol,ii==1)
+                H = tool3P.tool(ii).getHandles();
+                Nvol = min(max(1,Nvol),length(tool3P.tool(ii).getImage(1)));
+                set(tool3P.cross.(sprintf('X%d',ii)),'Parent',H.Axes(Nvol))
+                set(tool3P.cross.(sprintf('Y%d',ii)),'Parent',H.Axes(Nvol))
+            end
         end
         
         function showcross(tool3P)            
@@ -375,7 +379,10 @@ switch event.Key
         hidecross(tool3P)
     case 'z'
         tool(1).shortcutCallback(event)
-        
+    case 'uparrow'
+        setNvol(tool3P,tool(1).getNvol()+1)
+    case 'downarrow'
+        setNvol(tool3P,tool(1).getNvol()-1)
     otherwise
         fig = tool(1).getHandles.fig;
         oldWBMF = get(fig,'WindowButtonMotionFcn');
