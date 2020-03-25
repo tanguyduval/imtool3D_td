@@ -279,6 +279,11 @@ classdef imtool3D < handle
                 fig = h;
             end
             
+            if ~exist('overview_zoom_in.png','file')
+                repopath = fileparts(mfilename);
+                addpath(genpath(fullfile(repopath,'src')))
+                addpath(genpath(fullfile(repopath,'External')));
+            end
             %--------------------------------------------------------------
             tool.lockMask = true;
             tool.handles.fig=fig;
@@ -497,7 +502,7 @@ classdef imtool3D < handle
             
             %Create Help Button
             pos = get(tool.handles.Panels.Tools,'Position');
-            tool.handles.Tools.Help             =   uicontrol(tool.handles.Panels.Tools,'Style','pushbutton','String','?','Position',[pos(3)-w-buff buff w w],'TooltipString','Help with imtool3D','BackgroundColor',[0, 0.65, 1]);
+            tool.handles.Tools.Help             =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'Help','Settings'},'Position',[pos(3)-2.5*w buff 4*w w],'TooltipString','Help with imtool3D','BackgroundColor',[0, 0.65, 1]);
 %             icon_profile = makeToolbarIconFromPNG([MATLABicondir 'icon_setting.png']);
 %             set(tool.handles.Tools.Help,'Cdata',icon_profile)
             fun=@(hObject,evnt) displayHelp(hObject,evnt,tool);
@@ -1005,7 +1010,7 @@ classdef imtool3D < handle
             tool.Ntime = min(tool.Ntime,size(I{tool.Nvol},4));
             
             %Update the gridlines
-            try, delete(tool.handles.grid); end
+            try, setupGrid(tool); end
             
             % Create missing image objects
             for it = (length(tool.handles.I)+1):length(I)
@@ -1589,10 +1594,11 @@ classdef imtool3D < handle
             end
             
             mid = mean(get(tool.handles.Axes(tool.Nvol),'Xlim'));
-            set(tool.handles.Axes,'Xlim',[mid-(w-1)/2 mid+(w-1)/2])
-            mid = mean(get(tool.handles.Axes(tool.Nvol),'Ylim'));
-            set(tool.handles.Axes,'Ylim',[mid-(h-1)/2 mid+(h-1)/2])
-            
+            if isfinite(mid+w+h)
+                set(tool.handles.Axes,'Xlim',[mid-(w-1)/2 mid+(w-1)/2])
+                mid = mean(get(tool.handles.Axes(tool.Nvol),'Ylim'));
+                set(tool.handles.Axes,'Ylim',[mid-(h-1)/2 mid+(h-1)/2])
+            end
             
         end
         
@@ -2833,7 +2839,7 @@ try
     buff=(w-wbutt)/2;
     
     pos = get(tool.handles.Panels.Tools,'Position');
-    set(hh.Tools.Help,'Position',[pos(3)-wbutt-buff buff wbutt wbutt]);
+    set(hh.Tools.Help,'Position',[pos(3)-2.5*wbutt buff 4*wbutt wbutt]);
     
     pos=get(hh.Panels.ROItools,'Position');
     for islct=1:5
@@ -2953,7 +2959,10 @@ end
 
 function displayHelp(hObject,evnt,tool)
 %%
-msg = {'imtool3D, written by Justin Solomon',...
+h = get(hObject,'Value');
+if h == 1
+
+    msg = {'imtool3D, written by Justin Solomon',...
     'justin.solomon@duke.edu',...
     'adapted by Tanguy Duval',...
     'https://github.com/tanguyduval/imtool3D_td',...
@@ -2991,10 +3000,11 @@ msg = {'imtool3D, written by Justin Solomon',...
     '[2]                        Select mask label 2',...
     '[...]'};
 h = questdlg(msg,'imtool3D','OK','Preferences','Update','OK');
+end
 switch h
     case 'Update'
         checkUpdate();
-    case 'Preferences'
+    case {'Preferences',2}
         %%
         buttons = {'Orientation', {'Vertical (Photo)','Horizontal (Medical)'}, ...
             'upsample', tool.upsample, ...
