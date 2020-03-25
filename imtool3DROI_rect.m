@@ -160,9 +160,18 @@ classdef imtool3DROI_rect < imtool3DROI
             stats = getMeasurements(ROI);
             
             %set the textbox
-            str = {['Mean: ' num2str(stats.mean,'%+.2f')], ['STD:     ' num2str(stats.STD,'%.2f')]};
-            set(ROI.textHandle,'String',str,'Position',[pos(1) pos(2)-ROI.tbuff]);
+            str = {['Mean: ' num2str(stats.mean,'%+.2f')], ...
+                   ['STD:     ' num2str(stats.STD,'%.2f')],...
+                   ['Area:    ' num2str(stats.area,'%.2f')]};
+            set(ROI.textHandle,'String',str);
             
+            V = get(gca,'View');
+            if V(1)==-90
+                set(ROI.textHandle,'Position',[pos(1)+pos(3)+ROI.tbuff pos(2)])
+            else
+                set(ROI.textHandle,'Position',[pos(1) pos(2)-ROI.tbuff]);
+            end
+
             %notify a new position
             if ~exist('notifoff','var') || ~notifoff
                 notify(ROI,'newROIPosition');
@@ -210,6 +219,7 @@ classdef imtool3DROI_rect < imtool3DROI
             stats.min = min(im);
             stats.max = max(im);
             stats.mask = mask;
+            stats.area = sum(mask(:));
             stats.position = ROI.position;
             
         end

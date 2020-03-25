@@ -118,7 +118,9 @@ classdef imtool3DROI_ellipse < imtool3DROI_rect
             end
             y = pos(2)-ROI.tbuff;
             
-            str = {['Mean: ' num2str(stats.mean,'%+.2f')], ['STD:     ' num2str(stats.STD,'%.2f')]};
+            str = {['Mean: ' num2str(stats.mean,'%+.2f')], ...
+                   ['STD:     ' num2str(stats.STD,'%.2f')], ...
+                   ['Area:     ' num2str(stats.area,'%.2f')]};
             set(ROI.textHandle,'String',str,'Position',[x y]);
             
             %notify a new position
@@ -156,6 +158,7 @@ classdef imtool3DROI_ellipse < imtool3DROI_rect
             stats.min = min(im);
             stats.max = max(im);
             stats.mask = mask;
+            stats.area = sum(mask(:));
             stats.position = ROI.position;
             
         end
