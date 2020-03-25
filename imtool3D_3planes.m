@@ -221,6 +221,12 @@ classdef imtool3D_3planes < handle
             end
         end
         
+        function setOrient(tool3P,orient)
+            for ii=1:length(tool3P.tool)
+                tool3P.tool(ii).setOrient(orient);
+            end
+        end
+
         function setPlaneDisposition(tool3P,M)
             % get limits
             PosC = [inf, inf; -inf -inf];
@@ -233,7 +239,7 @@ classdef imtool3D_3planes < handle
             [Xm,Ym] = size(M);
             PosC(2,:) = PosC(2,:)./[Ym,Xm];
             for ii=1:3
-                [X,Y] = find(M==ii);
+                [X,Y] = find(M==ii,1);
                 if isempty(X), continue; end
                 PosCii = [PosC(1,:)+[(Y-1)*PosC(2,1), (Xm-X)*PosC(2,2)], PosC(2,:)];
                 tool3P.tool(ii).setPosition(PosCii);

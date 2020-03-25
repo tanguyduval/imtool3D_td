@@ -192,6 +192,7 @@ classdef imtool3D < handle
         handles      %Structured variable with all the handles
         centers      %list of bin centers for histogram
         alpha        %transparency of the overlaid mask (default is .2)
+        Orient       % [0,-90] vertical or horizontal
         aspectRatio = [1 1 1];
         viewplane    = 3; % Direction of the 3rd dimension
         optdlg       % option dialog object
@@ -1178,6 +1179,7 @@ classdef imtool3D < handle
                 end
             end
             tool.viewplane = min(3,max(1,round(dim)));
+            tool.setOrient(tool.getOrient);
             showSlice(tool,round(size(tool.I{tool.getNvol},dim)/2))
             switch dim
                 case 1
@@ -1422,32 +1424,48 @@ classdef imtool3D < handle
         end
 
         function Orient = getOrient(tool)
-            Orient = get(tool.handles.Axes(1),'view');
-            Orient = Orient(1);
+            Orient = tool.Orient;
         end
         
-        function setOrient(tool,Orient,savepref)
+        function setOrient(tool,Orientstr,savepref)
             if ~exist('savepref','var')
                 savepref = 0;
             end
             for iax = 1:length(tool.handles.Axes)
-                if isnumeric(Orient)
-                    view(tool.handles.Axes(iax),Orient,90);
+                if isnumeric(Orientstr)
+                    Orient = Orientstr;
                     if abs(Orient)>45
-                        Orient = 'horizontal';
+                        Orientstr = 'horizontal';
                     else
-                        Orient = 'vertical';
+                        if tool.viewplane ~= 3
+                            Orient = Orient-90;
+                        end
+                        Orientstr = 'vertical';
                     end
-                elseif strfind(lower(Orient),'horizontal')
-                    view(tool.handles.Axes(iax),-90,90);
-                elseif strfind(lower(Orient),'vertical')
-                    view(tool.handles.Axes(iax),0,90);
+                elseif strfind(lower(Orientstr),'horizontal')
+                    Orient = -90;
+                    Orientstr = 'horizontal';
+                elseif strfind(lower(Orientstr),'vertical')
+                    if tool.viewplane == 3
+                        Orient = 0;
+                    else
+                        Orient = -90;
+                    end
+                    Orientstr = 'vertical';
                 else
-                    Orient = [];
+                    Orient = get(tool.handles.Axes(1),'view');
+                    Orient = Orient(1);
                 end
+                view(tool.handles.Axes(iax),Orient,90);
             end
             if savepref
-                setpref('imtool3D','rot90',Orient)
+                setpref('imtool3D','rot90',Orientstr)
+            end
+            switch Orientstr
+                case 'horizontal'
+                    tool.Orient = -90;
+                case 'vertical'
+                    tool.Orient = 0;
             end
         end
         
@@ -1883,6 +1901,12 @@ classdef imtool3D < handle
     methods (Access = private)
         
         function showSlice(varargin)
+            persistent timer
+            if isempty(timer), timer=tic; end
+            if toc(timer)<0.1
+                return;
+            end
+
              % Parse inputs
             switch nargin
                 case 1
@@ -1909,12 +1933,11 @@ classdef imtool3D < handle
             for ivol = 1:Nvol
                 tool.Nvol = ivol;
             % Get Slice to show
+            Orient = abs(tool.Orient)>45;
             if get(tool.handles.Tools.montage,'Value')
                 n = max(n,3);
                 I = tool.getImage;
                 M = tool.getMask(1);
-                Orient = get(tool.handles.Axes(tool.Nvol),'view');
-                Orient = Orient(1);
                 Indices = unique(round(linspace(1,size(I,tool.viewplane),n)));
                 switch tool.viewplane
                     case 1
@@ -1992,10 +2015,9 @@ classdef imtool3D < handle
             % apply gamma correction
             if tool.gamma ~= 1
                 switch class(In)
-                    case 'uint8'
+                    case 'uint8' % gamma between 0 and 255
                         In = cast((double(In)/255).^tool.gamma*255,'uint8');
-                    otherwise
-                        CL = get(tool.handles.Axes(tool.Nvol),'Clim');
+                    otherwise % gamma between range(1) and range(2)
                         range = tool.range{tool.Nvol};
                         In = ((double(In)-range(1))/diff(range)).^tool.gamma*range(2)+range(1);
                 end
@@ -2003,7 +2025,6 @@ classdef imtool3D < handle
             
             % SHOW SLICE
             Opac = tool.NvolOpts.Opacity{ivol};
-            CL = get(tool.handles.Axes(tool.Nvol),'Clim');
             if ~tool.upsample || get(tool.handles.Tools.montage,'Value')
                 set(tool.handles.I(tool.Nvol),'CData',In,'AlphaData',Opac)
             else
@@ -2012,7 +2033,7 @@ classdef imtool3D < handle
             end
             end
             tool.Nvol = Nvol;
-            if numel(maskn)>10e7
+            if numel(maskn)>10e7 || ~any(maskn(:))
                 maskrgb = maskn;
             else
                 maskrgb = ind2rgb8(maskn,tool.maskColor);
@@ -2020,7 +2041,7 @@ classdef imtool3D < handle
             
             % SHOW MASK
             set(tool.handles.mask,'CData',maskrgb,'XData',get(tool.handles.I(tool.Nvol),'XData'),'YData',get(tool.handles.I(tool.Nvol),'YData'));
-            if numel(maskn)>10e7
+            if numel(maskn)>10e7 || ~any(maskn(:))
                 alphaLayer = tool.alpha;
             else
                 alphaLayer = tool.alpha*logical(maskn);
@@ -2442,8 +2463,8 @@ end
 end
 
 function resetViewCallback(hObject,evnt,tool)
-set(tool.handles.Axes(tool.Nvol),'Xlim',get(tool.handles.I(tool.Nvol),'XData'))
-set(tool.handles.Axes(tool.Nvol),'Ylim',get(tool.handles.I(tool.Nvol),'YData'))
+set(tool.handles.Axes,'Xlim',get(tool.handles.I(tool.Nvol),'XData'))
+set(tool.handles.Axes,'Ylim',get(tool.handles.I(tool.Nvol),'YData'))
 end
 
 function toggleGrid(hObject,eventdata,tool)
@@ -2658,7 +2679,9 @@ if ord>1
 end
 
 setWL(tool,W,L)
-showSlice(tool)
+if tool.isRGB
+    showSlice(tool)
+end
 end
 
 function adjustZoomMouse(src,~,bp,hObject,tool,xlims,ylims,bpA)
@@ -2737,7 +2760,9 @@ setmaskstatistics(tool,current_object)
 h = tool.getHandles;
 isax = false;
 for iax = 1:length(h.Axes), isax = isax | isequal(h.Axes(iax),current_object); end
-if ~isax && ~ismember(current_object,h.I) && ~isequal(h.mask,current_object)
+for iI = 1:length(h.I), isax = isax | isequal(h.I(iI),current_object); end
+
+if ~isax && ~isequal(h.mask,current_object)
     set(h.Info,'String','(x,y) val')
     return
 end
@@ -2974,7 +2999,8 @@ switch h
         buttons = {'Orientation', {'Vertical (Photo)','Horizontal (Medical)'}, ...
             'upsample', tool.upsample, ...
             'gamma', tool.gamma, ...
-            'PANEL','RGB image',3,...
+            'PANEL','RGB image',4,...
+            'isRGB',tool.isRGB,...
             'RGB dimension', {3,4,5}, ...
             'decorrelation stretch', tool.RGBdecorrstretch, ...
             'align RGB histograms', tool.RGBalignhisto, ...
@@ -2987,6 +3013,9 @@ switch h
         set(tool.handles.fig,'Units','Pixels')
         CallerPos = get(tool.handles.fig, 'Position');
         screensize = get(0,'ScreenSize');
+        NewPos = [min(screensize(3)-250,CallerPos(1)+CallerPos(3)), CallerPos(2), 250, CallerPos(4)];
+        set(H.fig, 'Position', NewPos);
+        
         % delete if main is deleted
         figfun = get(tool.handles.fig,'CloseRequestFcn');
         if ischar(figfun)
@@ -2994,15 +3023,14 @@ switch h
         else
             set(tool.handles.fig,'CloseRequestFcn',@(src,evt) cellfun(@(x) feval(x,src,evt), {figfun,@(h,e) delete(H.fig)}));
         end
-        
-        NewPos = [min(screensize(3)-250,CallerPos(1)+CallerPos(3)), CallerPos(2), 250, CallerPos(4)];
-        set(H.fig, 'Position', NewPos);
-        
+
+        % Add Callbacks for buttons
         Orient = getOrient(tool);
         if abs(Orient)>45, tool.optdlg.setValue('Orientation',2); end
         tool.optdlg.setCallback('Orientation',@(src,evnt) tool.setOrient(src.String{src.Value},true))
         tool.optdlg.setCallback('upsample', @(src,evnt) assignval(tool,'upsample',src.Value))
         tool.optdlg.setCallback('gamma', @(src,evnt) assignval(tool,'gamma',str2num(src.String)))
+        tool.optdlg.setCallback('RGB image_isRGB', @(src,evnt) cellfun(@(f) feval(f,src,evnt), {@(src,evnt) assignval(tool,'isRGB',src.Value),@(src,evnt) tool.showSlice()}))
         tool.optdlg.setCallback('RGB image_RGB dimension', @(src,evnt) assignval(tool,'RGBdim',str2num(src.String{src.Value})))
         tool.optdlg.setCallback('RGB image_decorrelation stretch', @(src,evnt) assignval(tool,'RGBdecorrstretch',src.Value))
         tool.optdlg.setCallback('RGB image_align RGB histograms', @(src,evnt) assignval(tool,'RGBalignhisto',src.Value))
@@ -3233,8 +3261,7 @@ else
 end
 cols = ceil(nz/rows);
 try
-    
-    M = images.internal.createMontage(I, [size(I,2) size(I,1)],...
+    M = images.internal.createMontage(I, [size(I,1) size(I,2)],...
         [rows cols], [0 0], [], indices, []);
 catch
     rows = 1;
