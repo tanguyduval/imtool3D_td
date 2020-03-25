@@ -151,13 +151,14 @@ classdef optiondlg < handle
                                 disablepanel=false;
                             end
                             
-                            ReelPanel(ip) = uipanel('Parent',h,'Title',PanelTitle{ip},'FontSize',11,'FontWeight','bold',...
+                            ReelPanel = uipanel('Parent',h,'Title',PanelTitle{ip},'FontSize',11,'FontWeight','bold',...
                                 'BackgroundColor',[0.94 0.94 0.94],'Position',[x y Width Height]);
                             
-                            if disablepanel, set(ReelPanel(ip),'Visible','off'); end
+                            opt.handles.Panel.(genvarname_v2(PanelTitle{ip})) = ReelPanel;
+                            if disablepanel, set(ReelPanel,'Visible','off'); end
                             
                             
-                            htmp = GenerateButtonsInPanels(buttons(io:NumPanel(2,ip)),ReelPanel(ip),[],tips);
+                            htmp = GenerateButtonsInPanels(buttons(io:NumPanel(2,ip)),ReelPanel,[],tips);
                             
                             f = fieldnames(htmp);
                             
@@ -230,6 +231,10 @@ classdef optiondlg < handle
         
         function setValue(opt,Name,Value)
             set(opt.handles.buttons.(genvarname_v2(Name)),'Value',Value)
+        end
+        
+        function setToolTipString(opt,Name,Value)
+            set(opt.handles.buttons.(genvarname_v2(Name)),'ToolTipString',Value)
         end
         
         function setCallback(opt,Name,CB)
@@ -473,4 +478,5 @@ str = strrep(str,'�','e');
 str = strrep(str,'[','_');
 str = strrep(str,']','_');
 str = strrep(str,',','');
+str = strrep(str,'?','Q');
 end
