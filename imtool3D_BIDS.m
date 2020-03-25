@@ -70,7 +70,7 @@ end
 for ii=1:length(tool)
     tool(ii).setImage(dat);
     tool(ii).setAspectRatio(hdr.pixdim(2:4));
-    tool(ii).setlabel(list);
+    tool(ii).label = list;
 end
 if ishandle(ht), delete(ht); end
 

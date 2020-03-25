@@ -46,6 +46,9 @@ else
     dat = squeeze(dat);
     dat = permute(dat(end:-1:1,:,:),[2 1 3]); % LPI orientation
     list = {'Template'};
+    niiinit = nii_tool('init',dat);
+    hdr = niiinit.hdr;
+    hdr.file_name = 'MRI EXAMPLE';
     hdr.pixdim = [4 1 1 2.5];
     untouch = false;
 end
@@ -67,7 +70,7 @@ end
 
 % Set Labels
 for ii=1:length(tool)
-    tool(ii).setlabel(list);
+    tool(ii).label = list;
 end
 
 % set voxelsize
@@ -145,23 +148,33 @@ function loadImage(hObject,tool,hdr)
 set(hObject, 'Enable', 'off');
 drawnow;
 set(hObject, 'Enable', 'on');
+if ~isfield(hdr,'file_name'), hdr.file_name = fullfile(pwd,'Mask.nii.gz'); end
 path = fileparts(hdr.file_name);
 [FileName,PathName] = uigetfile('*.nii;*.nii.gz','Load NIFTI',path,'MultiSelect', 'on');
 if isequal(FileName,0)
     return;
 end
-if iscell(FileName)
-    dat = nii_load([{hdr},fullfile(PathName,FileName)]);
+if strcmp(hdr.file_name,'MRI EXAMPLE')
+    dat = nii_load(fullfile(PathName,FileName));
+    for ii=1:length(tool)
+        tool(ii).setImage(dat(:))
+        tool(ii).setNvol(1);
+        tool(ii).label = fullfile(PathName,FileName);
+    end
 else
-    dat = nii_load({hdr,fullfile(PathName,FileName)});
+    if iscell(FileName)
+        dat = nii_load([{hdr},fullfile(PathName,FileName)]);
+    else
+        dat = nii_load({hdr,fullfile(PathName,FileName)});
+    end
+    I = tool(1).getImage(1);
+    for ii=1:length(tool)
+        tool(ii).setImage([I(:)',dat(:)'])
+        tool(ii).setNvol(1+length(I));
+        tool(ii).label = fullfile(PathName,FileName);
+    end
 end
 
-I = tool(1).getImage(1);
-for ii=1:length(tool)
-    tool(ii).setImage([I(:)',dat(:)'])
-    tool(ii).setNvol(1+length(I));
-    tool(ii).setlabel(fullfile(PathName,FileName))
-end
 
 function icon = makeToolbarIconFromPNG(filename)
 % makeToolbarIconFromPNG  Creates an icon with transparent
@@ -254,7 +267,7 @@ else
     for ii=1:length(tool)
         tool(ii).setImage(dat)
         tool(ii).setAspectRatio(hdr.pixdim(2:4));
-        tool(ii).setlabel(data)
+        tool(ii).label = data;
     end
 end
 

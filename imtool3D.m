@@ -1634,63 +1634,68 @@ classdef imtool3D < handle
             Mask = tool.getMask(1);
             if any(Mask(:))
                 if ~exist('hdr','var')
-                    maskfname = 'Mask.nii.gz';
+                    maskfname = 'Mask.tif';
+                    filters = {'*.tif';'*.nii.gz;*.nii';'*.mat'};
                 else
                     path = fileparts(hdr.file_name);
                     maskfname = fullfile(path,'Mask.nii.gz');
+                    filters = {'*.nii.gz;*.nii';'*.mat';'*.tif'};
                 end
-                [FileName,PathName, ext] = uiputfile({'*.nii.gz;*.nii';'*.mat';'*.tif'},'Save Mask',maskfname);
+                [FileName,PathName] = uiputfile(filters,'Save Mask',maskfname);
+                [~,~,ext] = fileparts(FileName);
                 if isequal(FileName,0)
                     return;
                 end
                 FileName = strrep(FileName,'.gz','.nii.gz');
                 FileName = strrep(FileName,'.nii.nii','.nii');
-                if ext==1 || ext>3  % .nii.gz
-                    if ~exist('hdr','var')
-                        err=1;
-                        while(err)
-                            answer = inputdlg2({'save as:','browse reference scan'},'save mask',[1 50],{fullfile(PathName,FileName), ''});
-                            if isempty(answer), err=0; break; end
-                            if ~isempty(answer{1})
-                                answer{1} = strrep(answer{1},'.gz','.nii.gz');
-                                answer{1} = strrep(answer{1},'.nii.nii','.nii');
-                                if ~isempty(answer{2})
-                                    try
-                                        save_nii_v2(tool.getMask(1),answer{1},answer{2},8);
+                switch ext
+                    case {'.nii','.gz'}  % .nii.gz
+                        if ~exist('hdr','var')
+                            err=1;
+                            while(err)
+                                answer = inputdlg2({'save as:','browse reference scan'},'save mask',[1 50],{fullfile(PathName,FileName), ''});
+                                if isempty(answer), err=0; break; end
+                                if ~isempty(answer{1})
+                                    answer{1} = strrep(answer{1},'.gz','.nii.gz');
+                                    answer{1} = strrep(answer{1},'.nii.nii','.nii');
+                                    if ~isempty(answer{2})
+                                        try
+                                            [~,hdr] = nii_load(answer{2});
+                                            nii_save(tool.getMask(1),hdr,answer{1});
+                                            err=0;
+                                        catch bug
+                                            uiwait(warndlg(bug.message,'wrong reference','modal'))
+                                        end
+                                    else
+                                        nii_save(uint8(tool.getMask(1)),[],answer{1})
                                         err=0;
-                                    catch bug
-                                        uiwait(warndlg(bug.message,'wrong reference','modal'))
                                     end
-                                else
-                                    save_nii_v2(make_nii(uint8(tool.getMask(1))),answer{1},[],8);
-                                    err=0;
                                 end
                             end
-                        end
-                    else
-                        hdr.scl_slope=1; % no slope for Mask
-                        hdr.scl_inter=0;
-                        nii_save(Mask,hdr,fullfile(PathName,FileName))
-                    end
-                elseif ext==2 % .mat
-                    save(fullfile(PathName,FileName),'Mask');
-                elseif ext==3 % .tif
-                    Mask = tool.getMask(1);
-                    for z=1:size(Mask,tool.viewplane)
-                        switch tool.viewplane
-                            case 1
-                                Maskz = Mask(z,:,:);
-                            case 2
-                                Maskz = Mask(:,z,:);
-                            case 3
-                                Maskz = Mask(:,:,z);
-                        end
-                        if z==1
-                            imwrite(uint8(Maskz), [PathName FileName], 'WriteMode', 'overwrite',  'Compression','none');
                         else
-                            imwrite(uint8(Maskz), [PathName FileName], 'WriteMode', 'append',  'Compression','none');
+                            hdr.scl_slope=1; % no slope for Mask
+                            hdr.scl_inter=0;
+                            nii_save(Mask,hdr,fullfile(PathName,FileName))
                         end
-                    end
+                    case '.mat'
+                        save(fullfile(PathName,FileName),'Mask');
+                    case '.tif'
+                        Mask = tool.getMask(1);
+                        for z=1:size(Mask,tool.viewplane)
+                            switch tool.viewplane
+                                case 1
+                                    Maskz = Mask(z,:,:);
+                                case 2
+                                    Maskz = Mask(:,z,:);
+                                case 3
+                                    Maskz = Mask(:,:,z);
+                            end
+                            if z==1
+                                imwrite(uint8(Maskz), [PathName FileName], 'WriteMode', 'overwrite',  'Compression','none');
+                            else
+                                imwrite(uint8(Maskz), [PathName FileName], 'WriteMode', 'append',  'Compression','none');
+                            end
+                        end
                 end
             else
                 warndlg('Mask empty... Draw a mask using the brush tools on the right')
@@ -1707,24 +1712,29 @@ classdef imtool3D < handle
             else
                 path = 'Mask.nii.gz';
             end
-            [FileName,PathName, ext] = uigetfile({'*.nii;*.nii.gz','NIFTI file (*.nii,*.nii.gz)';'*.mat','MATLAB File (*.mat)';'*.tif','Image Stack (*.tif)'},'Load Mask',path);
-            if ext==1 % .nii.gz
-                if exist('hdr','var')
-                    Mask = nii_load([{hdr} fullfile(PathName,FileName)],0,'nearest');
-                else
-                    Mask = nii_load(fullfile(PathName,FileName));
-                end
-                Mask = Mask{1};
-            elseif ext==2 % .mat
-                load(fullfile(PathName,FileName));
-            elseif ext==3 % .tif
-                info = imfinfo(fullfile(PathName,FileName));
-                num_images = numel(info);
-                for k = 1:num_images
-                    Mask(:,:,k) = imread(fullfile(PathName,FileName), k);
-                end
-            else
-                return
+            [FileName,PathName] = uigetfile('*','Load Mask');
+            if isequal(FileName,0), return; end
+            [~,~,ext] = fileparts(FileName);
+            switch ext
+                case {'.nii','.gz'} % .nii.gz
+                    if exist('hdr','var')
+                        Mask = nii_load([{hdr} fullfile(PathName,FileName)],0,'nearest');
+                    else
+                        Mask = nii_load(fullfile(PathName,FileName));
+                    end
+                    Mask = Mask{1};
+                case '.mat'
+                    load(fullfile(PathName,FileName));
+                case '.tif'
+                    info = imfinfo(fullfile(PathName,FileName));
+                    num_images = numel(info);
+                    for k = 1:num_images
+                        Mask(:,:,k) = imread(fullfile(PathName,FileName), k);
+                    end
+                case {'.png','.jp2','.jpg','.bmp'}
+                    Mask = imread(fullfile(PathName,FileName));
+                otherwise
+                    return
             end
             S = tool.getImageSize(0);
             if ~isequal([size(Mask,1) size(Mask,2) size(Mask,3)],S(1:3))
