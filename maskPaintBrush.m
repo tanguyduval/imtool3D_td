@@ -19,7 +19,7 @@ classdef maskPaintBrush < handle
             
             %get the parent axes handle
             h = getHandles(tool);
-            brush.handles.parent = h.Axes;
+            brush.handles.parent = h.Axes(tool.getNvol);
             brush.handles.fig = h.fig;
             brush.handles.tool=tool;
             

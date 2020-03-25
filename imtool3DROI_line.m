@@ -92,7 +92,7 @@ classdef imtool3DROI_line < imtool3DROI
             %Define the context menu options (i.e., what happens when you
             %right click on the ROI)
             menuLabels = {'Export stats','Plot profile','Hide Text','Hide profile', 'Delete', 'Symmetrize mask (current slice)', 'Symmetrize mask (all slices)', 'Split mask (current slice)', 'Split mask (all slices)'};
-            if ~exist('tool','var') || isempty(tool), menuLabels(end) = []; tool = []; end
+            if ~exist('tool','var') || isempty(tool), menuLabels(6:end) = []; tool = []; end
             menuFunction = @contextMenuCallback;
             
             %create the ROI object from the superclass
@@ -176,7 +176,8 @@ classdef imtool3DROI_line < imtool3DROI
             
             %get the line profile data
             [cx,cy,pv] = improfile(ROI.imageHandle.XData,ROI.imageHandle.YData,im,position(:,1),position(:,2));
-            
+            if ndims(pv)>1, pv = mean(pv,3); end % RGB
+                
             %get the stats
             stats.mean = mean(pv);
             stats.STD = std(pv);
@@ -283,6 +284,7 @@ switch get(source,'Label')
     case 'Export stats'
         [stats, ~,~] = getMeasurements(ROI);
         name = inputdlg('Enter variable name');
+        if isempty(name), return; end
         name=name{1};
         assignin('base', name, stats)
     case 'Plot profile'

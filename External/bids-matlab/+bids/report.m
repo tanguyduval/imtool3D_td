@@ -101,7 +101,7 @@ for iSess = Ses
         
         switch types_ls{iType}
             
-            case {'T1w' 'inplaneT2' 'T1map' 'FLASH'}
+            case {'T1w' 'inplaneT2' 'T1map' 'FLASH' 'FLAIR'}
                 
                 %% Anatomical
                 fprintf('Working on anat...\n')
@@ -308,7 +308,7 @@ acq_param.n_vols  = '[XXXX]';
 
 
 %% look into the metadata sub-structure for BOLD data
-if ismember(type, {'T1w' 'inplaneT2' 'T1map' 'FLASH' 'dwi'})
+if ismember(type, {'T1w' 'FLAIR' 'inplaneT2' 'T1map' 'FLASH' 'dwi'})
     
     filename = bids.query(BIDS, 'data', 'sub', subj, 'ses', sess, 'type', type);
     metadata = bids.query(BIDS, 'metadata', 'sub', subj, 'ses', sess, 'type', type);
@@ -355,6 +355,13 @@ if isfield(metadata, 'IntendedFor')
     acq_param.for_str = metadata.IntendedFor;
 end
 
+if isfield(metadata, 'SequenceVariant')
+    acq_param.variants = metadata.SequenceVariant;
+end
+
+if isfield(metadata, 'ScanningSequence')
+    acq_param.seqs = metadata.ScanningSequence;
+end
 %% try to read the relevant .nii.gz file to get more info from it
 if ReadGZ
     fprintf('  Opening file %s.\n',filename{1})
@@ -362,15 +369,15 @@ if ReadGZ
     if exist('spm_vol','file') == 2
     try
         % read the header of the nifti file
-        hdr = spm_vol(filename{1});
-        acq_param.n_vols  = num2str(numel(hdr)); % nb volumes
+        hdr = nii_tool('hdr',filename{1});
+        acq_param.n_vols  = num2str(hdr.dim(5)); % nb volumes
         
         hdr = hdr(1);
-        dim = abs(hdr.dim);
+        dim = abs(hdr.dim(2:end));
         acq_param.n_slices = sprintf('%i', dim(3)); % nb slices
         acq_param.ms = sprintf('%i X %i', dim(1), dim(2)); %matrix size
         
-        vs = abs(diag(hdr.mat));
+        vs = abs(hdr.pixdim(2:end));
         acq_param.vs = sprintf('%.2f X %.2f X %.2f', vs(1), vs(2), vs(3)); % voxel size
         
         acq_param.fov = sprintf('%.2f X %.2f', vs(1)*dim(1), vs(2)*dim(2)); % field of view

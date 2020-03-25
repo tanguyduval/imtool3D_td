@@ -1,7 +1,7 @@
     
 classdef imtool3D < handle
     %This is a image slice viewer with built in scroll, contrast, zoom and
-    %ROI tools. 
+    %ROI tools.
     %
     %   Use this class to place a self-contained image viewing panel within
     %   a GUI (or any figure). Similar to imtool but with slice scrolling.
@@ -147,7 +147,7 @@ classdef imtool3D < handle
     %
     %                   2.3.1- Make sure the figure is centered when
     %                   creating an imtool3D object in a new figure
-    % 
+    %
     %                   2.3.2- Squished a few bugs for older Matlab
     %                   versions. Added method to set and get the
     %                   transparency of the overlaid mask. Refined the
@@ -171,7 +171,7 @@ classdef imtool3D < handle
     %
     %                   2.4.2- Added a "smart" paint brush which helps to
     %                   segment borders cleanly.
-    %   
+    %
     %   Created in MATLAB_R2015b
     %
     %   Requires the image processing toolbox
@@ -193,9 +193,8 @@ classdef imtool3D < handle
         centers      %list of bin centers for histogram
         alpha        %transparency of the overlaid mask (default is .2)
         aspectRatio = [1 1 1];
-        viewplane    = 3; % Direction of the 3rd dimension 
-        label        = {''};
-        
+        viewplane    = 3; % Direction of the 3rd dimension
+        optdlg       % option dialog object
     end
     
     properties
@@ -203,7 +202,14 @@ classdef imtool3D < handle
         upsample = false;
         upsampleMethod = 'lanczos3'; %Can be any of {'bilinear','bicubic','box','triangle','cubic','lanczos2','lanczos3'}
         Visible = true;              %lets the user hide the imtool3D panel
-        brushsize = 5;
+        brushsize = 5; % default size of the brush
+        gamma = 1; % gamma correction
+        isRGB        = false; % colored image?
+        RGBindex     = [1 2 3]; % R, G, and B bands index in case of color image
+        RGBdim       = 3; % [3, 4 or 5] dimension along which RGB planes are extracted
+        RGBdecorrstretch = false;
+        RGBalignhisto = false;
+        label        = {''};
     end
     
     properties (Dependent = true)
@@ -217,7 +223,7 @@ classdef imtool3D < handle
         newMousePos
         newSlice
     end
-     
+    
     methods
         
         function tool = imtool3D(varargin)  %Constructor
@@ -226,7 +232,9 @@ classdef imtool3D < handle
             [I, position, h, range, tools, mask, enableHist] = parseinputs(varargin{:});
             
             % display figure
+            Orient = uigetpref('imtool3D','rot90','Set orientation','How to display the first dimension of the matrix?',{'Vertically (Photo)','Horizontally (Medical)'},'CheckboxState',1,'HelpString','Help','HelpFcn','helpdlg({''If this option is wrongly set, image will be rotated by 90°.'', ''Horizontal orientation is used in NIFTI Medical format'', '''', ''This preference can be reset in the help button.'', '''', ''Orientation can also be changed while viewing an image using the command: tool.setOrient(''''vertical'''')''})');
             if isempty(h)
+                
                 h=figure;
                 set(h,'Toolbar','none','Menubar','none','NextPlot','new')
                 set(h,'Units','Pixels');
@@ -237,25 +245,31 @@ classdef imtool3D < handle
                 else
                     S = [size(I,1) size(I,2) size(I,3)];
                 end
-                AI=S(2)/S(1); %input Ratio of the image
+                
+                if strfind(lower(Orient),'vertical')
+                        AI=S(2)/S(1); %input Ratio of the image
+                else
+                        AI=S(1)/S(2); %input Ratio of the image
+                end
+                
                 if Af>AI    %Figure is too wide, make it taller to match
-                   pos(4)=pos(3)/AI; 
+                    pos(4)=pos(3)/AI;
                 elseif Af<AI    %Figure is too long, make it wider to match
                     pos(3)=AI*pos(4);
                 end
                 
                 %set minimal size
-                pos(3)=max(600,pos(3));
-                pos(4)=max(500,pos(4));
+                screensize = get(0,'ScreenSize');
+                pos(3)=min(max(600,pos(3)),screensize(3));
+                pos(4)=min(max(500,pos(4)),screensize(4));
                 
                 %make sure the figure is centered
-                screensize = get(0,'ScreenSize');
                 pos(1) = ceil((screensize(3)-pos(3))/2);
-                pos(2) = ceil((screensize(4)-pos(4))/2); 
+                pos(2) = ceil((screensize(4)-pos(4))/2);
                 set(h,'Position',pos)
                 set(h,'Units','normalized');
             end
-                        
+            
             %find the parent figure handle if the given parent is not a
             %figure
             if ~strcmp(get(h,'type'),'figure')
@@ -275,9 +289,9 @@ classdef imtool3D < handle
                                 0     1     1;
                                 0     0     1;
                                 1     0     1];
-                tool.maskColor = cat(1,tool.maskColor,colorcube(30));
-                tool.maskColor(end-5:end,:) = [];
-                tool.maskColor(end+1,:)     = [0.8500    0.3250    0.0980];
+            tool.maskColor = cat(1,tool.maskColor,colorcube(30));
+            tool.maskColor(end-5:end,:) = [];
+            tool.maskColor(end+1,:)     = [0.8500    0.3250    0.0980];
             tool.maskSelected = 1;
             tool.maskHistory  = cell(1,10);
             tool.alpha = .2;
@@ -288,8 +302,8 @@ classdef imtool3D < handle
             w=30; %Pixel width of the side panels
             h=110; %Pixel height of the histogram panel
             wbutt=20; %Pixel size of the buttons
-            tool.handles.Panels.Large   =   uipanel(tool.handles.parent,'Units','normalized','Position',position,'Title','','Tag','imtool3D'); 
-            pos=getpixelposition(tool.handles.parent); pos(1) = pos(1)+position(1)*pos(3); pos(2) = pos(2)+position(2)*pos(4); pos(3) = pos(3)*position(3); pos(4) = pos(4)*position(4); 
+            tool.handles.Panels.Large   =   uipanel(tool.handles.parent,'Units','normalized','Position',position,'Title','','Tag','imtool3D');
+            pos=getpixelposition(tool.handles.parent); pos(1) = pos(1)+position(1)*pos(3); pos(2) = pos(2)+position(2)*pos(4); pos(3) = pos(3)*position(3); pos(4) = pos(4)*position(4);
             tool.handles.Panels.Hist   =   uipanel(tool.handles.Panels.Large,'Units','Pixels','Position',[w pos(4)-w-h pos(3)-2*w h],'Title','');
             tool.handles.Panels.Image   =   uipanel(tool.handles.Panels.Large,'Units','Pixels','Position',[w w pos(3)-2*w pos(4)-2*w],'Title','');
             tool.handles.Panels.Tools   =   uipanel(tool.handles.Panels.Large,'Units','Pixels','Position',[0 pos(4)-w pos(3) w],'Title','');
@@ -304,18 +318,22 @@ classdef imtool3D < handle
                 set(objarr,'BackgroundColor','k','ForegroundColor','w','HighlightColor','k');
             end
             
+            %Create Color Channel Picker below slider for rgb images
+            butString = {'.','R','G','B'};
+            tool.handles.SliderColor = uicontrol(tool.handles.Panels.Slider,'Style','pushbutton','String',butString{1},'Position',[max(0,w-wbutt) 0 wbutt wbutt],'TooltipString',sprintf('Color channel used by slider:\n.  channels are split\nR  slider control red\nG  slider control green\nB  slider control Blue'));
+            fun=@(src,evnt)SelectSliderColor(tool);
+            set(tool.handles.SliderColor,'Callback',fun)
             
             %Create Slider for scrolling through image stack
-            tool.handles.Slider         =   uicontrol(tool.handles.Panels.Slider,'Style','Slider','Units','Normalized','Position',[0 0 1 1],'TooltipString','Change Slice (can use scroll wheel also)');
+            tool.handles.Slider         =   uicontrol(tool.handles.Panels.Slider,'Style','Slider','Position',[0 wbutt w pos(4)-2*w-wbutt],'TooltipString','Change Slice (can use scroll wheel also)');
             fun=@(scr,evnt)multipleScrollWheel(scr,evnt,[tool tools]);
             set(tool.handles.fig,'WindowScrollWheelFcn',fun);
-           
             
             %Create image axis
             tool.handles.Axes           =   axes('Position',[0 0 1 1],'Parent',tool.handles.Panels.Image,'Color','none');
             tool.handles.I              =   imshow(zeros(3,3),[0 1],'Parent',tool.handles.Axes); hold on;
             set(tool.handles.I,'Clipping','off')
-            view(tool.handles.Axes,-90,90);
+            tool.setOrient(Orient)
             set(tool.handles.Axes,'XLimMode','manual','YLimMode','manual','Clipping','off');
             
             
@@ -331,9 +349,10 @@ classdef imtool3D < handle
             tool.handles.Info=uicontrol(tool.handles.Panels.Info,'Style','text','String','(x,y) val','Units','Normalized','Position',[0 .1 .5 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Left');
             fun=@(src,evnt)getImageInfo(src,evnt,tool);
             set(tool.handles.fig,'WindowButtonMotionFcn',fun);
-            tool.handles.SliceText=uicontrol(tool.handles.Panels.Info,'Style','text','String','','Units','Normalized','Position',[.5 .1 .48 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Right', 'TooltipString', 'Use arrows to navigate through time (4th dim) and volumes (5th dim)');
-            tool.handles.LabelText=uicontrol(tool.handles.Panels.Info,'Style','text','Units','Normalized','Position',[.25 .1 .3 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Center');
-
+            %tool.handles.LabelText=uicontrol(tool.handles.Panels.Info,'Style','text','Units','Normalized','Position',[.25 .1 .3 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Center');
+            tool.handles.LabelText=annotation(tool.handles.Panels.Image,'textbox','EdgeColor','none','String','','Position',[0 0 1 0.05],'Color',[1 1 1]);
+            tool.handles.SliceText=uicontrol(tool.handles.Panels.Info,'Style','text','String','','Units','Normalized','Position',[.5 .1 .43 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Right', 'TooltipString', 'Use arrows to navigate through time (4th dim) and volumes (5th dim)');
+            
             %Set up mouse button controls
             fun=@(hObject,eventdata) imageButtonDownFunction(hObject,eventdata,tool);
             set(tool.handles.mask,'ButtonDownFcn',fun)
@@ -360,7 +379,11 @@ classdef imtool3D < handle
             %set(tool.handles.Panels.Image,'Visible','off')
             if enableHist
                 tool.handles.HistAxes           =   axes('Position',[.025 .15 .95 .55],'Parent',tool.handles.Panels.Hist);
-                tool.handles.HistLine=plot([0 1],[0 1],'-w','LineWidth',1);
+                hold(tool.handles.HistAxes,'on')
+                tool.handles.HistLine=[plot([0 1],[0 1],'-w','LineWidth',1);...
+                    plot([0 1],[0 1],'-g','LineWidth',1);...
+                    plot([0 1],[0 1],'-b','LineWidth',1)];
+                hold(tool.handles.HistAxes,'off');
                 set(tool.handles.HistAxes,'Color','none','XColor','w','YColor','w','FontSize',9,'YTick',[])
                 axis on
                 hold on
@@ -385,7 +408,8 @@ classdef imtool3D < handle
                 
                 %Create histogram checkbox
                 tool.handles.Tools.Hist     =   uicontrol(tool.handles.Panels.Tools,'Style','ToggleButton','String','','Position',[buff buff w w],'TooltipString','Show Colorbar');
-                icon_colorbar = makeToolbarIconFromPNG(fullfile(MATLABdir,'tool_colorbar.png'));
+                MATLABicondir = fullfile(toolboxdir('matlab'), 'icons');
+                icon_colorbar = makeToolbarIconFromPNG(fullfile(MATLABicondir,'tool_colorbar.png'));
                 set(tool.handles.Tools.Hist,'CData',icon_colorbar)
                 fun=@(hObject,evnt) ShowHistogram(hObject,evnt,tool,wp,h);
                 set(tool.handles.Tools.Hist,'Callback',fun)
@@ -397,11 +421,11 @@ classdef imtool3D < handle
             %Set up the resize function
             fun=@(x,y) panelResizeFunction(x,y,tool,wp,h,wbutt);
             set(tool.handles.Panels.Large,'ResizeFcn',fun)
-
             
+            %% TOOLBAR ON TOP
             %Create window and level boxes
             tool.handles.Tools.TL       =   uicontrol(tool.handles.Panels.Tools,'Style','text','String','L','Position',[lp+buff buff w w],'BackgroundColor','k','ForegroundColor','w','TooltipString',sprintf('Intensity Window Lower Bound\n(left click and drag on the image to control window width and level)'));
-            tool.handles.Tools.L        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String','0','Position',[lp+buff+w buff 2*w w],'TooltipString',sprintf('Intensity Window Lower Bound\n(left click and drag on the image to control window width and level)'),'BackgroundColor',[.2 .2 .2],'ForegroundColor','w'); 
+            tool.handles.Tools.L        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String','0','Position',[lp+buff+w buff 2*w w],'TooltipString',sprintf('Intensity Window Lower Bound\n(left click and drag on the image to control window width and level)'),'BackgroundColor',[.2 .2 .2],'ForegroundColor','w');
             tool.handles.Tools.TU       =   uicontrol(tool.handles.Panels.Tools,'Style','text','String','U','Position',[lp+2*buff+3*w buff w w],'BackgroundColor','k','ForegroundColor','w','TooltipString',sprintf('Intensity Window Upper Bound\n(left click and drag on the image to control window width and level)'));
             tool.handles.Tools.U        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String','1','Position',[lp+2*buff+4*w buff 2*w w],'TooltipString',sprintf('Intensity Window Upper Bound\n(left click and drag on the image to control window width and level)'),'BackgroundColor',[.2 .2 .2],'ForegroundColor','w');
             tool.handles.Tools.TO       =   uicontrol(tool.handles.Panels.Tools,'Style','text','String','O','Position',[lp+2*buff+6*w buff w w],'BackgroundColor','k','ForegroundColor','w','TooltipString',sprintf('Opacity'));
@@ -450,7 +474,7 @@ classdef imtool3D < handle
             %Create save button
             tool.handles.Tools.Save           =   uicontrol(tool.handles.Panels.Tools,'Style','pushbutton','String','','Position',[lp buff w w]);
             lp=lp+w+buff;
-            icon_save = makeToolbarIconFromPNG([MATLABdir '/file_save.png']);
+            icon_save = makeToolbarIconFromPNG([MATLABicondir '/file_save.png']);
             set(tool.handles.Tools.Save,'CData',icon_save);
             fun=@(hObject,evnt) saveImage(tool,hObject);
             set(tool.handles.Tools.Save,'Callback',fun)
@@ -469,31 +493,34 @@ classdef imtool3D < handle
             lp=lp+w+buff;
             fun=@(hObject,evnt) showSlice(tool,12+(1-get(hObject,'Value'))*(round(size(tool.I{tool.Nvol},tool.viewplane)/2)-12)); % show 12 slices by default
             set(tool.handles.Tools.montage,'Callback',fun)
-
+            
             %Create Help Button
             pos = get(tool.handles.Panels.Tools,'Position');
             tool.handles.Tools.Help             =   uicontrol(tool.handles.Panels.Tools,'Style','pushbutton','String','?','Position',[pos(3)-w-buff buff w w],'TooltipString','Help with imtool3D','BackgroundColor',[0, 0.65, 1]);
+%             icon_profile = makeToolbarIconFromPNG([MATLABicondir 'icon_setting.png']);
+%             set(tool.handles.Tools.Help,'Cdata',icon_profile)
             fun=@(hObject,evnt) displayHelp(hObject,evnt,tool);
             set(tool.handles.Tools.Help,'Callback',fun)
-
+            
+            %% MASK TOOLBAR ON RIGHT
             %Create mask2poly button
             tool.handles.Tools.mask2poly             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff w w],'TooltipString','Mask2Poly');
-            icon_profile = makeToolbarIconFromPNG([MATLABdir '/linkproduct.png']);
+            icon_profile = makeToolbarIconFromPNG([MATLABicondir '/linkproduct.png']);
             set(tool.handles.Tools.mask2poly ,'Cdata',icon_profile)
             fun=@(hObject,evnt) mask2polyImageCallback(hObject,evnt,tool);
             set(tool.handles.Tools.mask2poly ,'Callback',fun)
             addlistener(tool,'newSlice',@tool.SliceEvents);
-
+            
             %Create Circle ROI button
             tool.handles.Tools.CircleROI           =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+w w w],'TooltipString','Create Elliptical ROI');
-            icon_ellipse = makeToolbarIconFromPNG([MATLABdir '/tool_shape_ellipse.png']);
+            icon_ellipse = makeToolbarIconFromPNG([MATLABicondir '/tool_shape_ellipse.png']);
             set(tool.handles.Tools.CircleROI,'Cdata',icon_ellipse)
             fun=@(hObject,evnt) measureImageCallback(hObject,evnt,tool,'ellipse');
             set(tool.handles.Tools.CircleROI,'Callback',fun)
             
             %Create Square ROI button
             tool.handles.Tools.SquareROI           =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+2*w w w],'TooltipString','Create Rectangular ROI');
-            icon_rect = makeToolbarIconFromPNG([MATLABdir '/tool_shape_rectangle.png']);
+            icon_rect = makeToolbarIconFromPNG([MATLABicondir '/tool_shape_rectangle.png']);
             set(tool.handles.Tools.SquareROI,'Cdata',icon_rect)
             fun=@(hObject,evnt) measureImageCallback(hObject,evnt,tool,'rectangle');
             set(tool.handles.Tools.SquareROI,'Callback',fun)
@@ -505,25 +532,25 @@ classdef imtool3D < handle
             
             %Create line profile button
             tool.handles.Tools.Ruler             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+4*w w w],'TooltipString','Measure Distance');
-            icon_distance = makeToolbarIconFromPNG([MATLABdir '/tool_line.png']);
+            icon_distance = makeToolbarIconFromPNG([MATLABicondir '/tool_line.png']);
             set(tool.handles.Tools.Ruler,'CData',icon_distance);
             fun=@(hObject,evnt) measureImageCallback(hObject,evnt,tool,'profile');
             set(tool.handles.Tools.Ruler,'Callback',fun)
-
+            
             %Create smooth3 button
             tool.handles.Tools.smooth3             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+5*w w w],'TooltipString','Smooth Mask in 3D');
             icon_profile = makeToolbarIconFromPNG('icon_smooth3.png');
             set(tool.handles.Tools.smooth3 ,'Cdata',icon_profile)
             fun=@(hObject,evnt) smooth3Callback(hObject,evnt,tool);
             set(tool.handles.Tools.smooth3 ,'Callback',fun)
-
+            
             %Create maskinterp button
             tool.handles.Tools.maskinterp             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+6*w w w],'TooltipString','Interp Mask');
             icon_profile = makeToolbarIconFromPNG('icon_interpmask.png');
             set(tool.handles.Tools.maskinterp ,'Cdata',icon_profile)
             fun=@(hObject,evnt) maskinterpImageCallback(hObject,evnt,tool);
             set(tool.handles.Tools.maskinterp ,'Callback',fun)
-
+            
             %Create active countour button
             tool.handles.Tools.maskactivecontour             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+7*w w w],'TooltipString','Active Contour 3D');
             icon_profile = makeToolbarIconFromPNG('icon_activecontour.png');
@@ -532,10 +559,10 @@ classdef imtool3D < handle
             set(tool.handles.Tools.maskactivecontour ,'Callback',fun)
             addlistener(tool,'maskChanged',@tool.maskEvents);
             addlistener(tool,'maskUndone',@tool.maskEvents);
-
+            
             %Paint brush tool button
             tool.handles.Tools.PaintBrush        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','String','','Position',[buff buff+8*w w w],'TooltipString','Paint Brush Tool (B)');
-            icon_profile = makeToolbarIconFromPNG([MATLABdir '/tool_data_brush.png']);
+            icon_profile = makeToolbarIconFromPNG([MATLABicondir '/tool_data_brush.png']);
             set(tool.handles.Tools.PaintBrush ,'Cdata',icon_profile)
             fun=@(hObject,evnt) PaintBrushCallback(hObject,evnt,tool,'Normal');
             set(tool.handles.Tools.PaintBrush ,'Callback',fun)
@@ -547,21 +574,21 @@ classdef imtool3D < handle
             set(tool.handles.Tools.SmartBrush ,'Cdata',icon_profile)
             fun=@(hObject,evnt) PaintBrushCallback(hObject,evnt,tool,'Smart');
             set(tool.handles.Tools.SmartBrush ,'Callback',fun)
-
+            
             %undo mask button
             tool.handles.Tools.undoMask        = uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+10*w w w],'TooltipString','Undo (Z)');
-            icon_profile = load([MATLABdir filesep 'undo.mat']);
+            icon_profile = load([MATLABicondir filesep 'undo.mat']);
             set(tool.handles.Tools.undoMask ,'Cdata',icon_profile.undoCData)
             fun=@(hObject,evnt) maskUndo(tool);
             set(tool.handles.Tools.undoMask ,'Callback',fun)
-
-%             %Create poly tool button
-%             tool.handles.Tools.mask2poly             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+8*w w w],'TooltipString','mask2poly');
-%             icon_profile = makeToolbarIconFromPNG([MATLABdir '/linkproduct.png']);
-%             set(tool.handles.Tools.mask2poly ,'Cdata',icon_profile)
-%             fun=@(hObject,evnt) CropImageCallback(hObject,evnt,tool);
-%             set(tool.handles.Tools.mask2poly ,'Callback',fun)
-
+            
+            %             %Create poly tool button
+            %             tool.handles.Tools.mask2poly             =   uicontrol(tool.handles.Panels.ROItools,'Style','pushbutton','String','','Position',[buff buff+8*w w w],'TooltipString','mask2poly');
+            %             icon_profile = makeToolbarIconFromPNG([MATLABdir '/linkproduct.png']);
+            %             set(tool.handles.Tools.mask2poly ,'Cdata',icon_profile)
+            %             fun=@(hObject,evnt) CropImageCallback(hObject,evnt,tool);
+            %             set(tool.handles.Tools.mask2poly ,'Callback',fun)
+            
             pos=get(tool.handles.Panels.ROItools,'Position');
             % mask selection
             for islct=1:5
@@ -581,29 +608,29 @@ classdef imtool3D < handle
             icon_profile = makeToolbarIconFromPNG('icon_lock.png');
             set(tool.handles.Tools.maskLock ,'Cdata',icon_profile)
             set(tool.handles.Tools.maskLock ,'Callback',@(hObject,evnt) setlockMask(tool))
-
+            
             % mask statistics
             tool.handles.Tools.maskStats        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','Position',[buff pos(4)-(islct+2)*w w w], 'Value', 1, 'TooltipString', 'Statistics');
             icon_hist = makeToolbarIconFromPNG('plottype-histogram.png');
-            icon_hist = min(1,max(0,imresize(icon_hist,[16 16])));
+            icon_hist = min(1,max(0,imresize_noIPT(icon_hist,[16 16])));
             set(tool.handles.Tools.maskStats ,'Cdata',icon_hist)
             set(tool.handles.Tools.maskStats ,'Callback',@(hObject,evnt) StatsCallback(hObject,evnt,tool))
             
             % mask save
             tool.handles.Tools.maskSave        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','Position',[buff pos(4)-(islct+3)*w w w], 'Value', 1, 'TooltipString', 'Save mask');
-            icon_save = makeToolbarIconFromPNG([MATLABdir '/file_save.png']);
-            icon_save = min(1,max(0,imresize(icon_save,[16 16])));
+            icon_save = makeToolbarIconFromPNG([MATLABicondir '/file_save.png']);
+            icon_save = min(1,max(0,imresize_noIPT(icon_save,[16 16])));
             set(tool.handles.Tools.maskSave ,'Cdata',icon_save)
             fun=@(hObject,evnt) saveMask(tool,hObject);
             set(tool.handles.Tools.maskSave ,'Callback',fun)
-
+            
             % mask load
             tool.handles.Tools.maskLoad        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','Position',[buff pos(4)-(islct+4)*w w w], 'Value', 1, 'TooltipString', 'Load mask');
-            icon_load = makeToolbarIconFromPNG([MATLABdir '/file_open.png']);
+            icon_load = makeToolbarIconFromPNG([MATLABicondir '/file_open.png']);
             set(tool.handles.Tools.maskLoad ,'Cdata',icon_load)
             fun=@(hObject,evnt) loadMask(tool,hObject);
             set(tool.handles.Tools.maskLoad ,'Callback',fun)
-
+            
             %Set font size of all the tool objects
             try
                 set(cell2mat(struct2cell(tool.handles.Tools)),'FontSize',9,'Units','Pixels')
@@ -615,6 +642,7 @@ classdef imtool3D < handle
             
             set(tool.handles.fig,'NextPlot','new')
             
+            %%
             % add shortcuts
             
             set(gcf,'Windowkeypressfcn', @(hobject, event) tool.shortcutCallback(event))
@@ -629,13 +657,14 @@ classdef imtool3D < handle
             setImage(tool, varargin{:})
             
             % disable ROI tools if no image processing toolbox
-            result = license('test','image_toolbox');
+            result = license('test','image_toolbox') && ~isempty(which('poly2mask.m'));
             if result==0
                 warning('Image processing toolbox is missing... ROI tools will not work')
                 set(findobj(tool.handles.Panels.ROItools,'type','uicontrol'),'visible','off');
                 set(tool.handles.Tools.maskLoad,'visible','on');
                 set(tool.handles.Tools.maskStats,'visible','on');
                 set(tool.handles.Tools.maskSelected,'visible','on');
+                set(tool.handles.Tools.montage,'visible','on');
             end
         end
         
@@ -678,8 +707,8 @@ classdef imtool3D < handle
                 else
                     tool.mask=uint8(mask);
                 end
-            end            
-
+            end
+            
             showSlice(tool)
             notify(tool,'maskChanged')
         end
@@ -726,7 +755,7 @@ classdef imtool3D < handle
             if islct == 5
                 islct = str2num(get(tool.handles.Tools.maskSelected(5),'String'));
             end
-                
+            
             tool.mask(tool.mask==islct)=0;
             showSlice(tool)
             notify(tool,'maskChanged')
@@ -744,7 +773,7 @@ classdef imtool3D < handle
             end
             togglebutton(tool.handles.Tools.maskSelected(5))
             Cdata = get(tool.handles.Tools.maskSelected(5),'Cdata');
-            Color = tool.maskColor(min(end,islct+1),:)*tool.alpha+(1-tool.alpha)*[.4 .4 .4];
+            Color = tool.maskColor(mod(islct+1,end),:)*tool.alpha+(1-tool.alpha)*[.4 .4 .4];
             Cdata(:,:,1) = Color(1);
             Cdata(:,:,2) = Color(2);
             Cdata(:,:,3) = Color(3);
@@ -764,7 +793,7 @@ classdef imtool3D < handle
         
         function setmaskstatistics(tool,current_object)
             persistent counter
-                
+            
             % if Mouse over Mask Selection button
             if ishandle(current_object) && strcmp(get(current_object,'Tag'),'MaskSelected')
                 % Prevent too many calls: Limit to 1 call a second
@@ -778,7 +807,7 @@ classdef imtool3D < handle
                         counter = tic;
                     end
                 end
-
+                
                 % Get statistics
                 I = tool.getImage;
                 for ii=1:length(tool.handles.Tools.maskSelected)
@@ -796,7 +825,8 @@ classdef imtool3D < handle
                         sprintf('%-12s%.2f\n','STD:',std_ii),...
                         sprintf('%-12s%i','Area:',area_ii) 'px'];
                     
-                    set(tool.handles.Tools.maskSelected(ii),'TooltipString',str)
+
+                    set(tool.handles.Tools.maskSelected(max(1,min(5,ii))),'TooltipString',str)
                 end
             end
         end
@@ -841,20 +871,43 @@ classdef imtool3D < handle
         end
         
         function setImage(tool, varargin)
-            [I, position, h, range, tools, mask, enablehist] = parseinputs(varargin{:});            
+            [I, position, h, range, tools, mask, enablehist] = parseinputs(varargin{:});
             
             if isempty(I)
-                S = 64;
-                phantom3 = phantom3d('Modified Shepp-Logan',S);
-                phantom3 = min(1,max(0,cat(5,phantom3,1 - phantom3, -phantom3.^2+phantom3)));
-                I=randn([S S S 20 3])*.02+repmat(phantom3,[1 1 1 20 1]);
-                tool.setAspectRatio([1/S 1/S 1/S]);
+                try
+                    Orient = getOrient(tool);
+                    switch abs(Orient)>45
+                        case 1 % medical
+                            load mri
+                            phantom3 = squeeze(D);
+                            phantom3 = permute(phantom3(end:-1:1,:,:),[2 1 3]); % LPI orientation
+                            S = size(phantom3);
+                            phantom3 = max(0,cat(5,phantom3,88 - phantom3, cast((-(double(phantom3)/88).^2+double(phantom3)/88)*88*4,'like',phantom3)));
+                            pixdim = [1 1 2.5];
+                            label = {'BRAIN T1w contrast','BRAIN T2w contrast','BRAIN PDw contrast'};
+                        case 0 % photo
+                            phantom3 = multibandread('paris.lan',[512, 512, 7],'uint8=>uint8',...
+                                128,'bil','ieee-le');
+                            S = size(phantom3);
+                            pixdim = [1 1 1];
+                            label = 'Paris multispectral (7 bands) LandSat';
+                    end
+                catch % mri file not available
+                    S = [64 64 64];
+                    pixdim = [1/S(1) 1/S(2) 1/S(3)];
+                    phantom3 = phantom3d('Modified Shepp-Logan',S(1));
+                    phantom3 = min(1,max(0,cat(5,phantom3,1 - phantom3, -phantom3.^2+phantom3)));
+                    phantom3 = cast(phantom3*255,'uint8');
+                    label = 'Shepp-Logan phantom';
+                end
+                I=uint8(cat(4,randn([S(1) S(2) S(3) 1 size(phantom3,5)])*.0*255,randn([S(1) S(2) S(3) 19 size(phantom3,5)])*.01*255))+repmat(phantom3,[1 1 1 20 1]);
+                tool.setAspectRatio(pixdim);
             end
             
             if iscell(I)
                 S = [max(cell2mat(cellfun(@(x) size(x,1), I, 'uni', false))),...
-                     max(cell2mat(cellfun(@(x) size(x,2), I, 'uni', false))),...
-                     max(cell2mat(cellfun(@(x) size(x,3), I, 'uni', false)))];
+                    max(cell2mat(cellfun(@(x) size(x,2), I, 'uni', false))),...
+                    max(cell2mat(cellfun(@(x) size(x,3), I, 'uni', false)))];
                 for iii = 1:length(I)
                     Siii = [size(I{iii},1) size(I{iii},2) size(I{iii},3)];
                     if ~isequal(S,Siii)
@@ -870,7 +923,7 @@ classdef imtool3D < handle
             if islogical(I{1})
                 range = [0 1];
             end
-
+            
             if iscell(range)
                 tool.range = range;
                 range = range{1};
@@ -886,24 +939,25 @@ classdef imtool3D < handle
             if ~isempty(range)
                 tool.NvolOpts.Climits{1} = range;
             end
+            
             range = tool.NvolOpts.Climits{1};
-               
+
             tool.Nvol = 1;
             
             tool.I=I;
             
             tool.setMask(mask);
-
+            
             %Update the histogram
             if isfield(tool.handles,'HistAxes')
-                Ivol = I{tool.Nvol}(unique(round(linspace(1,numel(I{tool.Nvol}),min(5000,numel(I{tool.Nvol})))))); 
+                Ivol = I{tool.Nvol}(unique(round(linspace(1,numel(I{tool.Nvol}),min(5000,numel(I{tool.Nvol}))))));
                 Ivol = Ivol(Ivol>min(Ivol) & Ivol<max(Ivol));
                 if isempty(Ivol), Ivol=0; end
-                tool.centers=linspace(range(1)-diff(range)*0.05,range(2)+diff(range)*0.05,256);
+                tool.centers=linspace(range(1)-diff(range)*0.05,range(2)+diff(range)*0.05,256*3);
                 nelements=hist(Ivol(Ivol~=min(Ivol(:)) & Ivol~=max(Ivol(:))),tool.centers); nelements=nelements./max(nelements);
-                set(tool.handles.HistLine,'XData',tool.centers,'YData',nelements);
+                set(tool.handles.HistLine(1),'XData',tool.centers,'YData',nelements);
                 pos=getpixelposition(tool.handles.HistImageAxes);
-                set(tool.handles.HistImage,'CData',repmat(tool.centers,[round(pos(4)) 1]));
+                set(tool.handles.HistImage(1),'CData',repmat(tool.centers,[round(pos(4)) 1]));
                 try
                     xlim(tool.handles.HistAxes,[tool.centers(1) tool.centers(end)])
                 catch
@@ -913,7 +967,7 @@ classdef imtool3D < handle
             end
             %Update the window and level
             setWL(tool,diff(range),mean(range))
-
+            
             %Update the image
             %set(tool.handles.I,'CData',im)
             switch tool.viewplane
@@ -942,6 +996,10 @@ classdef imtool3D < handle
             %Update the slider
             setupSlider(tool)
             
+            % Update de RGBindex
+            Nbands = size(I{tool.Nvol},3);
+            tool.RGBindex = [1 round(Nbands/2) Nbands];
+            
             %Update the TIme
             tool.Ntime = min(tool.Ntime,size(I{tool.Nvol},4));
             
@@ -950,7 +1008,10 @@ classdef imtool3D < handle
             
             % Create missing image objects
             for it = (length(tool.handles.I)+1):length(I)
-                tool.handles.I(it)              =   imshow(zeros(3,3),range,'Parent',tool.handles.Axes);
+                tool.handles.Axes(it)           =   axes('Position',[0 0 1 1],...
+                                                         'Parent',tool.handles.Panels.Image,...
+                                                         'Color','none');
+                tool.handles.I(it)              =   imshow(zeros(3,3),range,'Parent',tool.handles.Axes(it));
                 set(tool.handles.I(it),'Clipping','off')
                 fun=@(hObject,eventdata) imageButtonDownFunction(hObject,eventdata,tool);
                 set(tool.handles.I(it),'ButtonDownFcn',fun);
@@ -958,11 +1019,13 @@ classdef imtool3D < handle
                 tool.Nvol = it;
                 showSlice(tool); % fill image objects
                 set(tool.handles.I(it),'Visible','off')
-                Grphs = get(tool.handles.Axes,'Children');
-                set(tool.handles.Axes,'Children',Grphs([2:(end-it+1) 1 (end-it+2):end]));
+                Grphs = get(tool.handles.Panels.Image,'Children'); % reorder
+                set(tool.handles.Panels.Image,'Children',Grphs([2:(end-it+1) 1 (end-it+2):end]));
             end
+            setOrient(tool,getOrient(tool),0)
+            xlim(tool.handles.Axes,get(tool.handles.Axes(1),'XLim'))
+            ylim(tool.handles.Axes,get(tool.handles.Axes(1),'YLim'))
 
-            
             %Show the first slice
             tool.Nvol = 1;
             showSlice(tool)
@@ -970,6 +1033,11 @@ classdef imtool3D < handle
             %Broadcast that the image has been updated
             notify(tool,'newImage')
             notify(tool,'maskChanged')
+            
+            % add label
+            if exist('label','var')
+                tool.label = label;
+            end
             
             
         end
@@ -982,7 +1050,7 @@ classdef imtool3D < handle
                 I=tool.I{tool.Nvol}(:,:,:,min(end,tool.Ntime));
             end
         end
-
+        
         function Nvol = getNvol(tool)
             Nvol=tool.Nvol;
         end
@@ -993,14 +1061,17 @@ classdef imtool3D < handle
 
         function setNvol(tool,Nvol,saveClim)
             if ~exist('saveClim','var'), saveClim = true; end % save Clim by default
+
             % save window and level
             if saveClim
-                tool.NvolOpts.Climits{tool.Nvol} = get(tool.handles.Axes,'Clim');
+                tool.NvolOpts.Climits{tool.Nvol} = get(tool.handles.Axes(tool.Nvol),'Clim');
                 tool.NvolOpts.Opacity{tool.Nvol} = str2num(get(tool.handles.Tools.O,'String'));
                 tool.NvolOpts.Cmap{tool.Nvol} = get(tool.handles.Tools.Color,'Value');
             end
             % change Volume
             tool.Nvol = max(1,min(Nvol,length(tool.I)));
+            % move Mask to current volume
+            set(tool.handles.mask,'Parent',tool.handles.Axes(tool.Nvol))
             % load new window and level
             NewRange = tool.NvolOpts.Climits{tool.Nvol};
             W=NewRange(2)-NewRange(1); L=mean(NewRange);
@@ -1013,7 +1084,7 @@ classdef imtool3D < handle
             % apply xlim to histogram
             range = tool.range{tool.Nvol};
             if ~any(isnan(range))
-                tool.centers = linspace(range(1)-diff(range)*0.05,range(2)+diff(range)*0.05,256);
+                tool.centers = linspace(range(1)-diff(range)*0.05,range(2)+diff(range)*0.05,256*3);
                 if isfield(tool.handles,'HistAxes')
                     try
                         xlim(tool.handles.HistAxes,[tool.centers(1) tool.centers(end)])
@@ -1030,11 +1101,11 @@ classdef imtool3D < handle
 
             showSlice(tool);
         end
-
+        
         function r = getrange(tool)
             r=diff(tool.range{tool.Nvol});
         end
-
+        
         function setClimits(tool,range)
             if iscell(range)
                 tool.setDisplayRange(range{tool.getNvol})
@@ -1044,15 +1115,15 @@ classdef imtool3D < handle
                 tool.NvolOpts.Climits{tool.getNvol} = range;
             end
         end
-
+        
         function Climits = getClimits(tool)
             Climits = tool.NvolOpts.Climits;
         end
-
+        
         function Nt = getNtime(tool)
             Nt=tool.Ntime;
         end
-                
+        
         function m = max(tool)
             m = max(tool.I{tool.getNvol}(:));
         end
@@ -1060,15 +1131,14 @@ classdef imtool3D < handle
         function m = min(tool)
             m = min(tool.I{tool.getNvol}(:));
         end
-                
+        
         function handles=getHandles(tool)
             handles=tool.handles;
         end
         
-        function setAspectRatio(tool,psize)
-            %This sets the proper aspect ratio of the viewer for cases
+        function aspectRatio = getAspectRatio(tool)
+            %This gets the aspect ratio of the viewer for cases
             %where you have non-square pixels
-            tool.aspectRatio = psize;
             switch tool.viewplane
                 case 1
                     aspectRatio = tool.aspectRatio([2 3 1]);
@@ -1077,6 +1147,13 @@ classdef imtool3D < handle
                 case 3
                     aspectRatio = tool.aspectRatio([1 2 3]);
             end
+        end
+        
+        function setAspectRatio(tool,psize)
+            %This sets the proper aspect ratio of the viewer for cases
+            %where you have non-square pixels
+            tool.aspectRatio = psize;
+            aspectRatio = getAspectRatio(tool);
             set(tool.handles.Axes,'DataAspectRatio',aspectRatio)
         end
         
@@ -1086,8 +1163,8 @@ classdef imtool3D < handle
                 set(hObject, 'Enable', 'off');
                 drawnow;
                 set(hObject, 'Enable', 'on');
-                dim = get(hObject,'String'); 
-                dim=dim{get(hObject,'Value')}; 
+                dim = get(hObject,'String');
+                dim=dim{get(hObject,'Value')};
             end
             
             if ischar(dim)
@@ -1133,13 +1210,13 @@ classdef imtool3D < handle
             end
             S = get(tool.handles.Tools.ViewPlane,'String');
             set(tool.handles.Tools.ViewPlane,'Value',find(strcmpi(S,dim)));
-
+            
             % permute aspect ratio
             setAspectRatio(tool,tool.aspectRatio)
             showSlice(tool)
         end
         
-        function setlabel(tool,label)
+        function set.label(tool,label)
             if ischar(label) || isstring(label)
                 tool.label{tool.Nvol} = char(label);
             elseif iscellstr(label)
@@ -1156,15 +1233,18 @@ classdef imtool3D < handle
         end
         
         function range=getDisplayRange(tool)
-            range=get(tool.handles.Axes,'Clim');
+            range=get(tool.handles.Axes(tool.Nvol),'Clim');
         end
         
         function setOpacity(tool,O, hObject)
-            if ~exist('hObject','var') || isempty(hObject), hObject = tool.handles.Tools.O; end
-            % unselect button to prevent activation with spacebar
-            set(hObject, 'Enable', 'off');
-            drawnow;
-            set(hObject, 'Enable', 'on');
+            if ~exist('hObject','var') || isempty(hObject)
+                hObject = tool.handles.Tools.O; 
+            else
+                % unselect button to prevent activation with spacebar
+                set(hObject, 'Enable', 'off');
+                drawnow;
+                set(hObject, 'Enable', 'on');
+            end
 
             if ~exist('O','var') || isempty(O)
                 switch get(hObject,'Style')
@@ -1192,7 +1272,7 @@ classdef imtool3D < handle
         end
         
         function [W,L] = getWindowLevel(tool)
-            range=get(tool.handles.Axes,'Clim');
+            range=get(tool.handles.Axes(tool.Nvol),'Clim');
             W=diff(range);
             L=mean(range);
         end
@@ -1204,7 +1284,7 @@ classdef imtool3D < handle
         function slice = getCurrentSlice(tool)
             slice=round(get(tool.handles.Slider,'value'));
         end
-                
+        
         function mask = getCurrentMaskSlice(tool,all)
             if ~exist('all','var'), all=0; end
             slice = getCurrentSlice(tool);
@@ -1214,7 +1294,11 @@ classdef imtool3D < handle
                 case 2
                     mask=tool.mask(:,slice,:);
                 case 3
-                    mask=tool.mask(:,:,slice);
+                    if size(tool.mask,3)==1 % prevet slicing
+                        mask=tool.mask;
+                    else
+                        mask=tool.mask(:,:,slice);
+                    end
             end
             
             if ~all
@@ -1250,13 +1334,45 @@ classdef imtool3D < handle
         
         function im = getCurrentImageSlice(tool)
             slice = getCurrentSlice(tool);
+            ColorChannel = get(tool.handles.SliderColor,'String');
             switch tool.viewplane
                 case 1
                     im = tool.I{tool.Nvol}(slice,:,:,min(end,tool.Ntime),:,:);
                 case 2
                     im = tool.I{tool.Nvol}(:,slice,:,min(end,tool.Ntime),:,:);
                 case 3
-                    im = tool.I{tool.Nvol}(:,:,slice,min(end,tool.Ntime),:,:);
+                    if  tool.isRGB% RGB photo
+                        switch tool.RGBdim
+                            case 3
+                                rgbslice = slice;
+                            case 4
+                                rgbslice = tool.Ntime;
+                            case 5
+                                rgbslice = tool.Nvol;
+                        end
+                        switch ColorChannel
+                            case 'R'
+                                tool.RGBindex(1) = rgbslice;
+                            case 'G'
+                                tool.RGBindex(2) = rgbslice;
+                            case 'B'
+                                tool.RGBindex(3) = rgbslice;
+                        end
+                        switch tool.RGBdim
+                            case 3
+                                im = tool.I{tool.Nvol}(:,:,min(tool.RGBindex,end),min(end,tool.Ntime));
+                            case 4
+                                im = tool.I{tool.Nvol}(:,:,slice,min(end,tool.RGBindex));
+                            case 5
+                                im = cat(6,tool.I{min(end,tool.RGBindex(1))}(:,:,slice,min(end,tool.Ntime),:),...
+                                           tool.I{min(end,tool.RGBindex(2))}(:,:,slice,min(end,tool.Ntime),:),...
+                                           tool.I{min(end,tool.RGBindex(3))}(:,:,slice,min(end,tool.Ntime),:));
+                        end
+                    elseif size(tool.I{tool.Nvol},3)==1 && size(tool.I{tool.Nvol},4)==1 % no slicing to save memory
+                        im = tool.I{tool.Nvol};    
+                    else
+                        im = tool.I{tool.Nvol}(:,:,slice,min(end,tool.Ntime),:,:);
+                    end
             end
             im = squeeze(im);
         end
@@ -1295,7 +1411,7 @@ classdef imtool3D < handle
                     cmap = [zeros(256,2) linspace(0,1,256)'];
             end
             h = tool.getHandles;
-            colormap(h.Axes,cmap)
+            colormap(h.Axes(tool.Nvol),cmap)
             if isfield(h,'HistImageAxes')
                 colormap(h.HistImageAxes,cmap)
             end
@@ -1305,6 +1421,36 @@ classdef imtool3D < handle
             end
         end
 
+        function Orient = getOrient(tool)
+            Orient = get(tool.handles.Axes(1),'view');
+            Orient = Orient(1);
+        end
+        
+        function setOrient(tool,Orient,savepref)
+            if ~exist('savepref','var')
+                savepref = 0;
+            end
+            for iax = 1:length(tool.handles.Axes)
+                if isnumeric(Orient)
+                    view(tool.handles.Axes(iax),Orient,90);
+                    if abs(Orient)>45
+                        Orient = 'horizontal';
+                    else
+                        Orient = 'vertical';
+                    end
+                elseif strfind(lower(Orient),'horizontal')
+                    view(tool.handles.Axes(iax),-90,90);
+                elseif strfind(lower(Orient),'vertical')
+                    view(tool.handles.Axes(iax),0,90);
+                else
+                    Orient = [];
+                end
+            end
+            if savepref
+                setpref('imtool3D','rot90',Orient)
+            end
+        end
+        
         function S = getImageSize(tool,withVP)
             if ~exist('withVP','var'), withVP = true; end
             
@@ -1374,22 +1520,25 @@ classdef imtool3D < handle
         function delete(tool)
             try
                 delete(tool.handles.Panels.Large)
+                set(tool.handles.fig,'WindowButtonMotionFcn',[]);
+                H = tool.optdlg.getHandles();
+                delete(H.fig)
             end
         end
         
         function [xi,yi,zi]=getCurrentMouseLocation(tool)
-            pos=round(get(tool.handles.Axes,'CurrentPoint'));
+            pos=round(get(tool.handles.Axes(tool.Nvol),'CurrentPoint'));
             pos=pos(1,1:2); xi=max(1,pos(1)); yi=max(1,pos(2)); zi=getCurrentSlice(tool);
         end
         
         function rescaleFactor = get.rescaleFactor(tool)
             %Get aspect ratio of image as currently being displayed
-            w = diff(get(tool.handles.Axes,'Xlim'))+1;
-            h = diff(get(tool.handles.Axes,'Ylim'))+1;
+            w = diff(get(tool.handles.Axes(tool.Nvol),'Xlim'))+1;
+            h = diff(get(tool.handles.Axes(tool.Nvol),'Ylim'))+1;
             Ai  = w/h;
             
             %Get aspect ratio of parent axes
-            pos = getPixelPosition(tool.handles.Axes);
+            pos = getPixelPosition(tool.handles.Axes(tool.Nvol));
             Aa = pos(3)/pos(4);
             
             %get the rescale factor
@@ -1402,21 +1551,31 @@ classdef imtool3D < handle
             
         end
         
-        function setzoomfactor(tool,factor)                        
-            %get the new width
-            xlims = get(tool.handles.Axes,'Xlim');
-            S = tool.getImageSize(1);
-            ylims = get(tool.handles.Axes,'Ylim');
-            newXwidth = S(1)/factor;
-            newYwidth = S(2)/factor;
-            cx = mean(xlims);
-            cy = mean(ylims);
-            %set the new axis limits
-            xlims = [cx-newXwidth/2 cx+newXwidth/2];
-            ylims = [cy-newYwidth/2 cy+newYwidth/2];
-            if factor > 0
-                set(tool.handles.Axes,'Xlim',xlims,'Ylim',ylims)
+        function set.rescaleFactor(tool, value)
+            %Get aspect ratio of image as currently being displayed
+            w = diff(get(tool.handles.Axes(tool.Nvol),'Xlim'))+1;
+            h = diff(get(tool.handles.Axes(tool.Nvol),'Ylim'))+1;
+            Ai  = w/h;
+            
+            %Get aspect ratio of parent axes
+            pos = getPixelPosition(tool.handles.Axes(tool.Nvol));
+            Aa = pos(3)/pos(4);
+            
+            %get the rescale factor
+            if Aa>=Ai
+                h = pos(4)/value;
+                w = Ai*h;
+            else
+                w = pos(3)/value;
+                h = w/Ai;
             end
+            
+            mid = mean(get(tool.handles.Axes(tool.Nvol),'Xlim'));
+            set(tool.handles.Axes,'Xlim',[mid-(w-1)/2 mid+(w-1)/2])
+            mid = mean(get(tool.handles.Axes(tool.Nvol),'Ylim'));
+            set(tool.handles.Axes,'Ylim',[mid-(h-1)/2 mid+(h-1)/2])
+            
+            
         end
         
         function set.upsample(tool,upsample)
@@ -1435,6 +1594,52 @@ classdef imtool3D < handle
             showSlice(tool);
         end
         
+        function set.gamma(tool,gamma)
+            tool.gamma = gamma;
+            showSlice(tool);
+        end
+        
+        function set.RGBdecorrstretch(tool,decorr)
+            tool.RGBdecorrstretch = logical(decorr);
+            showSlice(tool);
+        end
+        
+        function set.RGBalignhisto(tool,RGBalignhisto)
+            tool.RGBalignhisto = logical(RGBalignhisto);
+            if tool.RGBalignhisto
+                setWL(tool,256,128)
+            else
+                CL = tool.range{tool.Nvol};
+                setWL(tool,diff(CL),mean(CL))
+            end
+            showSlice(tool);
+        end
+        
+        function set.RGBindex(tool,index)
+            tool.RGBindex = index;
+        end
+        
+        function set.RGBdim(tool,dim)
+            if ~ismember(dim,[3 4 5 6])
+                error('RGB is handled only along the 3rd, 4th, 5th or 6th dimension')
+            end
+            tool.RGBdim = dim;
+            showSlice(tool);
+        end
+        
+        function set.isRGB(tool,iscolor)
+            tool.isRGB = logical(iscolor);
+            src = tool.handles.SliderColor;
+            if tool.isRGB
+                set(src,'String','R');
+            else
+                set(src,'String','.');
+            end
+            if length(dbstack)==1
+                showSlice(tool)
+            end
+        end
+        
         function set.Visible(tool,Visible)
             if Visible
                 set(tool.handles.Panels.Large,'Visible','on');
@@ -1442,7 +1647,7 @@ classdef imtool3D < handle
                 set(tool.handles.Panels.Large,'Visible','off');
             end
         end
-
+        
         function shortcutCallback(tool,evnt)
             switch evnt.Key
                 case 'space'
@@ -1456,7 +1661,7 @@ classdef imtool3D < handle
                 case 'l'
                     setlockMask(tool)
                 case 'leftarrow'
-                    if isprop(evnt,'Modifier') && ~isempty(evnt.Modifier) && strcmp(evnt.Modifier,'shift')
+                    if isprop(evnt,'Modifier') && ~isempty(evnt.Modifier) && any(strcmp(evnt.Modifier,'shift'))
                         tool.Ntime = max(tool.Ntime-10,1);
                     else
                         tool.Ntime = max(tool.Ntime-1,1);
@@ -1473,7 +1678,7 @@ classdef imtool3D < handle
                     setNvol(tool,tool.Nvol+1)
                 case 'downarrow'
                     setNvol(tool,tool.Nvol-1)
-                 otherwise
+                otherwise
                     switch evnt.Character
                         case '1'
                             togglebutton(tool.handles.Tools.maskSelected(1))
@@ -1516,22 +1721,22 @@ classdef imtool3D < handle
             end
             if ext ~= 2 % Current slice
                 I=get(h.I,'CData');
-                viewtype = get(tool.handles.Axes,'View');
+                viewtype = get(tool.handles.Axes(tool.Nvol),'View');
                 if viewtype(1)==-90, I=rot90(I);  end
-                lims=get(h.Axes,'CLim');
-                I = uint8(max(0,min(1,(I-lims(1))/diff(lims)))*(size(cmap,1)-1));
-                
-                if FileName == 0
-                else
+                if size(I,3)==1
+                    lims=get(h.Axes(tool.Nvol),'CLim');
+                    I = uint8(max(0,min(1,(I-lims(1))/diff(lims)))*(size(cmap,1)-1));
                     imwrite(cat(2,I,repmat(round(linspace(size(cmap,1),0,size(I,1)))',[1 round(size(I,2)/50)])),cmap,[PathName FileName])
+                else
+                    imwrite(I,[PathName FileName])
                 end
             else
-                lims=get(h.Axes,'CLim');
+                lims=get(h.Axes(tool.Nvol),'CLim');
                 
                 if FileName == 0
                 else
                     I = tool.getImage;
-                    viewtype = get(tool.handles.Axes,'View');
+                    viewtype = get(tool.handles.Axes(tool.Nvol),'View');
                     if viewtype(1)==-90, I=rot90(I);  end
                     
                     for z=1:size(I,tool.viewplane)
@@ -1560,63 +1765,68 @@ classdef imtool3D < handle
             Mask = tool.getMask(1);
             if any(Mask(:))
                 if ~exist('hdr','var')
-                    maskfname = 'Mask.nii.gz';
+                    maskfname = 'Mask.tif';
+                    filters = {'*.tif';'*.nii.gz;*.nii';'*.mat'};
                 else
                     path = fileparts(hdr.file_name);
                     maskfname = fullfile(path,'Mask.nii.gz');
+                    filters = {'*.nii.gz;*.nii';'*.mat';'*.tif'};
                 end
-                [FileName,PathName, ext] = uiputfile({'*.nii.gz;*.nii';'*.mat';'*.tif'},'Save Mask',maskfname);
+                [FileName,PathName] = uiputfile(filters,'Save Mask',maskfname);
+                [~,~,ext] = fileparts(FileName);
                 if isequal(FileName,0)
                     return;
                 end
                 FileName = strrep(FileName,'.gz','.nii.gz');
                 FileName = strrep(FileName,'.nii.nii','.nii');
-                if ext==1 || ext>3  % .nii.gz
-                    if ~exist('hdr','var')
-                        err=1;
-                        while(err)
-                            answer = inputdlg2({'save as:','browse reference scan'},'save mask',[1 50],{fullfile(PathName,FileName), ''});
-                            if isempty(answer), err=0; break; end
-                            if ~isempty(answer{1})
-                                answer{1} = strrep(answer{1},'.gz','.nii.gz');
-                                answer{1} = strrep(answer{1},'.nii.nii','.nii');
-                                if ~isempty(answer{2})
-                                    try
-                                        save_nii_v2(tool.getMask(1),answer{1},answer{2},8);
+                switch ext
+                    case {'.nii','.gz'}  % .nii.gz
+                        if ~exist('hdr','var')
+                            err=1;
+                            while(err)
+                                answer = inputdlg2({'save as:','browse reference scan'},'save mask',[1 50],{fullfile(PathName,FileName), ''});
+                                if isempty(answer), err=0; break; end
+                                if ~isempty(answer{1})
+                                    answer{1} = strrep(answer{1},'.gz','.nii.gz');
+                                    answer{1} = strrep(answer{1},'.nii.nii','.nii');
+                                    if ~isempty(answer{2})
+                                        try
+                                            [~,hdr] = nii_load(answer{2});
+                                            nii_save(tool.getMask(1),hdr,answer{1});
+                                            err=0;
+                                        catch bug
+                                            uiwait(warndlg(bug.message,'wrong reference','modal'))
+                                        end
+                                    else
+                                        nii_save(uint8(tool.getMask(1)),[],answer{1})
                                         err=0;
-                                    catch bug
-                                        uiwait(warndlg(bug.message,'wrong reference','modal'))
                                     end
-                                else
-                                    save_nii_v2(make_nii(uint8(tool.getMask(1))),answer{1},[],8);
-                                    err=0;
                                 end
                             end
-                        end
-                    else
-                        hdr.scl_slope=1; % no slope for Mask
-                        hdr.scl_inter=0;
-                        nii_save(Mask,hdr,fullfile(PathName,FileName))
-                    end
-                elseif ext==2 % .mat
-                    save(fullfile(PathName,FileName),'Mask');
-                elseif ext==3 % .tif
-                    Mask = tool.getMask(1);
-                    for z=1:size(Mask,tool.viewplane)
-                        switch tool.viewplane
-                            case 1
-                                Maskz = Mask(z,:,:);
-                            case 2
-                                Maskz = Mask(:,z,:);
-                            case 3
-                                Maskz = Mask(:,:,z);
-                        end
-                        if z==1
-                            imwrite(uint8(Maskz), [PathName FileName], 'WriteMode', 'overwrite',  'Compression','none');
                         else
-                            imwrite(uint8(Maskz), [PathName FileName], 'WriteMode', 'append',  'Compression','none');
+                            hdr.scl_slope=1; % no slope for Mask
+                            hdr.scl_inter=0;
+                            nii_save(Mask,hdr,fullfile(PathName,FileName))
                         end
-                    end
+                    case '.mat'
+                        save(fullfile(PathName,FileName),'Mask');
+                    case '.tif'
+                        Mask = tool.getMask(1);
+                        for z=1:size(Mask,tool.viewplane)
+                            switch tool.viewplane
+                                case 1
+                                    Maskz = Mask(z,:,:);
+                                case 2
+                                    Maskz = Mask(:,z,:);
+                                case 3
+                                    Maskz = Mask(:,:,z);
+                            end
+                            if z==1
+                                imwrite(uint8(Maskz), [PathName FileName], 'WriteMode', 'overwrite',  'Compression','none');
+                            else
+                                imwrite(uint8(Maskz), [PathName FileName], 'WriteMode', 'append',  'Compression','none');
+                            end
+                        end
                 end
             else
                 warndlg('Mask empty... Draw a mask using the brush tools on the right')
@@ -1636,24 +1846,29 @@ classdef imtool3D < handle
             else
                 path = 'Mask.nii.gz';
             end
-            [FileName,PathName, ext] = uigetfile({'*.nii;*.nii.gz','NIFTI file (*.nii,*.nii.gz)';'*.mat','MATLAB File (*.mat)';'*.tif','Image Stack (*.tif)'},'Load Mask',path);
-            if ext==1 % .nii.gz
-                if exist('hdr','var')
-                    Mask = nii_load([{hdr} fullfile(PathName,FileName)],0,'nearest');
-                else
-                    Mask = nii_load(fullfile(PathName,FileName));
-                end
-                Mask = Mask{1};
-            elseif ext==2 % .mat
-                load(fullfile(PathName,FileName));
-            elseif ext==3 % .tif
-                info = imfinfo(fullfile(PathName,FileName));
-                num_images = numel(info);
-                for k = 1:num_images
-                    Mask(:,:,k) = imread(fullfile(PathName,FileName), k);
-                end
-            else
-                return
+            [FileName,PathName] = uigetfile('*','Load Mask');
+            if isequal(FileName,0), return; end
+            [~,~,ext] = fileparts(FileName);
+            switch ext
+                case {'.nii','.gz'} % .nii.gz
+                    if exist('hdr','var')
+                        Mask = nii_load([{hdr} fullfile(PathName,FileName)],0,'nearest');
+                    else
+                        Mask = nii_load(fullfile(PathName,FileName));
+                    end
+                    Mask = Mask{1};
+                case '.mat'
+                    load(fullfile(PathName,FileName));
+                case '.tif'
+                    info = imfinfo(fullfile(PathName,FileName));
+                    num_images = numel(info);
+                    for k = 1:num_images
+                        Mask(:,:,k) = imread(fullfile(PathName,FileName), k);
+                    end
+                case {'.png','.jp2','.jpg','.bmp'}
+                    Mask = imread(fullfile(PathName,FileName));
+                otherwise
+                    return
             end
             S = tool.getImageSize(0);
             if ~isequal([size(Mask,1) size(Mask,2) size(Mask,3)],S(1:3))
@@ -1662,143 +1877,201 @@ classdef imtool3D < handle
             end
             tool.setMask(Mask);
         end
-
+        
     end
     
     methods (Access = private)
-                
+        
         function showSlice(varargin)
              % Parse inputs
             switch nargin
                 case 1
                     tool=varargin{1};
-                    Nslices=round(get(tool.handles.Slider,'value'));
+                    n=round(get(tool.handles.Slider,'value'));
                 case 2
                     tool=varargin{1};
-                    Nslices=varargin{2};
+                    n=varargin{2};
                 otherwise
                     tool=varargin{1};
-                    Nslices=round(get(tool.handles.Slider,'value'));    
+                    n=round(get(tool.handles.Slider,'value'));
             end
             
-            % Manage slider
-            if Nslices < 1
-                Nslices=round(size(tool.I{tool.Nvol},tool.viewplane)/2);
+            if n < 1
+                n=round(size(tool.I{tool.Nvol},tool.viewplane)/2);
             end
             
-            if Nslices > size(tool.I{tool.Nvol},tool.viewplane)
-                Nslices=size(tool.I{tool.Nvol},tool.viewplane);
+            if n > size(tool.I{tool.Nvol},tool.viewplane)
+                n=size(tool.I{tool.Nvol},tool.viewplane);
             end
-            set(tool.handles.Slider,'value',Nslices);
+            set(tool.handles.Slider,'value',n);
             
             Nvol = tool.Nvol;
             for ivol = 1:Nvol
                 tool.Nvol = ivol;
-                % Montage
-                if get(tool.handles.Tools.montage,'Value')
-                    Nslices = max(Nslices,3);
-                    M = tool.getMask(1);
-                    S = tool.getImageSize(0);
-                    switch tool.viewplane
-                        case 1
-                            Indices = unique(round(linspace(1,S(1),Nslices)));
-                            I=tool.I{tool.Nvol}(Indices,:,:,min(end,tool.Ntime));
-                            [In,Mrows,Mcols]    = imagemontage(permute(I,[2 3 1]));
-                            maskn = imagemontage(permute(M(unique(round(linspace(1,end,Nslices))),:,:),[2 3 1]));
-                            newAspectRatio = size(In)./[size(I,2) size(I,3)];
-                            aspectRatio = tool.aspectRatio([2 3 1]);
-                        case 2
-                            Indices = unique(round(linspace(1,S(2),Nslices)));
-                            I=tool.I{tool.Nvol}(:,Indices,:,min(end,tool.Ntime));
-                            [In,Mrows,Mcols] = imagemontage(permute(I,[1 3 2]));
-                            maskn = imagemontage(permute(M(:,unique(round(linspace(1,end,Nslices))),:),[1 3 2]));
-                            newAspectRatio = size(In)./[size(I,1) size(I,3)];
-                            aspectRatio = tool.aspectRatio([1 3 2]);
-                        case 3
-                            Indices = unique(round(linspace(1,S(3),Nslices)));
-                            I=tool.I{tool.Nvol}(:,:,Indices,min(end,tool.Ntime));
-                            [In,Mrows,Mcols,Indices] = imagemontage(I);
-                            maskn = imagemontage(M(:,:,unique(round(linspace(1,end,Nslices)))));
-                            newAspectRatio = size(In)./[size(I,1) size(I,2)];
-                            aspectRatio = tool.aspectRatio([1 2 3]);
+            % Get Slice to show
+            if get(tool.handles.Tools.montage,'Value')
+                n = max(n,3);
+                I = tool.getImage;
+                M = tool.getMask(1);
+                Orient = get(tool.handles.Axes(tool.Nvol),'view');
+                Orient = Orient(1);
+                Indices = unique(round(linspace(1,size(I,tool.viewplane),n)));
+                switch tool.viewplane
+                    case 1
+                        order = [2 3 1];
+                    case 2
+                        order = [1 3 2];
+                    case 3
+                        order = [1 2 3];
+                end
+                if Orient
+                    I = permute(I,order([2 1 3]));
+                    M = permute(M,order([2 1 3]));
+                else
+                    I = permute(I,order);
+                    M = permute(M,order);
+                end
+                S = size(I);
+                [In,Mrows,Mcols]    = imagemontage(I,Indices);
+                maskn = imagemontage(M,Indices);
+                if Orient
+                    In = permute(In,[2 1 3]);
+                    maskn = permute(maskn,[2 1 3]);
+                    S = S([2 1]);
+                end
+                newAspectRatio = size(In)./[S(1) S(2)];
+                maskn = uint8(maskn);
+                set(tool.handles.Tools.montage,'UserData',[Mrows Mcols Indices(:)']);
+                set(tool.handles.Axes,'DataAspectRatio',tool.getAspectRatio.*[newAspectRatio 1]);
+            else
+                In = squeeze(tool.getCurrentImageSlice);
+                maskn = squeeze(tool.getCurrentMaskSlice(1));
+                tool.setAspectRatio(tool.aspectRatio)
+            end
+            
+            % Manage brighness / contrast for colour images
+            if size(In,3) > 1
+                CL = get(tool.handles.Axes(tool.Nvol),'Clim');
+                InOrig = In(round(linspace(1,end,min(end,70))),round(linspace(1,end,min(end,70))),:); % keep small version of original for histo
+                InOrig = reshape(InOrig,[numel(InOrig)/3 3]);
+                
+                if tool.RGBalignhisto
+                    %In = imadjust(In,stretchlim(In));
+
+                    RGBstd = std(double(InOrig),0,1);
+                    RGBmean = mean(double(InOrig),1);
+                    for iband = 1:3
+                        factor = 50/RGBstd(iband);
+                        In(:,:,iband) = (double(In(:,:,iband))-RGBmean(iband))*factor+128;
+                        InOrig(:,iband) =  (double(InOrig(:,iband))-RGBmean(iband))*factor+128;
                     end
-                    maskn = uint8(maskn);
-                    set(tool.handles.Tools.montage,'UserData',[Mrows Mcols Indices(:)']);
-                    set(tool.handles.Axes,'DataAspectRatio',aspectRatio.*[newAspectRatio 1]);
+                    range = [0 255];
                 else
-                    Mrows = 1; Mcols = 1;
-                    In = squeeze(tool.getCurrentImageSlice());
-                    maskn = squeeze(tool.getCurrentMaskSlice(1));
-                    tool.setAspectRatio(tool.aspectRatio)
+                    range = tool.range{tool.Nvol};
                 end
-                opts = {'XData',[1 size(In,2)/Mrows],'YData',[1 size(In,1)/Mcols]};
-                
-                % Upsample
-                if ~tool.upsample || get(tool.handles.Tools.montage,'Value')
-                else
-                    In = imresize(In,tool.rescaleFactor,tool.upsampleMethod);
-                end
-                
-                % colormap
-                if tool.Nvol == Nvol
-                    Clim = get(tool.handles.Axes,'Clim');
-                    cmap = get(tool.handles.Axes,'Colormap');
-                else
-                    Clim = tool.NvolOpts.Climits{tool.Nvol};
-                    n = tool.NvolOpts.Cmap{tool.Nvol};
-                    maps = get(tool.handles.Tools.Color,'String');
-                    switch maps{n}
-                        case 'red'
-                            cmap = [linspace(0,1,256)' zeros(256,2)];
-                        case 'green'
-                            cmap = [zeros(256,1) linspace(0,1,256)' zeros(256,1)];
-                        case 'blue'
-                            cmap = [zeros(256,2) linspace(0,1,256)'];
-                        otherwise
-                            cmap = feval(lower(maps{n}),256);
+                tool.centers = linspace(range(1)-diff(range)*0.05,range(2)+diff(range)*0.05,256*3);
+                if isfield(tool.handles,'HistAxes')
+                    try
+                        xlim(tool.handles.HistAxes,[tool.centers(1) tool.centers(end)])
+                    catch
+                        xlim(tool.handles.HistAxes,[tool.centers(1) tool.centers(end)+.1])
                     end
+                    set(tool.handles.HistImageAxes,'Units','Pixels'); pos=get(tool.handles.HistImageAxes,'Position'); set(tool.handles.HistImageAxes,'Units','Normalized');
+                    set(tool.handles.HistImage,'CData',repmat(tool.centers,[round(pos(4)) 1]));
                 end
-                Inrgb = ind2rgb(round((double(In)-Clim(1))/diff(Clim)*size(cmap,1)+1),cmap);
+
+                In = min(CL(2),max(CL(1),In));
+                In = cast((In - CL(1))*(255/diff(CL)),'uint8');
+
                 
-                % SHOW!
-                O = tool.NvolOpts.Opacity{ivol};
-                set(tool.handles.I(tool.Nvol),'CData',Inrgb,opts{:},'AlphaData',(In>Clim(1))*O)
+                if tool.RGBdecorrstretch
+                    In = decorrstretch(In);
+                end
+            end
+            
+            % apply gamma correction
+            if tool.gamma ~= 1
+                switch class(In)
+                    case 'uint8'
+                        In = cast((double(In)/255).^tool.gamma*255,'uint8');
+                    otherwise
+                        CL = get(tool.handles.Axes(tool.Nvol),'Clim');
+                        range = tool.range{tool.Nvol};
+                        In = ((double(In)-range(1))/diff(range)).^tool.gamma*range(2)+range(1);
+                end
+            end
+            
+            % SHOW SLICE
+            Opac = tool.NvolOpts.Opacity{ivol};
+            CL = get(tool.handles.Axes(tool.Nvol),'Clim');
+            if ~tool.upsample || get(tool.handles.Tools.montage,'Value')
+                set(tool.handles.I(tool.Nvol),'CData',In,'AlphaData',Opac)
+            else
+                Inresized = imresize_noIPT(In,size(In)*2,tool.upsampleMethod);
+                set(tool.handles.I(tool.Nvol),'CData',Inresized,'AlphaData',Opac,'XData',get(tool.handles.I(tool.Nvol),'XData'),'YData',get(tool.handles.I(tool.Nvol),'YData'))
+            end
             end
             tool.Nvol = Nvol;
-            % Mask
-            maskrgb = ind2rgb8(maskn,tool.maskColor);
-            set(tool.handles.mask,'CData',maskrgb,'XData',get(tool.handles.I(tool.Nvol),'XData'),'YData',get(tool.handles.I(tool.Nvol),'YData'));
-            set(tool.handles.mask,'AlphaData',tool.alpha*logical(maskn))
-            
-            % Set Histogram
-            if isfield(tool.handles.Tools,'Hist') && get(tool.handles.Tools.Hist,'value')
-                In(In<tool.centers(1) | In>tool.centers(end)) = [];
-                err = (max(In(:)) - min(In(:)))*1e-10;
-                nelements=hist(In(In>(min(In(:))+err) & In<max(In(:)-err)),tool.centers);
-                range = get(tool.handles.Axes,'Clim');
-                currentCenters = tool.centers>range(1) & tool.centers<range(2);
-                if any(currentCenters)
-                    nelements=min(1,nelements./max(nelements(currentCenters)));
-                else
-                    nelements = [];
-                end
-                set(tool.handles.HistLine,'YData',nelements);
-                set(tool.handles.HistLine,'XData',tool.centers);
+            if numel(maskn)>10e7
+                maskrgb = maskn;
+            else
+                maskrgb = ind2rgb8(maskn,tool.maskColor);
             end
-
-            % label
+            
+            % SHOW MASK
+            set(tool.handles.mask,'CData',maskrgb,'XData',get(tool.handles.I(tool.Nvol),'XData'),'YData',get(tool.handles.I(tool.Nvol),'YData'));
+            if numel(maskn)>10e7
+                alphaLayer = tool.alpha;
+            else
+                alphaLayer = tool.alpha*logical(maskn);
+            end
+            set(tool.handles.mask,'AlphaData',alphaLayer)
+            
+            % Update Label
             try
                 label = tool.label{tool.Nvol};
-                set(tool.handles.LabelText,'TooltipString',label)
-                if length(label)>20
-                    label =  ['..' label(max(1,length(label)-20):end)];
-                end
             catch
                 label='';
             end
             set(tool.handles.LabelText,'String',label)
-            set(tool.handles.SliceText,'String',['Vol: ' num2str(tool.Nvol) '/' num2str(length(tool.I)) '    Time: ' num2str(tool.Ntime) '/' num2str(size(tool.I{tool.Nvol},4)) '    Slice: ' num2str(Nslices) '/' num2str(size(tool.I{tool.Nvol},tool.viewplane))])
-           
+            set(tool.handles.SliceText,'String',['Vol: ' num2str(tool.Nvol) '/' num2str(length(tool.I)) '    Time: ' num2str(tool.Ntime) '/' num2str(size(tool.I{tool.Nvol},4)) '    Slice: ' num2str(n) '/' num2str(size(tool.I{tool.Nvol},tool.viewplane)) '    ' sprintf('%.1f%%',tool.rescaleFactor*100)])
+            
+            % Update Histogram
+            if isfield(tool.handles.Tools,'Hist') && get(tool.handles.Tools.Hist,'value')
+                if size(In,3) > 1
+                    % plot R, G and B histogram
+                    In = InOrig';
+                    set(tool.handles.HistLine(1),'Color',[1 0 0])
+                else
+                    % plot histogram in white
+                    % keep max 5000 pixels for faster process
+                    In = In(round(linspace(1,end,min(end,5000))));
+                    set(tool.handles.HistLine(1),'Color',[1 1 1])
+                end
+                for channel = 1:3
+                    if channel>size(In,1)
+                        set(tool.handles.HistLine(channel),'Visible','off')
+                    else
+                        Inc = In(channel,:);
+                        Inc(Inc<tool.centers(1) | Inc>tool.centers(end)) = [];
+                        err = (max(Inc(:)) - min(Inc(:)))*1e-10;
+                        nelements=hist(Inc(Inc>(min(Inc(:))+err) & Inc<max(Inc(:)-err)),tool.centers);
+                        range = get(tool.handles.Axes(tool.Nvol),'Clim');
+                        if ~tool.isRGB
+                            currentCenters = tool.centers>range(1) & tool.centers<range(2);
+                            if any(currentCenters)
+                                nelements=min(1,nelements./max(nelements(currentCenters)));
+                            end    
+                        else
+                            nelements=min(1,nelements/max(nelements));
+                        end
+                        set(tool.handles.HistLine(channel),'YData',nelements);
+                        set(tool.handles.HistLine(channel),'XData',tool.centers);
+                        set(tool.handles.HistLine(channel),'Visible','on')
+                    end
+                end
+            end
+            
             notify(tool,'newSlice')
             
         end
@@ -1811,14 +2084,17 @@ classdef imtool3D < handle
                 set(tool.handles.Slider,'visible','on');
                 set(tool.handles.Slider,'SliderStep',[1/(size(tool.I{tool.Nvol},tool.viewplane)-1) 1/(size(tool.I{tool.Nvol},tool.viewplane)-1)])
                 fun=@(hobject,eventdata)showSlice(tool,[],hobject,eventdata);
-                set(tool.handles.Slider,'Callback',fun);
+                set(tool.handles.Slider,'Callback',@(h,e) cellfun(@(x) feval(x,h,e), {@(h,e) set(tool.handles.Slider, 'Enable', 'off'),...
+                                                                   @(h,e) drawnow,...
+                                                                   @(h,e) set(tool.handles.Slider, 'Enable', 'on'),...
+                                                                   fun}));
             end
             set(tool.handles.Slider,'min',1,'max',size(tool.I{tool.Nvol},tool.viewplane));
             if get(tool.handles.Slider,'value')==0 || get(tool.handles.Slider,'value')>n
                 currentslice = round(size(tool.I{tool.Nvol},tool.viewplane)/2);
             else
                 currentslice = get(tool.handles.Slider,'value');
-            end    
+            end
             set(tool.handles.Slider,'value',currentslice)
         end
         
@@ -1837,19 +2113,19 @@ classdef imtool3D < handle
             gColor=[255 38 38]./256;
             mColor=[255 102 102]./256;
             for i=1:nGrid
-                tool.handles.grid(end+1)=plot([.5 size(tool.I{tool.Nvol},posdim(2))-.5],[y(i) y(i)],'-','LineWidth',1.2,'HitTest','off','Color',gColor,'Parent',tool.handles.Axes);
-                tool.handles.grid(end+1)=plot([x(i) x(i)],[.5 size(tool.I{tool.Nvol},posdim(1))-.5],'-','LineWidth',1.2,'HitTest','off','Color',gColor,'Parent',tool.handles.Axes);
+                tool.handles.grid(end+1)=plot([.5 size(tool.I{tool.Nvol},posdim(2))-.5],[y(i) y(i)],'-','LineWidth',1.2,'HitTest','off','Color',gColor,'Parent',tool.handles.Axes(end));
+                tool.handles.grid(end+1)=plot([x(i) x(i)],[.5 size(tool.I{tool.Nvol},posdim(1))-.5],'-','LineWidth',1.2,'HitTest','off','Color',gColor,'Parent',tool.handles.Axes(end));
                 if i<nGrid
                     xm=linspace(x(i),x(i+1),nMinor+2); xm=xm(2:end-1);
                     ym=linspace(y(i),y(i+1),nMinor+2); ym=ym(2:end-1);
                     for j=1:nMinor
-                        tool.handles.grid(end+1)=plot([.5 size(tool.I{tool.Nvol},posdim(2))-.5],[ym(j) ym(j)],'-r','LineWidth',.9,'HitTest','off','Color',mColor,'Parent',tool.handles.Axes);
-                        tool.handles.grid(end+1)=plot([xm(j) xm(j)],[.5 size(tool.I{tool.Nvol},posdim(1))-.5],'-r','LineWidth',.9,'HitTest','off','Color',mColor,'Parent',tool.handles.Axes);
+                        tool.handles.grid(end+1)=plot([.5 size(tool.I{tool.Nvol},posdim(2))-.5],[ym(j) ym(j)],'-r','LineWidth',.9,'HitTest','off','Color',mColor,'Parent',tool.handles.Axes(end));
+                        tool.handles.grid(end+1)=plot([xm(j) xm(j)],[.5 size(tool.I{tool.Nvol},posdim(1))-.5],'-r','LineWidth',.9,'HitTest','off','Color',mColor,'Parent',tool.handles.Axes(end));
                     end
                 end
             end
-            tool.handles.grid(end+1)=scatter(.5+size(tool.I,posdim(2))/2,.5+size(tool.I{tool.Nvol},posdim(1))/2,'r','filled','Parent',tool.handles.Axes);
-
+            tool.handles.grid(end+1)=scatter(.5+size(tool.I,posdim(2))/2,.5+size(tool.I{tool.Nvol},posdim(1))/2,'r','filled','Parent',tool.handles.Axes(end));
+            
             if get(tool.handles.Tools.Grid,'Value')
                 set(tool.handles.grid,'Visible','on')
             else
@@ -1859,7 +2135,7 @@ classdef imtool3D < handle
         
         function setWL(tool,W,L)
             try
-                set(tool.handles.Axes,'Clim',[L-W/2 L+W/2])
+                set(tool.handles.Axes(tool.Nvol),'Clim',[L-W/2 L+W/2])
                 set(tool.handles.Tools.L,'String',num2str(L-W/2));
                 set(tool.handles.Tools.U,'String',num2str(L+W/2));
                 set(tool.handles.HistImageAxes,'Clim',[L-W/2 L+W/2])
@@ -1868,8 +2144,8 @@ classdef imtool3D < handle
                 set(tool.handles.Histrange(3),'XData',[L L L])
             end
         end
-             
-        function maskEvents(tool,src,evnt)            
+        
+        function maskEvents(tool,src,evnt)
             % Enable/Disable buttons
             [x,y,z] = find3d(tool.mask==tool.maskSelected);
             switch tool.viewplane
@@ -1913,7 +2189,7 @@ classdef imtool3D < handle
         end
         
     end
-
+    
     
 end
 
@@ -1922,7 +2198,7 @@ function StatsCallback(hObject,evnt,tool)
 set(hObject, 'Enable', 'off');
 drawnow;
 set(hObject, 'Enable', 'on');
- 
+
 f1 = StatsGUI(tool.getImage(1),tool.getMask(1),[],tool.getMaskColor);
 f2 = HistogramGUI(tool.getImage,tool.getMask(1),tool.getMaskColor);
 pos = get(f1,'Position');
@@ -1941,7 +2217,7 @@ if get(hObject,'Value')
         case 'Smart'
             set(tool.handles.Tools.PaintBrush,'Value',0);
     end
-    createBrushObject(tool,style);    
+    createBrushObject(tool,style);
 end
 
 end
@@ -1971,15 +2247,15 @@ function smooth3Callback(hObject,evnt,tool)
 set(hObject, 'Enable', 'off');
 drawnow;
 set(hObject, 'Enable', 'on');
- 
-mask = getMask(tool); 
+
+mask = getMask(tool);
 mask = smooth3(mask)>0.45;
 tool.setMask(mask);
 end
 
 function maskinterpImageCallback(hObject,evnt,tool)
-mask = getMask(tool); 
-[x,y,z] = find3d(mask); 
+mask = getMask(tool);
+[x,y,z] = find3d(mask);
 mask2=false(size(mask));
 
 switch tool.viewplane
@@ -2009,8 +2285,8 @@ if any(mask(:))
     [W,L] = getWindowLevel(tool);
     I = mat2gray(I,[L-W/2 L+W/2]);
     
-%     mask = smooth3(mask);
-%     mask = mask>0.8;
+    %     mask = smooth3(mask);
+    %     mask = mask>0.8;
     [x,y,z] = find3d(mask);
     switch tool.viewplane
         case 1
@@ -2031,7 +2307,7 @@ if any(mask(:))
                 Iiz = I(:,:,iz);
                 maskiz = mask(:,:,iz);
         end
-
+        
         J = activecontour(squeeze(Iiz), squeeze(maskiz), 3,'Chan-Vese','SmoothFactor',0.1,'ContractionBias' ,0);
         switch tool.viewplane
             case 1
@@ -2055,40 +2331,40 @@ end
 % end
 
 function [I, position, h, range, tools, mask, enableHist] = parseinputs(varargin)
-            switch length(varargin)
-                case 0  %tool = imtool3d()
-                    I=[];
-                    position=[0 0 1 1]; h=[];
-                    range=[]; tools=[]; mask=[]; enableHist=true;
-                case 1  %tool = imtool3d(I)
-                    I=varargin{1}; position=[0 0 1 1]; h=[];
-                    range=[]; tools=[]; mask=[]; enableHist=true;
-                case 2  %tool = imtool3d(I,position)
-                    I=varargin{1}; position=varargin{2}; h=[];
-                    range=[]; tools=[]; mask=[]; enableHist=true;
-                case 3  %tool = imtool3d(I,position,h)
-                    I=varargin{1}; position=varargin{2}; h=varargin{3};
-                    range=[]; tools=[]; mask=[]; enableHist=true;
-                case 4  %tool = imtool3d(I,position,h,range)
-                    I=varargin{1}; position=varargin{2}; h=varargin{3};
-                    range=varargin{4}; tools=[]; mask=[]; enableHist=true;
-                case 5  %tool = imtool3d(I,position,h,range,tools)
-                    I=varargin{1}; position=varargin{2}; h=varargin{3};
-                    range=varargin{4}; tools=varargin{5}; mask=[];
-                    enableHist=true;
-                case 6  %tool = imtool3d(I,position,h,range,tools,mask)
-                    I=varargin{1}; position=varargin{2}; h=varargin{3};
-                    range=varargin{4}; tools=varargin{5}; mask=varargin{6};
-                    enableHist=true;
-                case 7  %tool = imtool3d(I,position,h,range,tools,mask)
-                    I=varargin{1}; position=varargin{2}; h=varargin{3};
-                    range=varargin{4}; tools=varargin{5}; mask=varargin{6};
-                    enableHist = varargin{7};
-            end
-            
-            if isempty(position)
-                position=[0 0 1 1];
-            end
+switch length(varargin)
+    case 0  %tool = imtool3d()
+        I=[];
+        position=[0 0 1 1]; h=[];
+        range=[]; tools=[]; mask=[]; enableHist=true;
+    case 1  %tool = imtool3d(I)
+        I=varargin{1}; position=[0 0 1 1]; h=[];
+        range=[]; tools=[]; mask=[]; enableHist=true;
+    case 2  %tool = imtool3d(I,position)
+        I=varargin{1}; position=varargin{2}; h=[];
+        range=[]; tools=[]; mask=[]; enableHist=true;
+    case 3  %tool = imtool3d(I,position,h)
+        I=varargin{1}; position=varargin{2}; h=varargin{3};
+        range=[]; tools=[]; mask=[]; enableHist=true;
+    case 4  %tool = imtool3d(I,position,h,range)
+        I=varargin{1}; position=varargin{2}; h=varargin{3};
+        range=varargin{4}; tools=[]; mask=[]; enableHist=true;
+    case 5  %tool = imtool3d(I,position,h,range,tools)
+        I=varargin{1}; position=varargin{2}; h=varargin{3};
+        range=varargin{4}; tools=varargin{5}; mask=[];
+        enableHist=true;
+    case 6  %tool = imtool3d(I,position,h,range,tools,mask)
+        I=varargin{1}; position=varargin{2}; h=varargin{3};
+        range=varargin{4}; tools=varargin{5}; mask=varargin{6};
+        enableHist=true;
+    case 7  %tool = imtool3d(I,position,h,range,tools,mask)
+        I=varargin{1}; position=varargin{2}; h=varargin{3};
+        range=varargin{4}; tools=varargin{5}; mask=varargin{6};
+        enableHist = varargin{7};
+end
+
+if isempty(position)
+    position=[0 0 1 1];
+end
 end
 
 function measureImageCallback(hObject,evnt,tool,type)
@@ -2120,7 +2396,7 @@ switch nargout
         WBUF_old = get(tool.handles.fig,'WindowButtonUpFcn');
         switch get(tool.handles.fig,'SelectionType')
             case 'normal'   %Adjust window and level
-                CLIM=get(tool.handles.Axes,'Clim');
+                CLIM=get(tool.handles.Axes(tool.Nvol),'Clim');
                 W=CLIM(2)-CLIM(1);
                 L=mean(CLIM);
                 %make the contrast icon for the pointer
@@ -2135,19 +2411,19 @@ switch nargout
                 fun2=@(src,evnt) buttonUpFunction(src,evnt,tool,WBMF_old,WBUF_old);
                 set(tool.handles.fig,'WindowButtonMotionFcn',fun,'WindowButtonUpFcn',fun2)
             case 'extend'  %Zoom
-                xlims=get(tool.handles.Axes,'Xlim');
-                ylims=get(tool.handles.Axes,'Ylim');
-                bpA=get(tool.handles.Axes,'CurrentPoint');
+                xlims=get(tool.handles.Axes(tool.Nvol),'Xlim');
+                ylims=get(tool.handles.Axes(tool.Nvol),'Ylim');
+                bpA=get(tool.handles.Axes(tool.Nvol),'CurrentPoint');
                 bpA=[bpA(1,1) bpA(1,2)];
                 setptr(tool.handles.fig,'glass');
                 fun=@(src,evnt) adjustZoomMouse(src,evnt,bp,tool.handles.Axes,tool,xlims,ylims,bpA);
                 fun2=@(src,evnt) buttonUpFunction(src,evnt,tool,WBMF_old,WBUF_old);
                 set(tool.handles.fig,'WindowButtonMotionFcn',fun,'WindowButtonUpFcn',fun2)
             case 'alt' %pan
-                xlims=get(tool.handles.Axes,'Xlim');
-                ylims=get(tool.handles.Axes,'Ylim');
-                oldUnits =  get(tool.handles.Axes,'Units'); set(tool.handles.Axes,'Units','Pixels');
-                pos = get(tool.handles.Axes,'Position'); 
+                xlims=get(tool.handles.Axes(tool.Nvol),'Xlim');
+                ylims=get(tool.handles.Axes(tool.Nvol),'Ylim');
+                oldUnits =  get(tool.handles.Axes(tool.Nvol),'Units'); set(tool.handles.Axes,'Units','Pixels');
+                pos = get(tool.handles.Axes(tool.Nvol),'Position');
                 set(tool.handles.Axes,'Units',oldUnits);
                 axesPixels = pos(3:end);
                 imagePixels = [diff(xlims) diff(ylims)];
@@ -2159,15 +2435,15 @@ switch nargout
                 set(tool.handles.fig,'WindowButtonMotionFcn',fun,'WindowButtonUpFcn',fun2)
         end
     case 2
-        bp=get(tool.handles.Axes,'CurrentPoint');
+        bp=get(tool.handles.Axes(tool.Nvol),'CurrentPoint');
         x=bp(1,1); y=bp(1,2);
         varargout{1}=x; varargout{2}=y;
 end
 end
 
 function resetViewCallback(hObject,evnt,tool)
-set(tool.handles.Axes,'Xlim',get(tool.handles.I,'XData'))
-set(tool.handles.Axes,'Ylim',get(tool.handles.I,'YData'))
+set(tool.handles.Axes(tool.Nvol),'Xlim',get(tool.handles.I(tool.Nvol),'XData'))
+set(tool.handles.Axes(tool.Nvol),'Ylim',get(tool.handles.I(tool.Nvol),'YData'))
 end
 
 function toggleGrid(hObject,eventdata,tool)
@@ -2203,10 +2479,10 @@ end
 end
 
 function WindowLevel_callback(hobject,evnt,tool)
-range=get(tool.handles.Axes,'Clim');
+range=get(tool.handles.Axes(tool.Nvol),'Clim');
 
 L=str2num(get(tool.handles.Tools.L,'String'));
-if isempty(L) 
+if isempty(L)
     L=range(1);
     set(tool.handles.Tools.L,'String',num2str(L))
 end
@@ -2216,13 +2492,13 @@ if isempty(U)
     set(tool.handles.Tools.U,'String',num2str(U))
 end
 if U<L
-    U=L+max(eps,abs(0.1*L)); 
+    U=L+max(eps,abs(0.1*L));
     set(tool.handles.Tools.U,'String',num2str(U))
 end
 setWL(tool,U-L,mean([U,L]))
 showSlice(tool)
 end
-        
+
 function histogramButtonDownFunction(hObject,evnt,tool,line)
 
 WBMF_old = get(tool.handles.fig,'WindowButtonMotionFcn');
@@ -2250,17 +2526,17 @@ function scrollWheel(scr,evnt,tool)
 % set(tool.handles.fig,'Units','Pixels')
 % point=get(tool.handles.fig, 'CurrentPoint');
 % set(tool.handles.fig,'Units',units)
-% 
+%
 % units=get(tool.handles.Panels.Large,'Units');
 % set(tool.handles.Panels.Large,'Units','Pixels')
 % pos_p=get(tool.handles.Panels.Large,'Position');
 % set(tool.handles.Panels.Large,'Units',units)
-% 
+%
 % units=get(tool.handles.Panels.Image,'Units');
 % set(tool.handles.Panels.Image,'Units','Pixels')
 % pos_a=get(tool.handles.Panels.Image,'Position');
 % set(tool.handles.Panels.Image,'Units',units)
-% 
+%
 % xmin=pos_p(1)+pos_a(1); xmax=xmin+pos_a(3);
 % ymin=pos_p(2)+pos_a(2); ymax=ymin+pos_a(4);
 
@@ -2268,24 +2544,50 @@ function scrollWheel(scr,evnt,tool)
 
 %if point(1)>=xmin && point(1)<=xmax && point(2)>=ymin && point(2)<=ymax
 %if isMouseOverAxes(tool.handles.Axes)
-    newSlice=get(tool.handles.Slider,'value')-evnt.VerticalScrollCount;
-    if newSlice>=1 && newSlice <=size(tool.I{tool.Nvol},tool.viewplane)
-        set(tool.handles.Slider,'value',newSlice);
-        showSlice(tool)
-    end
+newSlice=get(tool.handles.Slider,'value')-evnt.VerticalScrollCount;
+if newSlice>=1 && newSlice <=size(tool.I{tool.Nvol},tool.viewplane)
+    set(tool.handles.Slider,'value',newSlice);
+    showSlice(tool)
+end
 %end
 
 end
 
 function multipleScrollWheel(scr,evnt,tools)
+% unselect button to prevent activation with spacebar
 for i=1:length(tools)
     scrollWheel(scr,evnt,tools(i))
 end
 end
 
+function SelectSliderColor(tool,color)
+butString = {'.','R','G','B'};
+if exist('color','var')
+    nextChannel = find(ismember(butString,{color,'.'}),1,'last');
+else
+    H = tool.getHandles;
+    src = H.SliderColor;
+    nextChannel = mod(find(strcmp(get(src,'String'),butString)),4)+1;
+end
+set(src,'String',butString{nextChannel});
+if(nextChannel>1)
+    switch tool.RGBdim
+        case 3
+            tool.setCurrentSlice(tool.RGBindex(nextChannel-1));
+        case 4
+            tool.Ntime = tool.RGBindex(nextChannel-1);
+        case 5
+            setNvol(tool,tool.RGBindex(nextChannel-1))
+    end
+end
+tool.isRGB = (nextChannel > 1);
+set(src,'String',butString{nextChannel});
+showSlice(tool);
+end
+
 function newLowerRangePosition(src,evnt,hObject,tool)
 cp = get(hObject,'CurrentPoint'); cp=[cp(1,1) cp(1,2)];
-range=get(tool.handles.Axes,'Clim');
+range=get(tool.handles.Axes(tool.Nvol),'Clim');
 Xlims=get(hObject,'Xlim');
 r=double(tool.getrange);
 ord = round(log10(r));
@@ -2303,7 +2605,7 @@ end
 
 function newUpperRangePosition(src,evnt,hObject,tool)
 cp = get(hObject,'CurrentPoint'); cp=[cp(1,1) cp(1,2)];
-range=get(tool.handles.Axes,'Clim');
+range=get(tool.handles.Axes(tool.Nvol),'Clim');
 Xlims=get(hObject,'Xlim');
 r=double(tool.getrange);
 ord = round(log10(r));
@@ -2321,7 +2623,7 @@ end
 
 function newLevelRangePosition(src,evnt,hObject,tool)
 cp = get(hObject,'CurrentPoint'); cp=[cp(1,1) cp(1,2)];
-range=get(tool.handles.Axes,'Clim');
+range=get(tool.handles.Axes(tool.Nvol),'Clim');
 Xlims=get(hObject,'Xlim');
 r=double(tool.getrange);
 ord = round(log10(r));
@@ -2392,11 +2694,23 @@ if resize > 0
     set(hObject,'Xlim',xlims,'Ylim',ylims)
 end
 
+% set to integer zooming factor if necessary
+n = tool.getCurrentSlice;
+if abs(tool.rescaleFactor - round(tool.rescaleFactor))<0.05
+    tool.rescaleFactor = round(tool.rescaleFactor);
+elseif tool.rescaleFactor<1 && (abs(1/tool.rescaleFactor - round(1/tool.rescaleFactor))<0.05)
+    tool.rescaleFactor = 1/round(1/tool.rescaleFactor);
+end
+tool.rescaleFactor = round(tool.rescaleFactor*1000)/1000;
+
+% update Text
+set(tool.handles.SliceText,'String',['Vol: ' num2str(tool.Nvol) '/' num2str(length(tool.I)) '    Time: ' num2str(tool.Ntime) '/' num2str(size(tool.I{tool.Nvol},4)) '    Slice: ' num2str(n) '/' num2str(size(tool.I{tool.Nvol},tool.viewplane)) '    ' sprintf('%.1f%%',tool.rescaleFactor*100)])
+
 end
 
 function adjustPanMouse(src,evnt,bp,hObject,xlims,ylims,scale)
 cp = get(0,'PointerLocation');
-V = get(hObject,'View');
+V = get(hObject,'View'); if iscell(V), V = V{1}; end
 d = scale*(bp-cp);
 if V(1)==-90
     d(1) = -d(1);
@@ -2421,12 +2735,15 @@ current_object = hittest;
 setmaskstatistics(tool,current_object)
 
 h = tool.getHandles;
-if ~isequal(h.Axes,current_object) && ~ismember(current_object,h.I) && ~isequal(h.mask,current_object)
+isax = false;
+for iax = 1:length(h.Axes), isax = isax | isequal(h.Axes(iax),current_object); end
+if ~isax && ~ismember(current_object,h.I) && ~isequal(h.mask,current_object)
     set(h.Info,'String','(x,y) val')
     return
 end
 
-pos=get(h.Axes,'CurrentPoint');
+pos=get(h.Axes(tool.Nvol),'CurrentPoint');
+rot90on = get(h.Axes(tool.Nvol),'view'); rot90on = rot90on(1);
 pos=pos(1,1:2);
 n=round(get(h.Slider,'value'));
 if n==0
@@ -2435,10 +2752,15 @@ end
 
 if get(tool.handles.Tools.montage,'Value')
     Msize = get(tool.handles.Tools.montage,'UserData');
+    if ~rot90on
+        Msize([2 1]) = Msize([1 2]);
+    end
+    
     if ~isempty(Msize)
         S = tool.getImageSize(1);
         pos = pos.*Msize(1:2);
-        n = Msize(max(1,min(end,2+floor(pos(1)/S(2))*Msize(2)+floor(pos(2)/S(1))+1)));
+        pos = max(0,pos);
+        n = Msize(min(end,2+floor(pos(1)/S(2))*Msize(2)+floor(pos(2)/S(1))+1));
         pos(1) = mod(pos(1),S(2));
         pos(2) = mod(pos(2),S(1));
     end
@@ -2448,11 +2770,11 @@ posdim = setdiff(1:3, tool.viewplane);
 if pos(1)>0 && pos(1)<=size(tool.I{tool.Nvol},posdim(2)) && pos(2)>0 && pos(2)<=size(tool.I{tool.Nvol},posdim(1))
     switch tool.viewplane
         case 1
-            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(n,pos(2),pos(1),min(end,tool.Ntime)))])
+            set(h.Info,'String',['(' num2str(pos(2)) ',' num2str(pos(1)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(n,pos(2),pos(1),min(end,tool.Ntime)))])
         case 2
-            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(pos(2),n,pos(1),min(end,tool.Ntime)))])
+            set(h.Info,'String',['(' num2str(pos(2)) ',' num2str(pos(1)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(pos(2),n,pos(1),min(end,tool.Ntime)))])
         case 3
-            set(h.Info,'String',['(' num2str(pos(1)) ',' num2str(pos(2)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(pos(2),pos(1),n,min(end,tool.Ntime)))])
+            set(h.Info,'String',['(' num2str(pos(2)) ',' num2str(pos(1)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(pos(2),pos(1),n,min(end,tool.Ntime)))])
     end
     notify(tool,'newMousePos')
 else
@@ -2464,8 +2786,8 @@ end
 end
 
 function panelResizeFunction(hObject,events,tool,w,h,wbutt)
-    hh = tool.getHandles;
-    try
+hh = tool.getHandles;
+try
     units=get(hh.Panels.Large,'Units');
     set(hh.Panels.Large,'Units','Pixels')
     pos=get(hh.Panels.Large,'Position');
@@ -2480,14 +2802,15 @@ function panelResizeFunction(hObject,events,tool,w,h,wbutt)
     set(hh.Panels.Tools,'Position',[0 max(0,pos(4)-w) pos(3) w])
     set(hh.Panels.ROItools,'Position',[max(0,pos(3)-w)  w w max(0,pos(4)-2*w)])
     set(hh.Panels.Slider,'Position',[0 w w max(0,pos(4)-2*w)])
+    set(hh.Slider,'Position',[0 wbutt w max(0,pos(4)-2*w-wbutt)])
     set(hh.Panels.Info,'Position',[0 0 pos(3) w])
     axis(hh.Axes,'fill');
     buff=(w-wbutt)/2;
     
     pos = get(tool.handles.Panels.Tools,'Position');
     set(hh.Tools.Help,'Position',[pos(3)-wbutt-buff buff wbutt wbutt]);
-
-    pos=get(hh.Panels.ROItools,'Position');    
+    
+    pos=get(hh.Panels.ROItools,'Position');
     for islct=1:5
         set(hh.Tools.maskSelected(islct),'Position',[buff pos(4)-buff-islct*wbutt wbutt wbutt]);
     end
@@ -2496,54 +2819,54 @@ function panelResizeFunction(hObject,events,tool,w,h,wbutt)
     set(hh.Tools.maskStats,'Position',[buff pos(4)-buff-(islct+2)*wbutt wbutt wbutt]);
     set(hh.Tools.maskSave,'Position',[buff pos(4)-buff-(islct+3)*wbutt wbutt wbutt]);
     set(hh.Tools.maskLoad,'Position',[buff pos(4)-buff-(islct+4)*wbutt wbutt wbutt]);
-
+    
     set(hh.Axes,'XLimMode','manual','YLimMode','manual');
-
-    end
+    
+end
 end
 
 function icon = makeToolbarIconFromPNG(filename)
 % makeToolbarIconFromPNG  Creates an icon with transparent
 %   background from a PNG image.
 
-%   Copyright 2004 The MathWorks, Inc.  
+%   Copyright 2004 The MathWorks, Inc.
 %   $Revision: 1.1.8.1 $  $Date: 2004/08/10 01:50:31 $
 
-  % Read image and alpha channel if there is one.
-  [icon,map,alpha] = imread(filename);
+% Read image and alpha channel if there is one.
+[icon,map,alpha] = imread(filename);
 
-  % If there's an alpha channel, the transparent values are 0.  For an RGB
-  % image the transparent pixels are [0, 0, 0].  Otherwise the background is
-  % cyan for indexed images.
-  if (ndims(icon) == 3) % RGB
-
+% If there's an alpha channel, the transparent values are 0.  For an RGB
+% image the transparent pixels are [0, 0, 0].  Otherwise the background is
+% cyan for indexed images.
+if (ndims(icon) == 3) % RGB
+    
     idx = 0;
     if ~isempty(alpha)
-      mask = alpha == idx;
+        mask = alpha == idx;
     else
-      mask = icon==idx; 
+        mask = icon==idx;
     end
     
-  else % indexed
+else % indexed
     
     % Look through the colormap for the background color.
     if isempty(map), idx=1; icon = im2double(repmat(icon, [1 1 3])); return; end
     for i=1:size(map,1)
-      if all(map(i,:) == [0 1 1])
-        idx = i;
-        break;
-      end
+        if all(map(i,:) == [0 1 1])
+            idx = i;
+            break;
+        end
     end
     
     mask = icon==(idx-1); % Zero based.
     icon = ind2rgb(icon,map);
     
-  end
-  
-  % Apply the mask.
-  icon = im2double(icon);
-  
-  for p = 1:3
+end
+
+% Apply the mask.
+icon = im2double(icon);
+
+for p = 1:3
     
     tmp = icon(:,:,p);
     if ndims(mask)==3
@@ -2553,7 +2876,7 @@ function icon = makeToolbarIconFromPNG(filename)
     end
     icon(:,:,p) = tmp;
     
-  end
+end
 
 end
 
@@ -2563,7 +2886,7 @@ set(hObject, 'Enable', 'off');
 drawnow;
 set(hObject, 'Enable', 'on');
 
-    hh = tool.getHandles;
+hh = tool.getHandles;
 set(hh.Panels.Large,'Units','Pixels')
 pos=get(hh.Panels.Large,'Position');
 set(hh.Panels.Large,'Units','normalized')
@@ -2606,44 +2929,87 @@ end
 function displayHelp(hObject,evnt,tool)
 %%
 msg = {'imtool3D, written by Justin Solomon',...
-       'justin.solomon@duke.edu',...
-       'adapted by Tanguy Duval',...
-       'https://github.com/tanguyduval/imtool3D_td',...
-       '------------------------------------------',...
-       '',...
-       'MOUSE CONTROLS',...
-       'Middle Click and drag      Zoom in/out',...
-       'Left   Click and drag      Contrast/Brightness',...
-       'Right  Click and drag      Pan',...
-       '',...
-       'TRACKPAD CONTROLS',...
-       'Shift + Click and drag     Zoom in/out',...
-       'Left    Click and drag     Contrast/Brightness',...
-       'Ctrl  + Click and drag     Pan',...
-       '',...
-       'KEYBOARD SHORTCUTS:',...
-       'Left/right arrows          navigate through time (4th dimension)',...
-       'Top/bottom arrows          navigate through volumes (5th ',...
-       '                           dimension)',...
-       '',...
-       '[Spacebar]                 Show/hide mask',...
-       '[B]                        Toolbrush ',...
-       '                             * Middle click and drag to change',...
-       '                               diameter',...
-       '                             * Right click to erase',...
-       '[S]                        Smart Toolbrush',...
-       '                             double click to toggle between'...
-       '                             bright or dark segmentation',...
-       '[Z]                        Undo mask',...
-       '[1]                        Select mask label 1',...
-       '[2]                        Select mask label 2',...
-       '[...]'};
-   h = questdlg(msg,'imtool3D','OK','Update','OK');
-   switch h
-       case 'Update'
-           checkUpdate();
-   end
-   
+    'justin.solomon@duke.edu',...
+    'adapted by Tanguy Duval',...
+    'https://github.com/tanguyduval/imtool3D_td',...
+    '------------------------------------------',...
+    '',...
+    'MOUSE CONTROLS',...
+    'Middle Click and drag      Zoom in/out',...
+    'Left   Click and drag      Contrast/Brightness',...
+    'Right  Click and drag      Pan',...
+    '',...
+    'TRACKPAD CONTROLS',...
+    'Shift + Click and drag     Zoom in/out',...
+    'Left    Click and drag     Contrast/Brightness',...
+    'Ctrl  + Click and drag     Pan',...
+    '',...
+    'KEYBOARD SHORTCUTS:',...
+    'Left/right arrows          navigate through time (4th dimension)',...
+    'Top/bottom arrows          navigate through volumes (5th ',...
+    '                           dimension)',...
+    '[X]                        [available in imtool3D_3planes only]',...
+    '                              Set slices based on current mouse location',...
+    '                             (hold X and move the mouse to navigate',...
+    '                              in the volume)',...
+    '',...
+    '[Spacebar]                 Show/hide mask',...
+    '[B]                        Toolbrush ',...
+    '                             * Middle click and drag to change',...
+    '                               diameter',...
+    '                             * Right click to erase',...
+    '[S]                        Smart Toolbrush',...
+    '                             double click to toggle between'...
+    '                             bright or dark segmentation',...
+    '[Z]                        Undo mask',...
+    '[1]                        Select mask label 1',...
+    '[2]                        Select mask label 2',...
+    '[...]'};
+h = questdlg(msg,'imtool3D','OK','Preferences','Update','OK');
+switch h
+    case 'Update'
+        checkUpdate();
+    case 'Preferences'
+        %%
+        buttons = {'Orientation', {'Vertical (Photo)','Horizontal (Medical)'}, ...
+            'upsample', tool.upsample, ...
+            'gamma', tool.gamma, ...
+            'PANEL','RGB image',3,...
+            'RGB dimension', {3,4,5}, ...
+            'decorrelation stretch', tool.RGBdecorrstretch, ...
+            'align RGB histograms', tool.RGBalignhisto, ...
+            'windowSpeed', tool.windowSpeed};
+        tool.optdlg = optiondlg(buttons);
+        tool.optdlg.setValue('RGB image_RGB dimension',tool.RGBdim-2)
+        H = tool.optdlg.getHandles();
+        % figure position
+        CurrentPos = get(H.fig, 'Position');
+        set(tool.handles.fig,'Units','Pixels')
+        CallerPos = get(tool.handles.fig, 'Position');
+        screensize = get(0,'ScreenSize');
+        % delete if main is deleted
+        figfun = get(tool.handles.fig,'CloseRequestFcn');
+        if ischar(figfun)
+            set(tool.handles.fig,'CloseRequestFcn',@(src,evt) cellfun(@(x) feval(x), {figfun,@() delete(H.fig)}));
+        else
+            set(tool.handles.fig,'CloseRequestFcn',@(src,evt) cellfun(@(x) feval(x,src,evt), {figfun,@(h,e) delete(H.fig)}));
+        end
+        
+        NewPos = [min(screensize(3)-250,CallerPos(1)+CallerPos(3)), CallerPos(2), 250, CallerPos(4)];
+        set(H.fig, 'Position', NewPos);
+        
+        Orient = getOrient(tool);
+        if abs(Orient)>45, tool.optdlg.setValue('Orientation',2); end
+        tool.optdlg.setCallback('Orientation',@(src,evnt) tool.setOrient(src.String{src.Value},true))
+        tool.optdlg.setCallback('upsample', @(src,evnt) assignval(tool,'upsample',src.Value))
+        tool.optdlg.setCallback('gamma', @(src,evnt) assignval(tool,'gamma',str2num(src.String)))
+        tool.optdlg.setCallback('RGB image_RGB dimension', @(src,evnt) assignval(tool,'RGBdim',str2num(src.String{src.Value})))
+        tool.optdlg.setCallback('RGB image_decorrelation stretch', @(src,evnt) assignval(tool,'RGBdecorrstretch',src.Value))
+        tool.optdlg.setCallback('RGB image_align RGB histograms', @(src,evnt) assignval(tool,'RGBalignhisto',src.Value))
+        tool.optdlg.setCallback('windowSpeed', @(src,evnt) assignval(tool,'windowSpeed',str2num(src.String)))
+        
+end
+
 end
 
 function pos = getPixelPosition(h)
@@ -2661,27 +3027,27 @@ end
 
 function [p,ellipse]=phantom3d(varargin)
 %PHANTOM3D Three-dimensional analogue of MATLAB Shepp-Logan phantom
-%   P = PHANTOM3D(DEF,N) generates a 3D head phantom that can   
+%   P = PHANTOM3D(DEF,N) generates a 3D head phantom that can
 %   be used to test 3-D reconstruction algorithms.
 %
 %   DEF is a string that specifies the type of head phantom to generate.
-%   Valid values are: 
-%         
+%   Valid values are:
+%
 %      'Shepp-Logan'            A test image used widely by researchers in
 %                               tomography
 %      'Modified Shepp-Logan'   (default) A variant of the Shepp-Logan phantom
-%                               in which the contrast is improved for better  
+%                               in which the contrast is improved for better
 %                               visual perception.
 %
 %   N is a scalar that specifies the grid size of P.
 %   If you omit the argument, N defaults to 64.
-% 
+%
 %   P = PHANTOM3D(E,N) generates a user-defined phantom, where each row
 %   of the matrix E specifies an ellipsoid in the image.  E has ten columns,
 %   with each column containing a different parameter for the ellipsoids:
-%   
+%
 %     Column 1:  A      the additive intensity value of the ellipsoid
-%     Column 2:  a      the length of the x semi-axis of the ellipsoid 
+%     Column 2:  a      the length of the x semi-axis of the ellipsoid
 %     Column 3:  b      the length of the y semi-axis of the ellipsoid
 %     Column 4:  c      the length of the z semi-axis of the ellipsoid
 %     Column 5:  x0     the x-coordinate of the center of the ellipsoid
@@ -2691,7 +3057,7 @@ function [p,ellipse]=phantom3d(varargin)
 %     Column 9:  theta  theta Euler angle (in degrees) (rotation about x-axis)
 %     Column 10: psi    psi Euler angle (in degrees) (rotation about z-axis)
 %
-%   For purposes of generating the phantom, the domains for the x-, y-, and 
+%   For purposes of generating the phantom, the domains for the x-, y-, and
 %   z-axes span [-1,1].  Columns 2 through 7 must be specified in terms
 %   of this range.
 %
@@ -2704,14 +3070,14 @@ function [p,ellipse]=phantom3d(varargin)
 %   Remarks
 %   -------
 %   For any given voxel in the output image, the voxel's value is equal to the
-%   sum of the additive intensity values of all ellipsoids that the voxel is a 
-%   part of.  If a voxel is not part of any ellipsoid, its value is 0.  
+%   sum of the additive intensity values of all ellipsoids that the voxel is a
+%   part of.  If a voxel is not part of any ellipsoid, its value is 0.
 %
 %   The additive intensity value A for an ellipsoid can be positive or negative;
 %   if it is negative, the ellipsoid will be darker than the surrounding pixels.
 %   Note that, depending on the values of A, some voxels may have values outside
 %   the range [0,1].
-%    
+%
 %   Example
 %   -------
 %        ph = phantom3d(128);
@@ -2722,55 +3088,55 @@ function [p,ellipse]=phantom3d(varargin)
 %   Utah Center for Advanced Imaging Research
 %   729 Arapeen Drive
 %   Salt Lake City, UT 84108-1218
-%   
-%   This code is released under the Gnu Public License (GPL). For more information, 
+%
+%   This code is released under the Gnu Public License (GPL). For more information,
 %   see : http://www.gnu.org/copyleft/gpl.html
 %
 %   Portions of this code are based on phantom.m, copyrighted by the Mathworks
 %
 [ellipse,n] = parse_inputs(varargin{:});
 p = zeros([n n n]);
-rng =  ( (0:n-1)-(n-1)/2 ) / ((n-1)/2); 
+rng =  ( (0:n-1)-(n-1)/2 ) / ((n-1)/2);
 [x,y,z] = meshgrid(rng,rng,rng);
 coord = [flatten(x); flatten(y); flatten(z)];
 p = flatten(p);
-for k = 1:size(ellipse,1)    
-   A = ellipse(k,1);            % Amplitude change for this ellipsoid
-   asq = ellipse(k,2)^2;        % a^2
-   bsq = ellipse(k,3)^2;        % b^2
-   csq = ellipse(k,4)^2;        % c^2
-   x0 = ellipse(k,5);           % x offset
-   y0 = ellipse(k,6);           % y offset
-   z0 = ellipse(k,7);           % z offset
-   phi = ellipse(k,8)*pi/180;   % first Euler angle in radians
-   theta = ellipse(k,9)*pi/180; % second Euler angle in radians
-   psi = ellipse(k,10)*pi/180;  % third Euler angle in radians
-   
-   cphi = cos(phi);
-   sphi = sin(phi);
-   ctheta = cos(theta);
-   stheta = sin(theta);
-   cpsi = cos(psi);
-   spsi = sin(psi);
-   
-   % Euler rotation matrix
-   alpha = [cpsi*cphi-ctheta*sphi*spsi   cpsi*sphi+ctheta*cphi*spsi  spsi*stheta;
-            -spsi*cphi-ctheta*sphi*cpsi  -spsi*sphi+ctheta*cphi*cpsi cpsi*stheta;
-            stheta*sphi                  -stheta*cphi                ctheta];        
-   
-   % rotated ellipsoid coordinates
-   coordp = alpha*coord;
-   
-   idx = find((coordp(1,:)-x0).^2./asq + (coordp(2,:)-y0).^2./bsq + (coordp(3,:)-z0).^2./csq <= 1);
-   p(idx) = p(idx) + A;
+for k = 1:size(ellipse,1)
+    A = ellipse(k,1);            % Amplitude change for this ellipsoid
+    asq = ellipse(k,2)^2;        % a^2
+    bsq = ellipse(k,3)^2;        % b^2
+    csq = ellipse(k,4)^2;        % c^2
+    x0 = ellipse(k,5);           % x offset
+    y0 = ellipse(k,6);           % y offset
+    z0 = ellipse(k,7);           % z offset
+    phi = ellipse(k,8)*pi/180;   % first Euler angle in radians
+    theta = ellipse(k,9)*pi/180; % second Euler angle in radians
+    psi = ellipse(k,10)*pi/180;  % third Euler angle in radians
+    
+    cphi = cos(phi);
+    sphi = sin(phi);
+    ctheta = cos(theta);
+    stheta = sin(theta);
+    cpsi = cos(psi);
+    spsi = sin(psi);
+    
+    % Euler rotation matrix
+    alpha = [cpsi*cphi-ctheta*sphi*spsi   cpsi*sphi+ctheta*cphi*spsi  spsi*stheta;
+        -spsi*cphi-ctheta*sphi*cpsi  -spsi*sphi+ctheta*cphi*cpsi cpsi*stheta;
+        stheta*sphi                  -stheta*cphi                ctheta];
+    
+    % rotated ellipsoid coordinates
+    coordp = alpha*coord;
+    
+    idx = find((coordp(1,:)-x0).^2./asq + (coordp(2,:)-y0).^2./bsq + (coordp(3,:)-z0).^2./csq <= 1);
+    p(idx) = p(idx) + A;
 end
 p = reshape(p,[n n n]);
 end
 function out = flatten(in)
 out = reshape(in,[1 prod(size(in))]);
 end
-   
-   
+
+
 function [e,n] = parse_inputs(varargin)
 %  e is the m-by-10 array which defines ellipsoids
 %  n is the size of the phantom brain image
@@ -2778,35 +3144,35 @@ n = 128;     % The default size
 e = [];
 defaults = {'shepp-logan', 'modified shepp-logan', 'yu-ye-wang'};
 for i=1:nargin
-   if ischar(varargin{i})         % Look for a default phantom
-      def = lower(varargin{i});
-      idx = strmatch(def, defaults);
-      if isempty(idx)
-         eid = sprintf('Images:%s:unknownPhantom',mfilename);
-         msg = 'Unknown default phantom selected.';
-         error(eid,'%s',msg);
-      end
-      switch defaults{idx}
-      case 'shepp-logan'
-         e = shepp_logan;
-      case 'modified shepp-logan'
-         e = modified_shepp_logan;
-      case 'yu-ye-wang'
-         e = yu_ye_wang;
-      end
-   elseif numel(varargin{i})==1 
-      n = varargin{i};            % a scalar is the image size
-   elseif ndims(varargin{i})==2 && size(varargin{i},2)==10 
-      e = varargin{i};            % user specified phantom
-   else
-      eid = sprintf('Images:%s:invalidInputArgs',mfilename);
-      msg = 'Invalid input arguments.';
-      error(eid,'%s',msg);
-   end
+    if ischar(varargin{i})         % Look for a default phantom
+        def = lower(varargin{i});
+        idx = strmatch(def, defaults);
+        if isempty(idx)
+            eid = sprintf('Images:%s:unknownPhantom',mfilename);
+            msg = 'Unknown default phantom selected.';
+            error(eid,'%s',msg);
+        end
+        switch defaults{idx}
+            case 'shepp-logan'
+                e = shepp_logan;
+            case 'modified shepp-logan'
+                e = modified_shepp_logan;
+            case 'yu-ye-wang'
+                e = yu_ye_wang;
+        end
+    elseif numel(varargin{i})==1
+        n = varargin{i};            % a scalar is the image size
+    elseif ndims(varargin{i})==2 && size(varargin{i},2)==10
+        e = varargin{i};            % user specified phantom
+    else
+        eid = sprintf('Images:%s:invalidInputArgs',mfilename);
+        msg = 'Invalid input arguments.';
+        error(eid,'%s',msg);
+    end
 end
 % ellipse is not yet defined
-if isempty(e)                    
-   e = modified_shepp_logan;
+if isempty(e)
+    e = modified_shepp_logan;
 end
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2816,45 +3182,45 @@ function e = shepp_logan
 e = modified_shepp_logan;
 e(:,1) = [1 -.98 -.02 -.02 .01 .01 .01 .01 .01 .01];
 end
-      
+
 function e = modified_shepp_logan
 %
-%   This head phantom is the same as the Shepp-Logan except 
+%   This head phantom is the same as the Shepp-Logan except
 %   the intensities are changed to yield higher contrast in
 %   the image.  Taken from Toft, 199-200.
-%      
+%
 %         A      a     b     c     x0      y0      z0    phi  theta    psi
 %        -----------------------------------------------------------------
 e =    [  1  .6900  .920  .810      0       0       0      0      0      0
-        -.8  .6624  .874  .780      0  -.0184       0      0      0      0
-        -.2  .1100  .310  .220    .22       0       0    -18      0     10
-        -.2  .1600  .410  .280   -.22       0       0     18      0     10
-         .1  .2100  .250  .410      0     .35    -.15      0      0      0
-         .1  .0460  .046  .050      0      .1     .25      0      0      0
-         .1  .0460  .046  .050      0     -.1     .25      0      0      0
-         .1  .0460  .023  .050   -.08   -.605       0      0      0      0
-         .1  .0230  .023  .020      0   -.606       0      0      0      0
-         .1  .0230  .046  .020    .06   -.605       0      0      0      0 ];
-       
+    -.8  .6624  .874  .780      0  -.0184       0      0      0      0
+    -.2  .1100  .310  .220    .22       0       0    -18      0     10
+    -.2  .1600  .410  .280   -.22       0       0     18      0     10
+    .1  .2100  .250  .410      0     .35    -.15      0      0      0
+    .1  .0460  .046  .050      0      .1     .25      0      0      0
+    .1  .0460  .046  .050      0     -.1     .25      0      0      0
+    .1  .0460  .023  .050   -.08   -.605       0      0      0      0
+    .1  .0230  .023  .020      0   -.606       0      0      0      0
+    .1  .0230  .046  .020    .06   -.605       0      0      0      0 ];
+
 end
-          
+
 function e = yu_ye_wang
 %
 %   Yu H, Ye Y, Wang G, Katsevich-Type Algorithms for Variable Radius Spiral Cone-Beam CT
-%      
+%
 %         A      a     b     c     x0      y0      z0    phi  theta    psi
 %        -----------------------------------------------------------------
 e =    [  1  .6900  .920  .900      0       0       0      0      0      0
-        -.8  .6624  .874  .880      0       0       0      0      0      0
-        -.2  .4100  .160  .210   -.22       0    -.25    108      0      0
-        -.2  .3100  .110  .220    .22       0    -.25     72      0      0
-         .2  .2100  .250  .500      0     .35    -.25      0      0      0
-         .2  .0460  .046  .046      0      .1    -.25      0      0      0
-         .1  .0460  .023  .020   -.08    -.65    -.25      0      0      0
-         .1  .0460  .023  .020    .06    -.65    -.25     90      0      0
-         .2  .0560  .040  .100    .06   -.105    .625     90      0      0
-        -.2  .0560  .056  .100      0    .100    .625      0      0      0 ];
-       
+    -.8  .6624  .874  .880      0       0       0      0      0      0
+    -.2  .4100  .160  .210   -.22       0    -.25    108      0      0
+    -.2  .3100  .110  .220    .22       0    -.25     72      0      0
+    .2  .2100  .250  .500      0     .35    -.25      0      0      0
+    .2  .0460  .046  .046      0      .1    -.25      0      0      0
+    .1  .0460  .023  .020   -.08    -.65    -.25      0      0      0
+    .1  .0460  .023  .020    .06    -.65    -.25     90      0      0
+    .2  .0560  .040  .100    .06   -.105    .625     90      0      0
+    -.2  .0560  .056  .100      0    .100    .625      0      0      0 ];
+
 end
 
 function [M,rows,cols,indices] = imagemontage(I,indices)
@@ -2866,8 +3232,16 @@ else
     rows = floor(sqrt(nz));
 end
 cols = ceil(nz/rows);
-M = permute(images.internal.createMontage(permute(I,[2 1 3]), [size(I,2) size(I,1)],...
-    [rows cols], [0 0], [], indices, []),[2 1 3]);
+try
+    
+    M = images.internal.createMontage(I, [size(I,2) size(I,1)],...
+        [rows cols], [0 0], [], indices, []);
+catch
+    rows = 1;
+    cols = ceil(nz/rows);
+    Ipad = cat(3,I(:,:,indices),zeros(size(I,1),size(I,2),cols*rows-nz));
+    M = reshape(Ipad,[size(I,1)*rows size(I,2)*cols]);
+end
 end
 
 %% Check for newer version on GitHub
@@ -2875,42 +3249,58 @@ end
 function checkUpdate()
 mfile = 'imtool3D';
 if ~isdeployed
-msg = ['Update to the newest version ?'];
-answer = questdlg(msg, ['Update ' mfile], 'Yes', 'Later', 'Yes');
-if ~strcmp(answer, 'Yes'), return; end
-
-url = 'https://github.com/tanguyduval/imtool3D_td/archive/master.zip';
-tmp = tempdir;
-try
-    fname = websave('imtool3D_github.zip', url); % 2014a
-    unzip(fname, tmp); delete(fname);
-    tdir = [tmp 'imtool3D_td-master/'];
-catch 
+    msg = ['Update to the newest version ?'];
+    answer = questdlg(msg, ['Update ' mfile], 'Yes', 'Later', 'Yes');
+    if ~strcmp(answer, 'Yes'), return; end
+    
+    url = 'https://github.com/tanguyduval/imtool3D_td/archive/master.zip';
+    tmp = tempdir;
     try
-        fname = [tmp 'imtool3D_github.zip'];
-        urlwrite(url, fname);
+        fname = websave('imtool3D_github.zip', url); % 2014a
         unzip(fname, tmp); delete(fname);
         tdir = [tmp 'imtool3D_td-master/'];
-    catch me
-        errordlg(['Error in updating: ' me.message], mfile);
-        web(webUrl, '-browser');
-        return;
+    catch
+        try
+            fname = [tmp 'imtool3D_github.zip'];
+            urlwrite(url, fname);
+            unzip(fname, tmp); delete(fname);
+            tdir = [tmp 'imtool3D_td-master/'];
+        catch me
+            errordlg(['Error in updating: ' me.message], mfile);
+            web(webUrl, '-browser');
+            return;
+        end
     end
+    mfiledir = fileparts(which(mfile));
+    % delete subfolders before copying
+    listdir = dir(mfiledir);
+    listdir = listdir(~cellfun(@(X) strcmp(X(1),'.'),{listdir.name}));
+    listdir = listdir([listdir.isdir]);
+    for iii = 1:length(listdir)
+        rmdir(fullfile(mfiledir,listdir(iii).name), 's');
+    end
+    % copy
+    movefile([tdir '*.*'], [fileparts(which(mfile)) '/.'], 'f');
+    rmdir(tdir, 's');
+    rehash;
+    addpath(genpath(mfiledir));
+    warndlg(['Package updated successfully. Please restart ' mfile ...
+        ', otherwise it may give error.'], 'Check update');
 end
-mfiledir = fileparts(which(mfile));
-% delete subfolders before copying
-listdir = dir(mfiledir);
-listdir = listdir(~cellfun(@(X) strcmp(X(1),'.'),{listdir.name}));
-listdir = listdir([listdir.isdir]);
-for iii = 1:length(listdir)
-    rmdir(fullfile(mfiledir,listdir(iii).name), 's');
 end
-% copy
-movefile([tdir '*.*'], [fileparts(which(mfile)) '/.'], 'f');
-rmdir(tdir, 's');
-rehash;
-addpath(genpath(mfiledir));
-warndlg(['Package updated successfully. Please restart ' mfile ...
-         ', otherwise it may give error.'], 'Check update');
+
+function Ires = imresize_noIPT(I,S,intrp)
+if ~exist('intrp','var') || isempty(intrp)
+    intrp = 'linear';
 end
+Xq = linspace(1,size(I,1),S(1));
+Yq = linspace(1,size(I,2),S(2));
+Ires = zeros(S(1),S(2),size(I,3),'like',I);
+for iz = 1:size(I,3)
+    Ires(:,:,iz) = interp2(double(I(:,:,iz)),Yq,Xq',intrp);
+end
+end
+
+function assignval(tool, var,val)
+tool.(var) = val;
 end

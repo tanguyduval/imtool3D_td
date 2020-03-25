@@ -1,4 +1,19 @@
 function imtool3D_nii_crop(filename)
+% imtool3D_nii_crop     crop a nifti image
+%   imtool3D_nii_crop(filename) opens a .nii(.gz) file in a imtool3D_3plane 
+%   instance with rectangles in each plane. User can manipulate the  
+%   rectangles. When set, user close the figure and a croped .nii file
+%   is created with the suffix _crop.
+%   It requires the dicm2nii package https://github.com/xiangruili/dicm2nii
+
+if ~isdeployed
+    if ~exist('filename','var'), help imtool3D_nii_crop; return; end
+    if ~exist(filename,'file'), error(['can''t find nifti file ' filename]); end
+    A = which('nii_tool');
+    if isempty(A)
+        error('Dependency to Xiangrui Li NIFTI tools is missing. http://www.mathworks.com/matlabcentral/fileexchange/42997');
+    end
+end
 nii = nii_tool('load',filename);
 tool = imtool3D_3planes(nii.img);
 for ii=1:3

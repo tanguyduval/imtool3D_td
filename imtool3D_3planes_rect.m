@@ -2,8 +2,7 @@ function RECTS = imtool3D_3planes_rect(tool)
 % imtool3D_3planes_crop(tool) adds a synchronized rectangle to the imtool
 % object created by imtool3D_3planes
 %
-% WIP
-% todo: add button to crop
+% See also imtool3D_nii_crop
 
 S = tool(1).getImageSize;
 

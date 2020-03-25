@@ -20,8 +20,6 @@ function tool = imtool3D_nii(filename,viewplane,maskfname, parent, range)
 %   imtool3D_nii *fmri*.nii.gz
 %   imtool3D_nii({'fmri.nii.gz', 'T1.nii.gz'})
 %
-% Note: This function simply adds NIFTI feature to imtool3D object
-%
 % Tanguy DUVAL, INSERM, 2019
 % SEE ALSO imtool3D, imtool3D_nii_3planes
 
@@ -34,14 +32,23 @@ if ~exist('range','var'), range=[]; end
 
 if ~exist('maskfname','var'), maskfname=[]; end
 if ~isempty(filename)
-    [dat, hdr, list] = nii_load(filename,untouch);
+    if isstruct(filename)
+        dat = filename.img;
+        hdr = filename.hdr;
+        list = filename.fname;
+    else
+        [dat, hdr, list] = nii_load(filename,untouch);
+    end
     disp(list)
 else
-    load mri; % example mri image provided by MATLAB
+    load mri % example mri image provided by MATLAB
     dat = D;
     dat = squeeze(dat);
     dat = permute(dat(end:-1:1,:,:),[2 1 3]); % LPI orientation
     list = {'Template'};
+    niiinit = nii_tool('init',dat);
+    hdr = niiinit.hdr;
+    hdr.file_name = 'MRI EXAMPLE';
     hdr.pixdim = [4 1 1 2.5];
     untouch = false;
 end
@@ -55,8 +62,7 @@ end
 
 if length(viewplane)>1
     % Call imtool3D_3planes
-    tool3P = imtool3D_3planes(dat,mask,parent,range);
-    tool = tool3P.getTool();
+    tool = imtool3D_3planes(dat,mask,parent,range);
 else
     tool = imtool3D(dat,[],parent,range,[],mask);
 end
@@ -64,7 +70,7 @@ end
 
 % Set Labels
 for ii=1:length(tool)
-    tool(ii).setlabel(list);
+    tool(ii).label = list;
 end
 
 % set voxelsize
@@ -137,43 +143,38 @@ dndcontrol.initJava();
 dndobj = dndcontrol(jAxis);
 dndobj.DropFileFcn = @(s, e)onDrop(tool, s, e); %,'DragEnterFcn',@(s,e) setVis(txt_drop,1),'DragExitFcn',@(s,e) setVis(txt_drop,0));
 
-% change output object
-if length(viewplane)>1
-    tool = tool3P;
-end
-
 function loadImage(hObject,tool,hdr)
 % unselect button to prevent activation with spacebar
 set(hObject, 'Enable', 'off');
 drawnow;
 set(hObject, 'Enable', 'on');
-if isfield(hdr,'file_name')
-    path = fileparts(hdr.file_name);
-else
-    path = pwd;
-end
+if ~isfield(hdr,'file_name'), hdr.file_name = fullfile(pwd,'Mask.nii.gz'); end
+path = fileparts(hdr.file_name);
 [FileName,PathName] = uigetfile('*.nii;*.nii.gz','Load NIFTI',path,'MultiSelect', 'on');
 if isequal(FileName,0)
     return;
 end
-if isfield(hdr,'file_name')
+if strcmp(hdr.file_name,'MRI EXAMPLE')
+    dat = nii_load(fullfile(PathName,FileName));
+    for ii=1:length(tool)
+        tool(ii).setImage(dat(:))
+        tool(ii).setNvol(1);
+        tool(ii).label = fullfile(PathName,FileName);
+    end
+else
     if iscell(FileName)
         dat = nii_load([{hdr},fullfile(PathName,FileName)]);
     else
         dat = nii_load({hdr,fullfile(PathName,FileName)});
     end
     I = tool(1).getImage(1);
-    I = [I(:)',dat(:)'];
-else
-    [I, hdr] = nii_load(fullfile(PathName,FileName));
+    for ii=1:length(tool)
+        tool(ii).setImage([I(:)',dat(:)'])
+        tool(ii).setNvol(1+length(I));
+        tool(ii).label = fullfile(PathName,FileName);
+    end
 end
 
-for ii=1:length(tool)
-    tool(ii).setImage(I)
-    tool(ii).setNvol(length(I));
-    tool(ii).setlabel(fullfile(PathName,FileName))
-    tool(ii).setAspectRatio(hdr.pixdim(2:4));
-end
 
 function icon = makeToolbarIconFromPNG(filename)
 % makeToolbarIconFromPNG  Creates an icon with transparent
@@ -266,7 +267,7 @@ else
     for ii=1:length(tool)
         tool(ii).setImage(dat)
         tool(ii).setAspectRatio(hdr.pixdim(2:4));
-        tool(ii).setlabel(data)
+        tool(ii).label = data;
     end
 end
 
