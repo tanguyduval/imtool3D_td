@@ -1725,8 +1725,8 @@ classdef imtool3D < handle
             %      disp(evnt.Key)
         end
         
-        function saveImage(tool,hObject)
-            if exist('hObject','var') && ~isempty(hObject)
+        function saveImage(tool,hObject, Filename)
+            if exist('hObject','var') && ~isempty(hObject) && any(ishandle(hObject))
                 % unselect button to prevent activation with spacebar
                 set(hObject, 'Enable', 'off');
                 drawnow;
@@ -1742,7 +1742,15 @@ classdef imtool3D < handle
             imformats = cat(2,imformats,cellfun(@(X) sprintf('Current slice (%s)',X),imformats,'uni',0));
             imformats = cat(1,{'*.png','Current slice (*.png)';
                 '*.tif','Whole stack (*.tif)'},imformats);
-            [FileName,PathName, ext] = uiputfile(imformats,'Save Image');
+
+            if exist('Filename','var')
+                [PathName,FileName, ext] = fileparts(Filename);
+                FileName = [FileName,ext];
+                PathName = [PathName filesep];
+                ext = find(cellfun(@(x) strcmp(x(2:end),ext),imformats(:,1)));
+            else
+                [FileName,PathName, ext] = uiputfile(imformats,'Save Image');
+            end
             if isequal(FileName,0)
                 return;
             end
@@ -1755,7 +1763,7 @@ classdef imtool3D < handle
                     I = uint8(max(0,min(1,(I-lims(1))/diff(lims)))*(size(cmap,1)-1));
                     imwrite(cat(2,I,repmat(round(linspace(size(cmap,1),0,size(I,1)))',[1 round(size(I,2)/50)])),cmap,[PathName FileName])
                 else
-                    imwrite(I,[PathName FileName])
+                    imwrite(I,fullfile(PathName, FileName))
                 end
             else
                 lims=get(h.Axes(tool.Nvol),'CLim');
@@ -1775,7 +1783,7 @@ classdef imtool3D < handle
                             case 3
                                 Iz = I(:,:,z);
                         end
-                        imwrite(gray2ind(mat2gray(Iz,lims),size(cmap,1)),cmap, [PathName FileName], 'WriteMode', 'append',  'Compression','none');
+                        imwrite(gray2ind(mat2gray(Iz,lims),size(cmap,1)),cmap, fullfile(PathName,FileName), 'WriteMode', 'append',  'Compression','none');
                     end
                 end
             end
@@ -2090,7 +2098,7 @@ classdef imtool3D < handle
                         if ~tool.isRGB
                             currentCenters = tool.centers>range(1) & tool.centers<range(2);
                             if any(currentCenters)
-                                nelements=min(1,nelements./max(nelements(currentCenters)));
+                                nelements=min(1,nelements./max(10,max(nelements(currentCenters))));
                             end    
                         else
                             nelements=min(1,nelements/max(nelements));
