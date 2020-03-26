@@ -732,18 +732,6 @@ classdef imtool3D < handle
             end
         end
         
-        function setmaskHistory(tool,mask)
-            if ~isequal(mask,tool.maskHistory{end})
-                tool.maskHistory{1} = mask;
-                tool.maskHistory = circshift(tool.maskHistory,-1,2);
-                if isempty(tool.maskHistory{end-1})
-                    set(tool.handles.Tools.undoMask, 'Enable', 'off')
-                else
-                    set(tool.handles.Tools.undoMask, 'Enable', 'on')
-                end
-            end
-        end
-        
         function maskUndo(tool)
             if ~isempty(tool.maskHistory{end-1})
                 tool.mask=tool.maskHistory{end-1};
@@ -796,47 +784,7 @@ classdef imtool3D < handle
             set(tool.handles.Tools.maskSelected(min(5,islct)),'FontWeight','bold','FontSize',12,'ForegroundColor',[1 1 1]);
             set(tool.handles.Tools.maskSelected(setdiff(1:5,islct)),'FontWeight','normal','FontSize',9,'ForegroundColor',[0 0 0]);
         end
-        
-        function setmaskstatistics(tool,current_object)
-            persistent counter
-            
-            % if Mouse over Mask Selection button
-            if ishandle(current_object) && strcmp(get(current_object,'Tag'),'MaskSelected')
-                % Prevent too many calls: Limit to 1 call a second
-                if isempty(counter)
-                    counter = tic;
-                else
-                    t = toc(counter);
-                    if t<1
-                        return;
-                    else
-                        counter = tic;
-                    end
-                end
-                
-                % Get statistics
-                I = tool.getImage;
-                for ii=1:length(tool.handles.Tools.maskSelected)
-                    if ii == 5
-                        iival = str2num(get(tool.handles.Tools.maskSelected(5),'String'));
-                    else
-                        iival = ii;
-                    end
-                    mask_ii = tool.mask==iival;
-                    I_ii = I(mask_ii);
-                    mean_ii = mean(I_ii);
-                    std_ii  = std(double(I_ii));
-                    area_ii = sum(mask_ii(:));
-                    str = [sprintf('%-12s%.2f\n','Mean:',mean_ii), ...
-                        sprintf('%-12s%.2f\n','STD:',std_ii),...
-                        sprintf('%-12s%i','Area:',area_ii) 'px'];
-                    
-
-                    set(tool.handles.Tools.maskSelected(max(1,min(5,ii))),'TooltipString',str)
-                end
-            end
-        end
-        
+               
         function setlockMask(tool)
             tool.lockMask = ~tool.lockMask;
             CData = get(tool.handles.Tools.maskLock,'CData');
@@ -963,7 +911,7 @@ classdef imtool3D < handle
                 nelements=hist(Ivol(Ivol~=min(Ivol(:)) & Ivol~=max(Ivol(:))),tool.centers); nelements=nelements./max(nelements);
                 set(tool.handles.HistLine(1),'XData',tool.centers,'YData',nelements);
                 pos=getpixelposition(tool.handles.HistImageAxes);
-                set(tool.handles.HistImage(1),'CData',repmat(tool.centers,[round(pos(4)) 1]));
+                set(tool.handles.HistImage(1),'CData',repmat(tool.centers,[round(pos(4)) 1]),'XData',[min(tool.centers) max(tool.centers)]);
                 try
                     xlim(tool.handles.HistAxes,[tool.centers(1) tool.centers(end)])
                 catch
@@ -1101,7 +1049,7 @@ classdef imtool3D < handle
                         xlim(tool.handles.HistAxes,[tool.centers(1) tool.centers(end)+.1])
                     end
                     set(tool.handles.HistImageAxes,'Units','Pixels'); pos=get(tool.handles.HistImageAxes,'Position'); set(tool.handles.HistImageAxes,'Units','Normalized');
-                    set(tool.handles.HistImage,'CData',repmat(tool.centers,[round(pos(4)) 1]));
+                    set(tool.handles.HistImage,'CData',repmat(tool.centers,[round(pos(4)) 1]),'XData',[min(tool.centers) max(tool.centers)]);
                 end
             end
             % show volume and hide volumes overlayed on top
@@ -1109,6 +1057,10 @@ classdef imtool3D < handle
             set(tool.handles.I(tool.Nvol+1:length(tool.handles.I)),'Visible','off')
 
             showSlice(tool);
+        end
+        
+        function setlabel(tool,label)
+            tool.label = label;
         end
         
         function r = getrange(tool)
@@ -2213,6 +2165,58 @@ classdef imtool3D < handle
             end
             if ~exist('evnt','var') || strcmp(evnt.EventName,'maskChanged')
                 tool.setmaskHistory(tool.getMask(true));
+            end
+        end
+        
+        function setmaskstatistics(tool,current_object)
+            persistent counter
+            
+            % if Mouse over Mask Selection button
+            if ishandle(current_object) && strcmp(get(current_object,'Tag'),'MaskSelected')
+                % Prevent too many calls: Limit to 1 call a second
+                if isempty(counter)
+                    counter = tic;
+                else
+                    t = toc(counter);
+                    if t<1
+                        return;
+                    else
+                        counter = tic;
+                    end
+                end
+                
+                % Get statistics
+                I = tool.getImage;
+                for ii=1:length(tool.handles.Tools.maskSelected)
+                    if ii == 5
+                        iival = str2num(get(tool.handles.Tools.maskSelected(5),'String'));
+                    else
+                        iival = ii;
+                    end
+                    mask_ii = tool.mask==iival;
+                    I_ii = I(mask_ii);
+                    mean_ii = mean(I_ii);
+                    std_ii  = std(double(I_ii));
+                    area_ii = sum(mask_ii(:));
+                    str = [sprintf('%-12s%.2f\n','Mean:',mean_ii), ...
+                        sprintf('%-12s%.2f\n','STD:',std_ii),...
+                        sprintf('%-12s%i','Area:',area_ii) 'px'];
+                    
+
+                    set(tool.handles.Tools.maskSelected(max(1,min(5,ii))),'TooltipString',str)
+                end
+            end
+        end
+ 
+        function setmaskHistory(tool,mask)
+            if ~isequal(mask,tool.maskHistory{end})
+                tool.maskHistory{1} = mask;
+                tool.maskHistory = circshift(tool.maskHistory,-1,2);
+                if isempty(tool.maskHistory{end-1})
+                    set(tool.handles.Tools.undoMask, 'Enable', 'off')
+                else
+                    set(tool.handles.Tools.undoMask, 'Enable', 'on')
+                end
             end
         end
         
