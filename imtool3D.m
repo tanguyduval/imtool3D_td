@@ -1074,13 +1074,13 @@ classdef imtool3D < handle
                 tool.NvolOpts.Opacity{tool.Nvol} = str2num(get(tool.handles.Tools.O,'String'));
                 tool.NvolOpts.Cmap{tool.Nvol} = get(tool.handles.Tools.Color,'Value');
             end
+            childrenObj = get(tool.handles.Axes(tool.Nvol),'Children');
             % change Volume
             tool.Nvol = max(1,min(Nvol,length(tool.I)));
             % move Mask to current volume
             set(tool.handles.mask,'Parent',tool.handles.Axes(tool.Nvol))
-            if ishandle(tool.handles.grid)
-                set(tool.handles.grid,'Parent',tool.handles.Axes(tool.Nvol))
-            end
+            % move the rest (polygones, lines, grid, etc...)
+            set(childrenObj(~strcmp(get(childrenObj,'Type'),'image')),'Parent',tool.handles.Axes(tool.Nvol))
             % load new window and level
             NewRange = tool.NvolOpts.Climits{tool.Nvol};
             W=NewRange(2)-NewRange(1); L=mean(NewRange);
@@ -2035,10 +2035,10 @@ classdef imtool3D < handle
             % SHOW SLICE
             Opac = tool.NvolOpts.Opacity{ivol};
             if ~tool.upsample || get(tool.handles.Tools.montage,'Value')
-                set(tool.handles.I(tool.Nvol),'CData',In,'AlphaData',Opac)
+                set(tool.handles.I(tool.Nvol),'CData',In,'AlphaData',Opac,'XData',get(tool.handles.I(1),'XData'),'YData',get(tool.handles.I(1),'YData'))
             else
                 Inresized = imresize_noIPT(In,size(In)*2,tool.upsampleMethod);
-                set(tool.handles.I(tool.Nvol),'CData',Inresized,'AlphaData',Opac,'XData',get(tool.handles.I(tool.Nvol),'XData'),'YData',get(tool.handles.I(tool.Nvol),'YData'))
+                set(tool.handles.I(tool.Nvol),'CData',Inresized,'AlphaData',Opac,'XData',get(tool.handles.I(1),'XData'),'YData',get(tool.handles.I(1),'YData'))
             end
             end
             tool.Nvol = Nvol;
@@ -2264,7 +2264,7 @@ if any(mask(:))
             P = bwboundaries(labelilab); P = P{1}; P = P(:,[2 1]);
             if size(P,1)>16, P = reduce_poly(P(2:end,:)',max(6,round(size(P,1)/15))); P(:,end+1)=P(:,1); end
             if ~isempty(P)
-                imtool3DROI_poly(h.I,P',tool);
+                imtool3DROI_poly(h.I(tool.Nvol),P',tool);
             end
         end
     end
@@ -2804,9 +2804,9 @@ posdim = setdiff(1:3, tool.viewplane);
 if pos(1)>0 && pos(1)<=size(tool.I{tool.Nvol},posdim(2)) && pos(2)>0 && pos(2)<=size(tool.I{tool.Nvol},posdim(1))
     switch tool.viewplane
         case 1
-            set(h.Info,'String',['(' num2str(pos(2)) ',' num2str(pos(1)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(n,pos(2),pos(1),min(end,tool.Ntime)))])
+            set(h.Info,'String',['(' num2str(n) ',' num2str(pos(2)) ',' num2str(pos(1)) ') ' num2str(tool.I{tool.Nvol}(n,pos(2),pos(1),min(end,tool.Ntime)))])
         case 2
-            set(h.Info,'String',['(' num2str(pos(2)) ',' num2str(pos(1)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(pos(2),n,pos(1),min(end,tool.Ntime)))])
+            set(h.Info,'String',['(' num2str(pos(2)) ',' num2str(n) ',' num2str(pos(1)) ') ' num2str(tool.I{tool.Nvol}(pos(2),n,pos(1),min(end,tool.Ntime)))])
         case 3
             set(h.Info,'String',['(' num2str(pos(2)) ',' num2str(pos(1)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(pos(2),pos(1),n,min(end,tool.Ntime)))])
     end

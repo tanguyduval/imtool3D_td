@@ -63,14 +63,26 @@ classdef imtool3D_3planes < handle
                 set(h,'Units','normalized');
             end
             
-            % hide controls
-            for ii=2:3
-                set(tool(ii).getHandles.Tools.Save,'Visible','off')
-                % hide pixel info
-                set(tool(ii).getHandles.Panels.Tools,'Visible','off')
-            end
+            % tool of first block transfert to all
+            controls1 = findobj(tool(1).getHandles.Panels.Tools,'Type','uicontrol');
+            controls2 = findobj(tool(2).getHandles.Panels.Tools,'Type','uicontrol');
+            controls3 = findobj(tool(3).getHandles.Panels.Tools,'Type','uicontrol');
+            % hide Panels
+            set(tool(2).getHandles.Panels.Tools,'Visible','off')
             set(tool(1).getHandles.Tools.ViewPlane,'Visible','off')
-            
+            hp = tool(3).getHandles.Panels.Tools;
+            set(get(hp,'Children'),'Visible','off')
+            % move buttons to third panel
+            set(tool(1).getHandles.Tools.Help,'Parent',hp)
+            buts2move = {'Grid','Mask','Color','Save','montage'};
+            buff = 5; xpos = buff;
+            for ibut = 1:length(buts2move)
+                butpos = get(tool(1).getHandles.Tools.(buts2move{ibut}),'Position');
+            set(tool(1).getHandles.Tools.(buts2move{ibut}),'Parent',hp,...
+                    'Position',[xpos buff butpos(3) butpos(4)]);
+                xpos = xpos + butpos(3) + buff;
+            end
+
             % Synchronize masks
             for ii=1:3
                 addlistener(tool(ii),'maskChanged',@(x,y) syncMasks(tool,ii));
@@ -79,13 +91,17 @@ classdef imtool3D_3planes < handle
             end
             
             % tool of first block transfert to all
-            controls1 = findobj(tool(1).getHandles.Panels.Tools,'Type','uicontrol');
-            controls2 = findobj(tool(2).getHandles.Panels.Tools,'Type','uicontrol');
-            controls3 = findobj(tool(3).getHandles.Panels.Tools,'Type','uicontrol');
             controls1 = cat(1,controls1,tool(3).getHandles.Tools.maskSelected',tool(3).getHandles.Tools.maskLock);
             controls2 = cat(1,controls2,tool(1).getHandles.Tools.maskSelected',tool(1).getHandles.Tools.maskLock);
             controls3 = cat(1,controls3,tool(2).getHandles.Tools.maskSelected',tool(2).getHandles.Tools.maskLock);
             
+            controls1 = cat(1,controls1,tool(1).getHandles.Tools.PaintBrush);
+            controls2 = cat(1,controls2,tool(2).getHandles.Tools.PaintBrush);
+            controls3 = cat(1,controls3,tool(3).getHandles.Tools.PaintBrush);
+            controls1 = cat(1,controls1,tool(1).getHandles.Tools.SmartBrush);
+            controls2 = cat(1,controls2,tool(2).getHandles.Tools.SmartBrush);
+            controls3 = cat(1,controls3,tool(3).getHandles.Tools.SmartBrush);
+
             for ic = 1:length(controls1)
                 if ~isempty(controls1(ic).Callback) && ~isempty(strfind(func2str(controls1(ic).Callback),'saveImage')), continue; end % save Mask only once!
                 if ~isempty(controls1(ic).Callback) && ~isempty(strfind(func2str(controls1(ic).Callback),'displayHelp')), continue; end % Display Help only once!
@@ -122,7 +138,13 @@ classdef imtool3D_3planes < handle
             set(tool(2).getHandles.Tools.maskSave,'Visible','off')
             set(tool(1).getHandles.Tools.maskLoad,'Visible','off')
             set(tool(2).getHandles.Tools.maskLoad,'Visible','off')
-            
+            set(tool(2).getHandles.Tools.undoMask,'Visible','off')
+            set(tool(3).getHandles.Tools.undoMask,'Visible','off')
+            set(tool(2).getHandles.Tools.PaintBrush,'Visible','off')
+            set(tool(3).getHandles.Tools.PaintBrush,'Visible','off')
+            set(tool(2).getHandles.Tools.SmartBrush,'Visible','off')
+            set(tool(3).getHandles.Tools.SmartBrush,'Visible','off')
+
             % Add crosses
             H = tool(1).getHandles;
             S = tool(1).getImageSize;
@@ -377,7 +399,7 @@ switch event.Key
             pause(.1)
         end
         hidecross(tool3P)
-    case 'z'
+    case {'z','b','s'}
         tool(1).shortcutCallback(event)
     case 'uparrow'
         setNvol(tool3P,tool(1).getNvol()+1)

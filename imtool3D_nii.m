@@ -46,6 +46,12 @@ else
     dat = squeeze(dat);
     dat = permute(dat(end:-1:1,:,:),[2 1 3]); % LPI orientation
     list = {'Template'};
+    if ~isdeployed
+        A = which('nii_tool');
+        if isempty(A)
+            error('Dependency to Xiangrui Li NIFTI tools is missing. http://www.mathworks.com/matlabcentral/fileexchange/42997');
+        end
+    end
     niiinit = nii_tool('init',dat);
     hdr = niiinit.hdr;
     hdr.file_name = 'MRI EXAMPLE';
