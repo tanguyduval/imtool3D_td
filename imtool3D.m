@@ -1988,7 +1988,7 @@ classdef imtool3D < handle
                         In = cast((double(In)/255).^tool.gamma*255,'uint8');
                     otherwise % gamma between range(1) and range(2)
                         range = tool.range{tool.Nvol};
-                        In = ((double(In)-range(1))/diff(range)).^tool.gamma*range(2)+range(1);
+                        In = ((double(In)-range(1))/diff(range)).^tool.gamma*diff(range)+range(1);
                 end
             end
             
