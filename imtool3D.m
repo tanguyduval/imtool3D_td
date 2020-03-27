@@ -2820,7 +2820,22 @@ if pos(1)>0 && pos(1)<=size(tool.I{tool.Nvol},posdim(2)) && pos(2)>0 && pos(2)<=
         case 2
             set(h.Info,'String',['(' num2str(pos(2)) ',' num2str(n) ',' num2str(pos(1)) ') ' num2str(tool.I{tool.Nvol}(pos(2),n,pos(1),min(end,tool.Ntime)))])
         case 3
-            set(h.Info,'String',['(' num2str(pos(2)) ',' num2str(pos(1)) ',' num2str(n) ') ' num2str(tool.I{tool.Nvol}(pos(2),pos(1),n,min(end,tool.Ntime)))])
+            if tool.isRGB
+                switch tool.RGBdim
+                    case 3
+                        values = tool.I{tool.Nvol}(pos(2),pos(1),min(tool.RGBindex,end),min(end,tool.Ntime));
+                    case 4
+                        values = tool.I{tool.Nvol}(pos(2),pos(1),n,min(tool.RGBindex,end));
+                    case 5
+                        values = [tool.I{min(tool.RGBindex(1),end)}(pos(2),pos(1),n,min(end,tool.Ntime)),...
+                                  tool.I{min(tool.RGBindex(2),end)}(pos(2),pos(1),n,min(end,tool.Ntime)),...
+                                  tool.I{min(tool.RGBindex(3),end)}(pos(2),pos(1),n,min(end,tool.Ntime))];
+                end
+                values = sprintf('[%.1d,%.1d,%.1d]',values(1),values(2),values(3));
+            else
+                values = num2str(tool.I{tool.Nvol}(pos(2),pos(1),n,min(end,tool.Ntime)));
+            end
+            set(h.Info,'String',['(' num2str(pos(2)) ',' num2str(pos(1)) ',' num2str(n) ') ' values])
     end
     notify(tool,'newMousePos')
 else
