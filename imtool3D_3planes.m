@@ -434,7 +434,7 @@ switch event.Key
         setappdata(hobject,'HoldX',1)
         while getappdata(hobject,'HoldX')
             tool3P.syncSlices()
-            pause(.1)
+            drawnow;
         end
         hidecross(tool3P)
     case {'z','b','s'}

@@ -356,7 +356,7 @@ classdef imtool3D < handle
             fun=@(src,evnt)getImageInfo(src,evnt,tool);
             set(tool.handles.fig,'WindowButtonMotionFcn',fun);
             %tool.handles.LabelText=uicontrol(tool.handles.Panels.Info,'Style','text','Units','Normalized','Position',[.25 .1 .3 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Center');
-            tool.handles.LabelText=annotation(tool.handles.Panels.Image,'textbox','EdgeColor','none','String','','Position',[0 0 1 0.05],'Color',[1 1 1]);
+            tool.handles.LabelText=annotation(tool.handles.Panels.Image,'textbox','EdgeColor','none','String','','Position',[0 0 1 0.05],'Color',[1 1 1],'Interpreter','none');
             tool.handles.SliceText=uicontrol(tool.handles.Panels.Info,'Style','text','String','','Units','Normalized','Position',[.5 .1 .43 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Right', 'TooltipString', 'Use arrows to navigate through time (4th dim) and volumes (5th dim)');
             
             %Set up mouse button controls
@@ -1833,7 +1833,7 @@ classdef imtool3D < handle
             else
                 path = 'Mask.nii.gz';
             end
-            [FileName,PathName] = uigetfile('*','Load Mask');
+            [FileName,PathName] = uigetfile('*','Load Mask',path);
             if isequal(FileName,0), return; end
             [~,~,ext] = fileparts(FileName);
             switch ext
@@ -2020,6 +2020,9 @@ classdef imtool3D < handle
             % Update Label
             try
                 label = tool.label{tool.Nvol};
+                if length(label)>70
+                    label =  ['..' label(max(1,length(label)-70):end)];
+                end
             catch
                 label='';
             end

@@ -45,7 +45,7 @@ else
     dat = D;
     dat = squeeze(dat);
     dat = permute(dat(end:-1:1,:,:),[2 1 3]); % LPI orientation
-    list = {'Template'};
+    list = {'MRI EXAMPLE'};
     if ~isdeployed
         A = which('nii_tool');
         if isempty(A)
@@ -69,6 +69,7 @@ end
 if length(viewplane)>1
     % Call imtool3D_3planes
     tool = imtool3D_3planes(dat,mask,parent,range);
+    tool = tool.getTool;
 else
     tool = imtool3D(dat,[],parent,range,[],mask);
 end
@@ -84,39 +85,37 @@ for ii=1:length(tool)
     tool(ii).setAspectRatio(hdr.pixdim(2:4));
 end
 
+% add Header Info button
+Pos = get(tool(1).getHandles.Tools.Save,'Position');
+Pos(1) = Pos(1)+2*Pos(3);
+Pos(3) = 20;
+HeaderButton           =   uicontrol(tool(1).getHandles.Panels.Tools,'Style','pushbutton','String','HDR','Position',Pos,'FontSize',6);
+set(HeaderButton,'Callback',@(h,e) openvar2(get(h,'UserData')))
+str = evalc('hdr');
+set(HeaderButton,'TooltipString',str)
+set(HeaderButton,'UserData',hdr)
+
 % add header to save/load Mask
-H = tool(end).getHandles;
-set(H.Tools.maskSave,'Callback',@(hObject,evnt)saveMask(tool(end),hObject,hdr))
-set(H.Tools.maskLoad,'Callback',@(hObject,evnt)loadMask(tool(end),hObject,hdr))
+H = tool(1).getHandles;
+set(H.Tools.maskSave,'Callback',@(hObject,evnt)saveMask(tool(1),hObject,get(HeaderButton,'UserData')))
+set(H.Tools.maskLoad,'Callback',@(hObject,evnt)loadMask(tool(1),hObject,get(HeaderButton,'UserData')))
 
 % add load Image features
 Pos = get(tool(1).getHandles.Tools.Save,'Position');
-Pos(1) = Pos(1) + Pos(3)+5;
+Pos(1) = Pos(1) + Pos(3);
 Parent = get(tool(1).getHandles.Tools.Save,'Parent');
 Loadbut           =   uicontrol(Parent,'Style','pushbutton','String','','Position',Pos);
 MATLABdir = fullfile(toolboxdir('matlab'), 'icons');
 icon_load = makeToolbarIconFromPNG([MATLABdir '/file_open.png']);
 set(Loadbut,'CData',icon_load);
-fun=@(hObject,evnt) loadImage(hObject,tool,hdr);
+fun=@(hObject,evnt) loadImage(hObject,tool,HeaderButton);
 set(Loadbut,'Callback',fun)
 set(Loadbut,'TooltipString','Load Image')
-
 if length(tool)==1
 Pos = get(tool(1).getHandles.Tools.ViewPlane,'Position');
-Pos(1) = Pos(1) + 25;
+Pos(1) = Pos(1) + 30;
 set(tool(1).getHandles.Tools.ViewPlane,'Position',Pos);
 end
-
-% add Header Info button
-Pos(1) = Pos(1)+Pos(3)+5;
-Pos(3) = 20;
-DisplayHeader           =   uicontrol(tool(1).getHandles.Panels.Tools,'Style','pushbutton','String','','Position',Pos);
-icon_header = makeToolbarIconFromPNG([MATLABdir '/help_ex.png']);
-set(DisplayHeader,'CData',icon_header);
-set(DisplayHeader,'Callback',@(hObject,evnt) openvar2(hdr))
-str = evalc('hdr');
-set(DisplayHeader,'TooltipString',str)
-
 
 % add LPI labels
 if untouch
@@ -148,9 +147,10 @@ jFrame = get(H.fig, 'JavaFrame');
 jAxis = jFrame.getAxisComponent();
 dndcontrol.initJava();
 dndobj = dndcontrol(jAxis);
-dndobj.DropFileFcn = @(s, e)onDrop(tool, s, e); %,'DragEnterFcn',@(s,e) setVis(txt_drop,1),'DragExitFcn',@(s,e) setVis(txt_drop,0));
+dndobj.DropFileFcn = @(s, e)onDrop(tool, s, e, HeaderButton); %,'DragEnterFcn',@(s,e) setVis(txt_drop,1),'DragExitFcn',@(s,e) setVis(txt_drop,0));
 
-function loadImage(hObject,tool,hdr)
+function loadImage(hObject,tool, HeaderButton)
+hdr = get(HeaderButton,'UserData');
 % unselect button to prevent activation with spacebar
 set(hObject, 'Enable', 'off');
 drawnow;
@@ -169,6 +169,9 @@ if strcmp(hdr.file_name,'MRI EXAMPLE')
         tool(ii).setlabel(fullfile(PathName,FileName));
         tool(ii).setAspectRatio(hdr.pixdim(2:4))
     end
+    set(HeaderButton, 'UserData',hdr)
+    str = evalc('hdr');
+    set(HeaderButton, 'TooltipString',str);
 else
     if iscell(FileName)
         dat = nii_load([{hdr},fullfile(PathName,FileName)]);
@@ -239,11 +242,11 @@ end
 
 
 function openvar2(hdr)
-assignin('base', 'hdr',hdr);
+assignin('base','hdr',hdr);
 evalin('base', ['openvar hdr']);
 
 
-function onDrop(tool, listener, evtArg)
+function onDrop(tool, listener, evtArg, HeaderButton)
 ht = wait_msgbox;
 
 % Get back the dropped data
@@ -277,6 +280,9 @@ else
         tool(ii).setAspectRatio(hdr.pixdim(2:4));
         tool(ii).setlabel(data);
     end
+    set(HeaderButton, 'UserData',hdr)
+    str = evalc('hdr');
+    set(HeaderButton, 'TooltipString',str)
 end
 
 if ishandle(ht), delete(ht); end
