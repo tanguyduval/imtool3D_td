@@ -1,5 +1,24 @@
 classdef imtool3D_3planes < handle
-    
+% imtool3D_3planes(I,mask,parent,range) image viewer with synchronised
+% axial, saggital and coronal view
+%
+% Input:
+%   I           3D-5D matrix
+%   (mask)        multi-label mask. Only 3D masks are supported (same size as
+%                 I in the first 3 dimensions).
+%   (parent)      [Figure/Panel handle] container for the viewer
+%   (range)       range on figure opening
+%
+% Example:
+%   for ivol = 1:2
+%       load(fullfile(toolboxdir('images'),'imdata','BrainMRILabeled','images',sprintf('vol_00%i.mat',ivol)));
+%       load(fullfile(toolboxdir('images'),'imdata','BrainMRILabeled','labels',sprintf('label_00%i.mat',ivol)));
+%       I{ivol} = vol;
+%       mask{ivol} = label;
+%   end
+%   tool = imtool3D_3planes(I,mask{1}) 
+%   tool.setOrient('horizontal'); % medical orientation
+
     properties (SetAccess = private, GetAccess = private)
         tool  % 1x3 imtool3D objects
         cross % cross structure
@@ -63,38 +82,20 @@ classdef imtool3D_3planes < handle
                 set(h,'Units','normalized');
             end
             
-            % tool of first block transfert to all
-            controls1 = findobj(tool(1).getHandles.Panels.Tools,'Type','uicontrol');
-            controls2 = findobj(tool(2).getHandles.Panels.Tools,'Type','uicontrol');
-            controls3 = findobj(tool(3).getHandles.Panels.Tools,'Type','uicontrol');
-            % hide Panels
-            set(tool(2).getHandles.Panels.Tools,'Visible','off')
-            set(tool(1).getHandles.Tools.ViewPlane,'Visible','off')
-            hp = tool(3).getHandles.Panels.Tools;
-            set(get(hp,'Children'),'Visible','off')
-            % move buttons to third panel
-            set(tool(1).getHandles.Tools.Help,'Parent',hp)
-            buts2move = {'Grid','Mask','Color','Save','montage'};
-            buff = 5; xpos = buff;
-            for ibut = 1:length(buts2move)
-                butpos = get(tool(1).getHandles.Tools.(buts2move{ibut}),'Position');
-            set(tool(1).getHandles.Tools.(buts2move{ibut}),'Parent',hp,...
-                    'Position',[xpos buff butpos(3) butpos(4)]);
-                xpos = xpos + butpos(3) + buff;
-            end
-
+            
             % Synchronize masks
             for ii=1:3
                 addlistener(tool(ii),'maskChanged',@(x,y) syncMasks(tool,ii));
                 addlistener(tool(ii),'maskUndone',@(x,y) syncMasks(tool,ii));
                 addlistener(tool(ii),'newSlice',@(x,y) tool3P.showcross());
             end
-            
             % tool of first block transfert to all
-            controls1 = cat(1,controls1,tool(3).getHandles.Tools.maskSelected',tool(3).getHandles.Tools.maskLock);
-            controls2 = cat(1,controls2,tool(1).getHandles.Tools.maskSelected',tool(1).getHandles.Tools.maskLock);
-            controls3 = cat(1,controls3,tool(2).getHandles.Tools.maskSelected',tool(2).getHandles.Tools.maskLock);
-            
+            controls1 = findobj(tool(1).getHandles.Panels.Tools,'Type','uicontrol');
+            controls2 = findobj(tool(2).getHandles.Panels.Tools,'Type','uicontrol');
+            controls3 = findobj(tool(3).getHandles.Panels.Tools,'Type','uicontrol');
+            controls1 = cat(1,controls1,tool(1).getHandles.Tools.maskSelected',tool(1).getHandles.Tools.maskLock);
+            controls2 = cat(1,controls2,tool(2).getHandles.Tools.maskSelected',tool(2).getHandles.Tools.maskLock);
+            controls3 = cat(1,controls3,tool(3).getHandles.Tools.maskSelected',tool(3).getHandles.Tools.maskLock);
             controls1 = cat(1,controls1,tool(1).getHandles.Tools.PaintBrush);
             controls2 = cat(1,controls2,tool(2).getHandles.Tools.PaintBrush);
             controls3 = cat(1,controls3,tool(3).getHandles.Tools.PaintBrush);
@@ -128,23 +129,46 @@ classdef imtool3D_3planes < handle
             end
             
             % hide buttons with repeated functionalities
-            set(tool(1).getHandles.Tools.maskSelected,'Visible','off')
+            hp = tool(3).getHandles.Panels.ROItools;
+            set(tool(1).getHandles.Tools.maskSelected,'Parent',hp)
             set(tool(2).getHandles.Tools.maskSelected,'Visible','off')
-            set(tool(1).getHandles.Tools.maskLock,'Visible','off')
+            set(tool(3).getHandles.Tools.maskSelected,'Visible','off')
+            set(tool(1).getHandles.Tools.maskLock,'Parent',hp)
             set(tool(2).getHandles.Tools.maskLock,'Visible','off')
-            set(tool(1).getHandles.Tools.maskStats,'Visible','off')
+            set(tool(3).getHandles.Tools.maskLock,'Visible','off')
+            set(tool(1).getHandles.Tools.maskStats,'Parent',hp)
             set(tool(2).getHandles.Tools.maskStats,'Visible','off')
-            set(tool(1).getHandles.Tools.maskSave,'Visible','off')
+            set(tool(3).getHandles.Tools.maskStats,'Visible','off')
+            set(tool(1).getHandles.Tools.maskSave,'Parent',hp)
             set(tool(2).getHandles.Tools.maskSave,'Visible','off')
-            set(tool(1).getHandles.Tools.maskLoad,'Visible','off')
+            set(tool(3).getHandles.Tools.maskSave,'Visible','off')
+            set(tool(1).getHandles.Tools.maskLoad,'Parent',hp)
             set(tool(2).getHandles.Tools.maskLoad,'Visible','off')
+            set(tool(3).getHandles.Tools.maskLoad,'Visible','off')
+            set(tool(1).getHandles.Tools.undoMask,'Parent',hp)
             set(tool(2).getHandles.Tools.undoMask,'Visible','off')
             set(tool(3).getHandles.Tools.undoMask,'Visible','off')
+            set(tool(1).getHandles.Tools.PaintBrush,'Parent',hp)
             set(tool(2).getHandles.Tools.PaintBrush,'Visible','off')
             set(tool(3).getHandles.Tools.PaintBrush,'Visible','off')
+            set(tool(1).getHandles.Tools.SmartBrush,'Parent',hp)
             set(tool(2).getHandles.Tools.SmartBrush,'Visible','off')
             set(tool(3).getHandles.Tools.SmartBrush,'Visible','off')
-
+            set(tool(1).getHandles.Tools.ViewPlane,'Visible','off')
+            set(tool(2).getHandles.Panels.Tools,'Visible','off') % hide Panels
+            % move buttons from first to third panel for cosmetic reason
+            hp = tool(3).getHandles.Panels.Tools;
+            set(get(hp,'Children'),'Visible','off')
+            set(tool(1).getHandles.Tools.Help,'Parent',hp)
+            buts2move = {'Grid','Mask','Color','montage','Save'};
+            buff = 5; xpos = buff;
+            for ibut = 1:length(buts2move)
+                butpos = get(tool(1).getHandles.Tools.(buts2move{ibut}),'Position');
+            set(tool(1).getHandles.Tools.(buts2move{ibut}),'Parent',hp,...
+                    'Position',[xpos buff butpos(3) butpos(4)]);
+                xpos = xpos + butpos(3) + buff;
+            end
+            
             % Add crosses
             H = tool(1).getHandles;
             S = tool(1).getImageSize;
@@ -229,6 +253,10 @@ classdef imtool3D_3planes < handle
                 otherwise
                     error(sprintf('Input must be one of the following: axial, sagittal, coronal, 1, 2, 3\nExample: tool = tool3P.getTool(''axial'')'));
             end
+        end
+        
+        function H = getHandles(tool3P)
+            H = getHandles(tool3P.tool(1));
         end
         
         function setlabel(tool3P,label)
@@ -318,6 +346,16 @@ classdef imtool3D_3planes < handle
             set(tool3P.cross.Y2,'Visible',type)
             set(tool3P.cross.X3,'Visible',type)
             set(tool3P.cross.Y3,'Visible',type)
+        end
+        
+        function I = getImage(tool3P,varargin)
+            I = tool3P.tool(1).getImage(varargin{:});
+        end
+        
+        function setImage(tool3P,I)
+            for ii=1:3
+                tool3P.tool(ii).setImage(I);
+            end
         end
         
         function addImage(tool3P,I)

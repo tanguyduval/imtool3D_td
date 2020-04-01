@@ -917,7 +917,7 @@ classdef imtool3D < handle
                 catch
                     xlim(tool.handles.HistAxes,[tool.centers(1) tool.centers(end)+.1])
                 end
-                axis fill
+                axis(tool.handles.HistAxes,'fill')
             end
             %Update the window and level
             setWL(tool,diff(range),mean(range))

@@ -76,7 +76,7 @@ end
 
 % Set Labels
 for ii=1:length(tool)
-    tool(ii).label = list;
+    tool(ii).setlabel(list);
 end
 
 % set voxelsize
@@ -92,7 +92,8 @@ set(H.Tools.maskLoad,'Callback',@(hObject,evnt)loadMask(tool(end),hObject,hdr))
 % add load Image features
 Pos = get(tool(1).getHandles.Tools.Save,'Position');
 Pos(1) = Pos(1) + Pos(3)+5;
-Loadbut           =   uicontrol(tool(1).getHandles.Panels.Tools,'Style','pushbutton','String','','Position',Pos);
+Parent = get(tool(1).getHandles.Tools.Save,'Parent');
+Loadbut           =   uicontrol(Parent,'Style','pushbutton','String','','Position',Pos);
 MATLABdir = fullfile(toolboxdir('matlab'), 'icons');
 icon_load = makeToolbarIconFromPNG([MATLABdir '/file_open.png']);
 set(Loadbut,'CData',icon_load);
@@ -143,7 +144,7 @@ end
 
 % Add Drag and Drop feature
 %             txt_drop = annotation(tool.handles.Panels.Image,'textbox','Visible','off','EdgeColor','none','FontSize',25,'String','DROP!','Position',[0.5 0.5 0.6 0.1],'FitBoxToText','on','Color',[1 0 0]);
-jFrame = get(tool(1).getHandles.fig, 'JavaFrame');
+jFrame = get(H.fig, 'JavaFrame');
 jAxis = jFrame.getAxisComponent();
 dndcontrol.initJava();
 dndobj = dndcontrol(jAxis);
@@ -161,11 +162,12 @@ if isequal(FileName,0)
     return;
 end
 if strcmp(hdr.file_name,'MRI EXAMPLE')
-    dat = nii_load(fullfile(PathName,FileName));
+    [dat, hdr] = nii_load(fullfile(PathName,FileName));
     for ii=1:length(tool)
         tool(ii).setImage(dat(:))
         tool(ii).setNvol(1);
-        tool(ii).label = fullfile(PathName,FileName);
+        tool(ii).setlabel(fullfile(PathName,FileName));
+        tool(ii).setAspectRatio(hdr.pixdim(2:4))
     end
 else
     if iscell(FileName)
@@ -177,7 +179,7 @@ else
     for ii=1:length(tool)
         tool(ii).setImage([I(:)',dat(:)'])
         tool(ii).setNvol(1+length(I));
-        tool(ii).label = fullfile(PathName,FileName);
+        tool(ii).setlabel(fullfile(PathName,FileName));
     end
 end
 
@@ -273,7 +275,7 @@ else
     for ii=1:length(tool)
         tool(ii).setImage(dat)
         tool(ii).setAspectRatio(hdr.pixdim(2:4));
-        tool(ii).label = data;
+        tool(ii).setlabel(data);
     end
 end
 
