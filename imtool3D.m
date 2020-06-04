@@ -233,7 +233,10 @@ classdef imtool3D < handle
             [I, position, h, range, tools, mask, enableHist] = parseinputs(varargin{:});
             
             % display figure
-            Orient = uigetpref('imtool3D','rot90','Set orientation','How to display the first dimension of the matrix?',{'Vertically (Photo)','Horizontally (Medical)'},'CheckboxState',1,'HelpString','Help','HelpFcn','helpdlg({''If this option is wrongly set, image will be rotated by 90°.'', ''Horizontal orientation is used in NIFTI Medical format'', '''', ''This preference can be reset in the help button.'', '''', ''Orientation can also be changed while viewing an image using the command: tool.setOrient(''''vertical'''')''})');
+            try, Orient = uigetpref('imtool3D','rot90','Set orientation','How to display the first dimension of the matrix?',{'Vertically (Photo)','Horizontally (Medical)'},'CheckboxState',1,'HelpString','Help','HelpFcn','helpdlg({''If this option is wrongly set, image will be rotated by 90°.'', ''Horizontal orientation is used in NIFTI Medical format'', '''', ''This preference can be reset in the help button.'', '''', ''Orientation can also be changed while viewing an image using the command: tool.setOrient(''''vertical'''')''})'); 
+            catch
+            Orient = 'horizontal';    
+            end
             if isempty(h)
                 
                 h=figure;
@@ -671,6 +674,18 @@ classdef imtool3D < handle
                 set(tool.handles.Tools.maskStats,'visible','on');
                 set(tool.handles.Tools.maskSelected,'visible','on');
                 set(tool.handles.Tools.montage,'visible','on');
+            end
+            
+            try
+                % Add Drag and Drop feature
+                %             txt_drop = annotation(tool.handles.Panels.Image,'textbox','Visible','off','EdgeColor','none','FontSize',25,'String','DROP!','Position',[0.5 0.5 0.6 0.1],'FitBoxToText','on','Color',[1 0 0]);
+                jFrame = get(tool.handles.fig, 'JavaFrame');
+                jAxis = jFrame.getAxisComponent();
+                dndcontrol.initJava();
+                dndobj = dndcontrol(jAxis);
+                dndobj.DropFileFcn = @(s, e)onDrop(tool, s, e); %,'DragEnterFcn',@(s,e) setVis(txt_drop,1),'DragExitFcn',@(s,e) setVis(txt_drop,0));
+            catch err
+                warning(err.message)
             end
         end
         
@@ -1397,6 +1412,7 @@ classdef imtool3D < handle
                     if abs(Orient)>45
                         Orientstr = 'horizontal';
                     else
+                        if isempty(Orient), Orient=0; end
                         if tool.viewplane ~= 3
                             Orient = Orient-90;
                         end
@@ -2244,8 +2260,20 @@ set(hObject, 'Enable', 'off');
 drawnow;
 set(hObject, 'Enable', 'on');
 
-f1 = StatsGUI(tool.getImage(1),tool.getMask(1),[],tool.getMaskColor);
-f2 = HistogramGUI(tool.getImage,tool.getMask(1),tool.getMaskColor);
+if tool.isRGB && tool.RGBdim == 3
+    Color = [0 0 0; 1 0 0; 0 1 0; 0 0 1];
+    S = tool.getImageSize(0);
+    Mask = zeros(S(1),S(2),S(3),'uint8');
+    Mask(:,:,tool.RGBindex(3))=3;
+    Mask(:,:,tool.RGBindex(2))=2;
+    Mask(:,:,tool.RGBindex(1))=1;
+else
+    Color = tool.getMaskColor;
+    Mask = tool.getMask(1);
+end
+f1 = StatsGUI(tool.I,Mask,[],Color);
+f2 = HistogramGUI(tool.getImage(0),Mask,Color);
+
 pos = get(f1,'Position');
 pos(1) = pos(1)+pos(3);
 set(f2,'Position',pos)
@@ -3378,4 +3406,67 @@ end
 
 function assignval(tool, var,val)
 tool.(var) = val;
+end
+
+function onDrop(tool, listener, evtArg)
+ht = wait_msgbox;
+imformatlist = imformats;
+
+% Get back the dropped data
+data = evtArg.Data;
+
+% Is it transferable as a list of files
+if length(data)==1 && isdir(data{1})
+    imlist = dir(fullfile(data{1},'*.png'));
+    imlist = [imlist dir(fullfile(data{1},'*.tif'))];
+    imlist = [imlist dir(fullfile(data{1},'*.jpg'))];
+    if length(imlist)>1
+    I = {};
+    for ii = 1:length(imlist)
+        if strcmp(imlist(ii).name(1),'.'), continue; end
+        I = [I {imread(fullfile(data{1},imlist(ii).name))}];
+    end
+    tool.setImage(I);
+    tool.label = {imlist.name};
+    end
+else
+    [~,~,ext] = fileparts(data{1});
+    switch ext
+        case {'.nii','.gz'}
+            [dat, hdr] = nii_load(data);
+        case cellfun(@(x) ['.' x], [imformatlist.ext], 'UniformOutput', false)
+            for id = 1:length(data)
+                dat{id} = imread(data{id});
+            end
+            hdr.pixdim = [1 1 1 1];
+        case '.mat'
+            for id = 1:length(data)
+                tmp = load(data{id});
+                ff = fieldnames(tmp);
+                dat{id} = tmp.(ff{1});
+            end
+            hdr.pixdim = [1 1 1 1];
+        otherwise
+            error('unknown format %s',ext)
+    end
+    for ii=1:length(tool)
+        tool(ii).setImage(dat)
+        tool(ii).setAspectRatio(hdr.pixdim(2:4));
+        tool(ii).setlabel(data);
+    end
+end
+delete(ht)
+end
+
+function h = wait_msgbox
+txt = 'Loading files. Please wait...';
+h=figure('units','norm','position',[.5 .75 .2 .2],'menubar','none','numbertitle','off','resize','off','units','pixels');
+ha=uicontrol('style','text','units','norm','position',[0 0 1 1],'horizontalalignment','center','string',txt,'units','pixels','parent',h);
+hext=get(ha,'extent');
+hext2=hext(end-1:end)+[60 60];
+hpos=get(h,'position');
+set(h,'position',[hpos(1)-hext2(1)/2,hpos(2)-hext2(2)/2,hext2(1),hext2(2)]);
+set(ha,'position',[30 30 hext(end-1:end)]);
+disp(char(txt));
+drawnow;
 end
