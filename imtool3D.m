@@ -233,7 +233,7 @@ classdef imtool3D < handle
             [I, position, h, range, tools, mask, enableHist] = parseinputs(varargin{:});
             
             % display figure
-            try, Orient = uigetpref('imtool3D','rot90','Set orientation','How to display the first dimension of the matrix?',{'Vertically (Photo)','Horizontally (Medical)'},'CheckboxState',1,'HelpString','Help','HelpFcn','helpdlg({''If this option is wrongly set, image will be rotated by 90°.'', ''Horizontal orientation is used in NIFTI Medical format'', '''', ''This preference can be reset in the help button.'', '''', ''Orientation can also be changed while viewing an image using the command: tool.setOrient(''''vertical'''')''})'); 
+            try, Orient = uigetpref('imtool3D','rot90','Set orientation','How to display the first dimension of the matrix?',{'Vertically (Photo)','Horizontally (Medical)'},'CheckboxState',1,'HelpString','Help','HelpFcn','helpdlg({''If this option is wrongly set, image will be rotated by 90Â°.'', ''Horizontal orientation is used in NIFTI Medical format'', '''', ''This preference can be reset in the help button.'', '''', ''Orientation can also be changed while viewing an image using the command: tool.setOrient(''''vertical'''')''})'); 
             catch
             Orient = 'horizontal';    
             end
@@ -898,7 +898,11 @@ classdef imtool3D < handle
                 range = range{1};
             else
                 for ivol = 1:length(I)
-                    tool.range{ivol}=double(range_outlier(I{ivol}(:),5));
+                    if islogical(I{ivol})
+                        tool.range{ivol} = [0 1];
+                    else
+                        tool.range{ivol}=double(range_outlier(I{ivol}(:),5));
+                    end
                 end
             end
             tool.NvolOpts.Climits = tool.range;
@@ -1782,7 +1786,7 @@ classdef imtool3D < handle
                 end
                 FileName = strrep(FileName,'.gz','.nii.gz');
                 FileName = strrep(FileName,'.nii.nii','.nii');
-                switch ext
+                switch lower(ext)
                     case {'.nii','.gz'}  % .nii.gz
                         if ~exist('hdr','var')
                             err=1;
@@ -1852,7 +1856,7 @@ classdef imtool3D < handle
             [FileName,PathName] = uigetfile('*','Load Mask',path);
             if isequal(FileName,0), return; end
             [~,~,ext] = fileparts(FileName);
-            switch ext
+            switch lower(ext)
                 case {'.nii','.gz'} % .nii.gz
                     if exist('hdr','var')
                         Mask = nii_load([{hdr} fullfile(PathName,FileName)],0,'nearest');
@@ -3431,7 +3435,7 @@ if length(data)==1 && isdir(data{1})
     end
 else
     [~,~,ext] = fileparts(data{1});
-    switch ext
+    switch lower(ext)
         case {'.nii','.gz'}
             [dat, hdr] = nii_load(data);
         case cellfun(@(x) ['.' x], [imformatlist.ext], 'UniformOutput', false)
