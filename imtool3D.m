@@ -2030,8 +2030,10 @@ classdef imtool3D < handle
             
             % SHOW MASK
             set(tool.handles.mask,'CData',maskrgb,'XData',get(tool.handles.I(tool.Nvol),'XData'),'YData',get(tool.handles.I(tool.Nvol),'YData'));
-            if numel(maskn)>10e7 || ~any(maskn(:))
-                alphaLayer = tool.alpha*double(any(maskn(:)));
+            if ~any(maskn(:))
+                alphaLayer = 0;
+            elseif numel(maskn)>10e7
+                alphaLayer = tool.alpha;
             else
                 alphaLayer = tool.alpha*logical(maskn);
             end
