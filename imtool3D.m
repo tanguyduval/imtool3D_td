@@ -898,7 +898,11 @@ classdef imtool3D < handle
                 range = range{1};
             else
                 for ivol = 1:length(I)
-                    tool.range{ivol}=double(range_outlier(I{ivol}(:),5));
+                    if islogical(I{ivol})
+                        tool.range{ivol} = [0 1];
+                    else
+                        tool.range{ivol}=double(range_outlier(I{ivol}(:),5));
+                    end
                 end
             end
             tool.NvolOpts.Climits = tool.range;
@@ -1783,7 +1787,7 @@ classdef imtool3D < handle
                 end
                 FileName = strrep(FileName,'.gz','.nii.gz');
                 FileName = strrep(FileName,'.nii.nii','.nii');
-                switch ext
+                switch lower(ext)
                     case {'.nii','.gz'}  % .nii.gz
                         if ~exist('hdr','var')
                             err=1;
@@ -1853,7 +1857,7 @@ classdef imtool3D < handle
             [FileName,PathName] = uigetfile('*','Load Mask',path);
             if isequal(FileName,0), return; end
             [~,~,ext] = fileparts(FileName);
-            switch ext
+            switch lower(ext)
                 case {'.nii','.gz'} % .nii.gz
                     if exist('hdr','var')
                         Mask = nii_load([{hdr} fullfile(PathName,FileName)],0,'nearest');
