@@ -1375,6 +1375,10 @@ classdef imtool3D < handle
         
         function changeColormap(tool,cmap,hObject,show)
             if ~exist('hObject','var') ||isempty(hObject), hObject = tool.handles.Tools.Color; end
+            % unselect button to prevent activation with spacebar
+            set(hObject, 'Enable', 'off');
+            drawnow;
+            set(hObject, 'Enable', 'on');
 
             maps=get(hObject,'String');
             if ~exist('cmap','var') ||isempty(cmap)
