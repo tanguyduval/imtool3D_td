@@ -283,7 +283,7 @@ classdef imtool3D < handle
             end
             
             if ~exist('overview_zoom_in.png','file')
-                repopath = fileparts(mfilename);
+                repopath = fileparts(mfilename('fullpath'));
                 addpath(genpath(fullfile(repopath,'src')))
                 addpath(genpath(fullfile(repopath,'External')));
             end
