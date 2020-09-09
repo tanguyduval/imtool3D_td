@@ -1317,44 +1317,64 @@ classdef imtool3D < handle
         function im = getCurrentImageSlice(tool)
             slice = getCurrentSlice(tool);
             ColorChannel = get(tool.handles.SliderColor,'String');
-            switch tool.viewplane
-                case 1
-                    im = tool.I{tool.Nvol}(slice,:,:,min(end,tool.Ntime),:,:);
-                case 2
-                    im = tool.I{tool.Nvol}(:,slice,:,min(end,tool.Ntime),:,:);
-                case 3
-                    if  tool.isRGB% RGB photo
-                        switch tool.RGBdim
-                            case 3
-                                rgbslice = slice;
-                            case 4
-                                rgbslice = tool.Ntime;
-                            case 5
-                                rgbslice = tool.Nvol;
+            
+
+            if ~tool.isRGB
+                switch tool.viewplane
+                    case 1
+                        im = tool.I{tool.Nvol}(slice,:,:,min(end,tool.Ntime),:,:);
+                    case 2
+                        im = tool.I{tool.Nvol}(:,slice,:,min(end,tool.Ntime),:,:);
+                    case 3
+                        if size(tool.I{tool.Nvol},3)==1 && size(tool.I{tool.Nvol},4)==1 % no slicing to save memory
+                            im = tool.I{tool.Nvol};
+                        else
+                            im = tool.I{tool.Nvol}(:,:,slice,min(end,tool.Ntime),:,:);
                         end
-                        switch ColorChannel
-                            case 'R'
-                                tool.RGBindex(1) = rgbslice;
-                            case 'G'
-                                tool.RGBindex(2) = rgbslice;
-                            case 'B'
-                                tool.RGBindex(3) = rgbslice;
-                        end
-                        switch tool.RGBdim
-                            case 3
-                                im = tool.I{tool.Nvol}(:,:,min(tool.RGBindex,end),min(end,tool.Ntime));
-                            case 4
-                                im = tool.I{tool.Nvol}(:,:,slice,min(end,tool.RGBindex));
-                            case 5
-                                im = cat(6,tool.I{min(end,tool.RGBindex(1))}(:,:,slice,min(end,tool.Ntime),:),...
-                                           tool.I{min(end,tool.RGBindex(2))}(:,:,slice,min(end,tool.Ntime),:),...
-                                           tool.I{min(end,tool.RGBindex(3))}(:,:,slice,min(end,tool.Ntime),:));
-                        end
-                    elseif size(tool.I{tool.Nvol},3)==1 && size(tool.I{tool.Nvol},4)==1 % no slicing to save memory
-                        im = tool.I{tool.Nvol};    
-                    else
-                        im = tool.I{tool.Nvol}(:,:,slice,min(end,tool.Ntime),:,:);
-                    end
+                end
+
+            else % RGB photo
+                switch tool.viewplane
+                    case 1
+                        order = [2 3 1 4 5 6 7];
+                        im = permute(tool.I{tool.Nvol},order);
+                    case 2
+                        order = [1 3 2 4 5 6 7];
+                        im = permute(tool.I{tool.Nvol},order);
+                    case 3
+                        order = [1 2 3 4 5 6 7];
+                        im = tool.I{tool.Nvol};
+                end
+                switch tool.RGBdim
+                    case 3
+                        rgbslice = slice;
+                    case 4
+                        rgbslice = tool.Ntime;
+                    case 5
+                        rgbslice = tool.Nvol;
+                end
+                switch ColorChannel
+                    case 'R'
+                        tool.RGBindex(1) = rgbslice;
+                    case 'G'
+                        tool.RGBindex(2) = rgbslice;
+                    case 'B'
+                        tool.RGBindex(3) = rgbslice;
+                end
+                switch tool.RGBdim
+                    case 3
+                        im = im(:,:,min(tool.RGBindex,end),min(end,tool.Ntime));
+                    case 4
+                        im = im(:,:,slice,min(end,tool.RGBindex));
+                    case 5
+                        im1 = permute(tool.I{min(end,tool.RGBindex(1))},order);
+                        im2 = permute(tool.I{min(end,tool.RGBindex(2))},order);
+                        im3 = permute(tool.I{min(end,tool.RGBindex(3))},order);
+                        
+                        im = cat(6,im1(:,:,slice,min(end,tool.Ntime),:),...
+                            im2(:,:,slice,min(end,tool.Ntime),:),...
+                            im3(:,:,slice,min(end,tool.Ntime),:));
+                end
             end
             im = squeeze(im);
         end
