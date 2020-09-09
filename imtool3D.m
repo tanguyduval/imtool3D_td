@@ -1649,14 +1649,10 @@ classdef imtool3D < handle
         
         function set.isRGB(tool,iscolor)
             tool.isRGB = logical(iscolor);
-            src = tool.handles.SliderColor;
-            if tool.isRGB
-                set(src,'String','R');
+            if iscolor
+                SelectSliderColor(tool,'R');
             else
-                set(src,'String','.');
-            end
-            if length(dbstack)==1
-                showSlice(tool)
+                SelectSliderColor(tool,'.')
             end
         end
         
@@ -2662,13 +2658,14 @@ end
 end
 
 function SelectSliderColor(tool,color)
+H = tool.getHandles;
+src = H.SliderColor;
 butString = {'.','R','G','B'};
 if exist('color','var')
     nextChannel = find(ismember(butString,{color,'.'}),1,'last');
 else
-    H = tool.getHandles;
-    src = H.SliderColor;
     nextChannel = mod(find(strcmp(get(src,'String'),butString)),4)+1;
+    tool.isRGB = (nextChannel > 1);
 end
 set(src,'String',butString{nextChannel});
 if(nextChannel>1)
@@ -2681,7 +2678,6 @@ if(nextChannel>1)
             setNvol(tool,tool.RGBindex(nextChannel-1))
     end
 end
-tool.isRGB = (nextChannel > 1);
 set(src,'String',butString{nextChannel});
 showSlice(tool);
 end
