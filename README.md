@@ -49,7 +49,7 @@ tool.setImage(D)
 tool.setAspectRatio([1 1 2.5]) % set voxel size to 1mm x 1mm x 2.5mm
 ````
 
-## open in COLOR mode 
+## open in RGB mode 
 Download HCP Diffusion MRI Template http://brain.labsolver.org/diffusion-mri-templates/hcp-842-hcp-1021
 ````matlab
 %% load HCP Diffusion MRI Template
