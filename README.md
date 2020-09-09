@@ -69,7 +69,10 @@ tool.RGBindex = [1 2 3];
 % move to slice 63
 tool.setCurrentSlice(63)
 ````
-Use button below left slider to turn between RGB and grayscale and to select active color channel 
+<p align="center">
+  <img src="CaptureRGBmode.PNG" width="400">
+</p>
+Use button bellow left slider ('R' on the screenshot) to turn between RGB and grayscale and to select active color channel 
 
 
 # Demo
