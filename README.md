@@ -74,6 +74,14 @@ tool.setCurrentSlice(63)
 </p>
 Use button bellow left slider ('R' on the screenshot) to turn between RGB and grayscale and to select active color channel 
 
+## open a video
+````matlab
+v = VideoReader('xylophone.mp4');
+tool = imtool3D(v.read([1 Inf]));
+tool.isRGB = 1;
+````
+use left/right arrows to move through image frames  
+use shift+right for fast forward (10-by-10 frames)  
 
 # Demo
 [GBM tumor segmentation](https://www.dailymotion.com/embed/video/x7okm8h)  
