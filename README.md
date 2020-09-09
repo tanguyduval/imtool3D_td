@@ -49,6 +49,29 @@ tool.setImage(D)
 tool.setAspectRatio([1 1 2.5]) % set voxel size to 1mm x 1mm x 2.5mm
 ````
 
+## open in COLOR mode 
+Download HCP Diffusion MRI Template http://brain.labsolver.org/diffusion-mri-templates/hcp-842-hcp-1021
+````matlab
+%% load HCP Diffusion MRI Template
+load('HCP842_1mm.fib','-mat')
+% reshape FA
+fa0 = reshape(fa0,dimension); fa0 = fa0(:,end:-1:1,:);
+% Find diffusion peak direction
+peak = reshape(odf_vertices(:,index0+1)',[dimension 3]); 
+peak = peak(:,end:-1:1,:,:);
+
+%% Open imtool3D and display
+tool = imtool3D(repmat(fa0,[1 1 1 3]).*abs(peak));
+% use RGB mode
+tool.isRGB = 1;
+tool.RGBdim = 4;
+tool.RGBindex = [1 2 3];
+% move to slice 63
+tool.setCurrentSlice(63)
+````
+Use button below left slider to turn between RGB and grayscale and to select active color channel 
+
+
 # Demo
 [GBM tumor segmentation](https://www.dailymotion.com/embed/video/x7okm8h)  
 [Integration in qMRLab](https://qmrlab.readthedocs.io/en/master/gui_usage.html#data-viewer)
