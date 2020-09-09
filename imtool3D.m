@@ -59,9 +59,9 @@ classdef imtool3D < handle
     %----------------------------------------------------------------------
     %Methods:
     %
-    %   setImage(tool, I) displays a new image.
+    %   tool.setImage(I) displays a new image.
     %
-    %   I = getImage(tool) returns the image being shown by the tool
+    %   I = tool.getImage() returns the image being shown by the tool
     %
     %   setMask(tool,mask) replaces the overlay mask with a new one
     %
@@ -233,7 +233,7 @@ classdef imtool3D < handle
             [I, position, h, range, tools, mask, enableHist] = parseinputs(varargin{:});
             
             % display figure
-            try, Orient = uigetpref('imtool3D','rot90','Set orientation','How to display the first dimension of the matrix?',{'Vertically (Photo)','Horizontally (Medical)'},'CheckboxState',1,'HelpString','Help','HelpFcn','helpdlg({''If this option is wrongly set, image will be rotated by 90°.'', ''Horizontal orientation is used in NIFTI Medical format'', '''', ''This preference can be reset in the help button.'', '''', ''Orientation can also be changed while viewing an image using the command: tool.setOrient(''''vertical'''')''})'); 
+            try, Orient = uigetpref('imtool3D','rot90','Set orientation','How to display the first dimension of the matrix?',{'Vertically (Photo)','Horizontally (Medical)'},'CheckboxState',1,'HelpString','Help','HelpFcn','helpdlg({''If this option is wrongly set, image will be rotated by 90Â°.'', ''Horizontal orientation is used in NIFTI Medical format'', '''', ''This preference can be reset in the help button.'', '''', ''Orientation can also be changed while viewing an image using the command: tool.setOrient(''''vertical'''')''})'); 
             catch
             Orient = 'horizontal';    
             end
@@ -283,7 +283,7 @@ classdef imtool3D < handle
             end
             
             if ~exist('overview_zoom_in.png','file')
-                repopath = fileparts(mfilename);
+                repopath = fileparts(mfilename('fullpath'));
                 addpath(genpath(fullfile(repopath,'src')))
                 addpath(genpath(fullfile(repopath,'External')));
             end
@@ -898,7 +898,11 @@ classdef imtool3D < handle
                 range = range{1};
             else
                 for ivol = 1:length(I)
-                    tool.range{ivol}=double(range_outlier(I{ivol}(:),5));
+                    if islogical(I{ivol})
+                        tool.range{ivol} = [0 1];
+                    else
+                        tool.range{ivol}=double(range_outlier(I{ivol}(:),5));
+                    end
                 end
             end
             tool.NvolOpts.Climits = tool.range;
@@ -932,6 +936,7 @@ classdef imtool3D < handle
                 catch
                     xlim(tool.handles.HistAxes,[tool.centers(1) tool.centers(end)+.1])
                 end
+                set(tool.handles.HistImage,'XData',[1 256]);
                 axis(tool.handles.HistAxes,'fill')
             end
             %Update the window and level
@@ -1064,7 +1069,7 @@ classdef imtool3D < handle
                         xlim(tool.handles.HistAxes,[tool.centers(1) tool.centers(end)+.1])
                     end
                     set(tool.handles.HistImageAxes,'Units','Pixels'); pos=get(tool.handles.HistImageAxes,'Position'); set(tool.handles.HistImageAxes,'Units','Normalized');
-                    set(tool.handles.HistImage,'CData',repmat(tool.centers,[round(pos(4)) 1]),'XData',[min(tool.centers) max(tool.centers)]);
+                    set(tool.handles.HistImage,'CData',repmat(tool.centers,[round(pos(4)) 1]),'XData',[0 256]);
                 end
             end
             % show volume and hide volumes overlayed on top
@@ -1370,6 +1375,10 @@ classdef imtool3D < handle
         
         function changeColormap(tool,cmap,hObject,show)
             if ~exist('hObject','var') ||isempty(hObject), hObject = tool.handles.Tools.Color; end
+            % unselect button to prevent activation with spacebar
+            set(hObject, 'Enable', 'off');
+            drawnow;
+            set(hObject, 'Enable', 'on');
 
             maps=get(hObject,'String');
             if ~exist('cmap','var') ||isempty(cmap)
@@ -1782,7 +1791,7 @@ classdef imtool3D < handle
                 end
                 FileName = strrep(FileName,'.gz','.nii.gz');
                 FileName = strrep(FileName,'.nii.nii','.nii');
-                switch ext
+                switch lower(ext)
                     case {'.nii','.gz'}  % .nii.gz
                         if ~exist('hdr','var')
                             err=1;
@@ -1852,7 +1861,7 @@ classdef imtool3D < handle
             [FileName,PathName] = uigetfile('*','Load Mask',path);
             if isequal(FileName,0), return; end
             [~,~,ext] = fileparts(FileName);
-            switch ext
+            switch lower(ext)
                 case {'.nii','.gz'} % .nii.gz
                     if exist('hdr','var')
                         Mask = nii_load([{hdr} fullfile(PathName,FileName)],0,'nearest');
@@ -2026,8 +2035,11 @@ classdef imtool3D < handle
             
             % SHOW MASK
             set(tool.handles.mask,'CData',maskrgb,'XData',get(tool.handles.I(tool.Nvol),'XData'),'YData',get(tool.handles.I(tool.Nvol),'YData'));
-            if numel(maskn)>10e7 || ~any(maskn(:))
-                alphaLayer = tool.alpha*double(any(maskn(:)));
+            
+            if ~any(maskn(:))
+                alphaLayer = 0;
+            elseif numel(maskn)>10e7
+                alphaLayer = tool.alpha;
             else
                 alphaLayer = tool.alpha*logical(maskn);
             end
@@ -2798,7 +2810,7 @@ set(hObject,'Xlim',xlims+d(1),'Ylim',ylims-d(2))
 end
 
 function buttonUpFunction(src,evnt,tool,WBMF_old,WBUF_old)
-showSlice(tool)
+%showSlice(tool)
 setptr(tool.handles.fig,'arrow');
 set(src,'WindowButtonMotionFcn',WBMF_old,'WindowButtonUpFcn',WBUF_old);
 
@@ -3431,7 +3443,7 @@ if length(data)==1 && isdir(data{1})
     end
 else
     [~,~,ext] = fileparts(data{1});
-    switch ext
+    switch lower(ext)
         case {'.nii','.gz'}
             [dat, hdr] = nii_load(data);
         case cellfun(@(x) ['.' x], [imformatlist.ext], 'UniformOutput', false)
@@ -3449,10 +3461,19 @@ else
         otherwise
             error('unknown format %s',ext)
     end
-    for ii=1:length(tool)
-        tool(ii).setImage(dat)
-        tool(ii).setAspectRatio(hdr.pixdim(2:4));
-        tool(ii).setlabel(data);
+    rep = questdlg('','','replace','append','replace');
+    switch rep
+        case 'append'
+            for ii=1:length(tool)
+                tool(ii).setImage([tool(ii).getImage(1) dat]);
+                tool(ii).setlabel([tool(ii).label data]);
+            end
+        case 'replace'     
+            for ii=1:length(tool)
+                tool(ii).setImage(dat)
+                tool(ii).setAspectRatio(hdr.pixdim(2:4));
+                tool(ii).setlabel(data);
+            end
     end
 end
 delete(ht)
