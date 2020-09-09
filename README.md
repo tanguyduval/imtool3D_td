@@ -74,7 +74,7 @@ tool.setCurrentSlice(63)
 </p>
 Use button bellow left slider ('R' on the screenshot) to turn between RGB and grayscale and to select active color channel 
 
-## open a video
+## play a video
 ````matlab
 v = VideoReader('xylophone.mp4');
 tool = imtool3D(v.read([1 Inf]));
