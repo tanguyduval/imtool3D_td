@@ -970,10 +970,6 @@ classdef imtool3D < handle
             %Update the slider
             setupSlider(tool)
             
-            % Update de RGBindex
-            Nbands = size(I{tool.Nvol},3);
-            tool.RGBindex = [1 round(Nbands/2) Nbands];
-            
             %Update the TIme
             tool.Ntime = min(tool.Ntime,size(I{tool.Nvol},4));
             
