@@ -32,6 +32,11 @@ if ~exist('range','var'), range=[]; end
 
 if ~exist('maskfname','var'), maskfname=[]; end
 if ~isempty(filename)
+    if isnumeric(filename)
+        filename = nii_tool('init',filename);
+        filename.hdr.pixdim = [4 1 1 1 1 1 0 0 0];
+        filename.fname = inputname(1);
+    end
     if isstruct(filename)
         dat = filename.img;
         hdr = filename.hdr;
