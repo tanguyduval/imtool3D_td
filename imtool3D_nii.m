@@ -40,7 +40,13 @@ if ~isempty(filename)
     if isstruct(filename)
         dat = filename.img;
         hdr = filename.hdr;
-        list = filename.fname;
+        if isfield(filename,'fname')
+            list = filename.fname;
+        elseif isfield(filename,'label')
+            list = filename.label;
+        else
+            list = {''};
+        end
     else
         [dat, hdr, list] = nii_load(filename,untouch);
     end
@@ -66,7 +72,11 @@ end
 
 if iscell(maskfname), maskfname = maskfname{1}; end
 if ~isempty(maskfname)
-    mask = nii_load({hdr,maskfname},untouch); mask = mask{1};
+    if isnumeric(maskfname)
+        mask = maskfname;
+    else
+        mask = nii_load({hdr,maskfname},untouch); mask = mask{1};
+    end
 else
     mask = [];
 end
