@@ -4,12 +4,20 @@ classdef imtool3D < handle
     %ROI tools.
     %
     %   Use this class to place a self-contained image viewing panel within
-    %   a GUI (or any figure). Similar to imtool but with slice scrolling.
-    %   Only designed to view grayscale (intensity) images. Use the mouse
-    %   to control how the image is displayed. A left click allows window
-    %   and leveling, a right click is for panning, and a middle click is
-    %   for zooming. Also the scroll wheel can be used to scroll through
+    %   a GUI (or any figure). 
+    %
+    %   Similar to imtool but with slice scrolling and mouse controls.
+    %   Always open in grayscale (intensity) images by default. Use button
+    %   bellow the left scrollbar to turn into RGB and control color channels.
+    %   Use the mouse to control how the image is displayed. A left click 
+    %   allows window and leveling, a right click is for panning, and a middle 
+    %   click is for zooming. Also the scroll wheel can be used to scroll through
     %   slices.
+    %   Drag and drop one or multiple images on the viewer to open them.
+    %   Switch between multiple images using the up or down arrows.
+    %   Go across time frame (4th dim) using left/right arrows
+    %   Open 5D images or multiple 4D images.
+    %   
     %----------------------------------------------------------------------
     %Inputs:
     %
@@ -57,20 +65,87 @@ classdef imtool3D < handle
     %Note that you can pass an empty matrix for any input variable to have
     %the constructor use default values. ex. tool=imtool3D([],[],h,[]).
     %----------------------------------------------------------------------
+    %Examples:
+    %
+    % ## open a 5D volume
+    % A = rand(100,100,30,10,3);
+    % imtool3D(A)
+    % 
+    % 
+    % ## open an MRI volume
+    % load mri % example mri image provided by MATLAB
+    % D = squeeze(D);
+    % D = permute(D(end:-1:1,:,:),[2 1 3]); % LPI orientation
+    % tool = imtool3D(D);
+    % tool.setAspectRatio([1 1 2.5]) % set voxel size to 1mm x 1mm x 2.5mm
+    % 
+    %
+    % ## open in RGB mode 
+    % I = imread('board.tif');
+    % tool = imtool3D(I);
+    % % use RGB mode
+    % tool.isRGB = 1;
+    % tool.RGBdim = 3;
+    % tool.RGBindex = [1 2 3];
+    %
+    % Note: Use the button bellow left slider ('.' or 'R','G','B') to turn between RGB and grayscale and to select active color channel 
+    %
+    %
+    % ## include in a GUI
+    % % Add viewer in a panel in the middle of the GUI
+    % GUI = figure('Name','GUI with imtool3D embedded');
+    % annotation(GUI,'textbox',[0 .5 1 .5],'String','Create your own GUI here',...
+    %                'HorizontalAlignment','center','VerticalAlignment','middle');
+    % Position = [0 0 1 .5]; % Bottom. normalized units
+    % tool = imtool3D([],Position,GUI)
+    % % set image
+    % load mri
+    % tool.setImage(squeeze(D))
+    %
+    %
+    % ## play a video
+    % v = VideoReader('xylophone.mp4');
+    % tool = imtool3D(v.read([1 Inf]));
+    % tool.isRGB = 1;
+    %
+    % Note: use left/right arrows to move through image frames  
+    %       use shift+right for fast forward (10-by-10 frames)  
+    %
+    %----------------------------------------------------------------------
     %Methods:
     %
-    %   tool.setImage(I) displays a new image.
+    %   tool.setImage(I) displays a new image. I can be a cell of multiple 
+    %   images or a N-D matrix
     %
     %   I = tool.getImage() returns the image being shown by the tool
+    %   I = tool.getImage(1) returns all the images loaded in the tool
     %
     %   setMask(tool,mask) replaces the overlay mask with a new one
+    %
+    %   tool.rescaleFactor = scale; sets the zoom scale of the image (1 is 100%, 2 is 200%)
+    %
+    %   tool.isRGB = 0/1 turns between RGB and grayscale.
+    %
+    %   tool.RGBdim = 3/4/5; select matrix dimension along which RGB planes
+    %   are selected
+    %
+    %   tool.RGBindex = [1x3 Int]; select the planes along RGBdim used for
+    %   RGB planes
+    %
+    %   tool.setAspectRatio([1x3 double]) sets the pixel size in the 3
+    %   directions
+    %
+    %   tool.setviewplane(view) sets the view to 'axial', 'coronal' or 'saggital'
+    %
+    %   tool.label({label}) sets the labels of all images loaded in the
+    %   tool
     %
     %   setAlpha(tool,alpha) sets the transparency of the overlaid mask
     %
     %   alpha = getAlpha(tool) gets the current transparency of the
     %   overlaid mask
     %
-    %   setPostion(tool,position) sets the position of tool.
+    %   setPosition(tool,position) sets the position of tool.
     %
     %   position = getPosition(tool) returns the position of the tool
     %   relative to its parent figure.
@@ -963,7 +1038,7 @@ classdef imtool3D < handle
             end
             
             %update the mask cdata (in case it has changed size)
-            C=zeros(size(I{tool.Nvol},1),size(I{tool.Nvol},2),3);
+            C=zeros(size(I{tool.Nvol},1),size(I{tool.Nvol},2),3,'uint8');
             C(:,:,1)=tool.maskColor(1); C(:,:,2)=tool.maskColor(2); C(:,:,3)=tool.maskColor(3);
             set(tool.handles.mask,'CData',C);
             
@@ -2040,7 +2115,7 @@ classdef imtool3D < handle
             end
             tool.Nvol = Nvol;
             if numel(maskn)>10e7 || ~any(maskn(:))
-                maskrgb = maskn;
+                maskrgb = maskn*255;
             else
                 maskrgb = ind2rgb8(maskn,tool.maskColor);
             end
