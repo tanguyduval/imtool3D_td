@@ -765,22 +765,33 @@ classdef imtool3D < handle
         end
         
         function setPosition(tool,position)
+            % tool.setPosition(position)
+            % ex: tool.setPosition([0 0 1 .5])
             set(tool.handles.Panels.Large,'Position',position)
         end
         
         function position = getPosition(tool)
+            % position = tool.getPosition()
             position = get(tool.handles.Panels.Large,'Position');
         end
         
         function setUnits(tool,units)
+            % tool.setUnits(units)
+            % ex: tool.setUnits('pixels')
             set(tool.handles.Panels.Large,'Units',units)
         end
         
         function units = getUnits(tool)
+            % tool.getUnits()
             units = get(tool.handles.Panels.Large,'Units');
         end
         
         function setMask(tool,mask)
+            % tool.setMask(mask)
+            % ex: S = tool.getImageSize();
+            %     mask = ones(S(1:3),'uint8');
+            %     tool.setMask(mask)
+            
             % 4D mask --> indice along 4th dim
             if ndims(mask)>3, [~,masktmp] = max(uint8(mask(:,:,:,:)),[],4); mask = uint8(masktmp).*uint8(any(mask(:,:,:,:),4)); end
             if ~isempty(mask) && (size(mask,1)~=size(tool.I{1},1) || size(mask,2)~=size(tool.I{1},2) || size(mask,3)~=size(tool.I{1},3))
@@ -809,11 +820,18 @@ classdef imtool3D < handle
             notify(tool,'maskChanged')
         end
         
-        function label = getmaskSelected(tool)
-            label = tool.maskSelected;
+        function Num = getmaskSelected(tool)
+            % Ind = tool.getmaskSelected()
+            % Get the mask index currently selected
+            % (Mask is multi-label uint8 indexed image)
+            Num = tool.maskSelected;
         end
         
         function mask = getMask(tool,all)
+            % mask = tool.getMask(all);
+            % ex: mask = tool.getMask(); get currently selected
+            %                            index of the 3D mask
+            %     mask = tool.getMask(1); get the entire multi-label mask
             if nargin<2, all=false; end
             if all
                 mask = tool.mask;
@@ -823,6 +841,7 @@ classdef imtool3D < handle
         end
         
         function maskUndo(tool)
+            % tool.maskUndo() undo last operation done on the mask
             if ~isempty(tool.maskHistory{end-1})
                 tool.mask=tool.maskHistory{end-1};
                 showSlice(tool)
@@ -836,6 +855,8 @@ classdef imtool3D < handle
         end
         
         function maskClean(tool,islct)
+            % tool.maskClean(islct)
+            % ex: tool.maskClean(1)  set mask to 0 for index '1'
             if islct == 5
                 islct = str2num(get(tool.handles.Tools.maskSelected(5),'String'));
             end
@@ -846,6 +867,8 @@ classdef imtool3D < handle
         end
         
         function maskCustomValue(tool,islct)
+            % tool.maskCustomValue(islct) sets a new label islct
+            % ex: tool.maskCustomValue(3)
             if nargin<2
                 islct = inputdlg('Mask Value');
                 if isempty(islct) || isempty(str2num(islct{1}))
@@ -876,6 +899,7 @@ classdef imtool3D < handle
         end
                
         function setlockMask(tool)
+            % tool.setlockMask() toggle lock on (preventing overwritting of other labels) or off
             tool.lockMask = ~tool.lockMask;
             CData = get(tool.handles.Tools.maskLock,'CData');
             S = size(CData);
@@ -883,6 +907,9 @@ classdef imtool3D < handle
             set(tool.handles.Tools.maskLock,'CData',CData)
         end
         function setMaskColor(tool,maskColor)
+            % tool.setMaskColor(maskColor)
+            % tool.setMaskColor('y') for yellow mask for all labels
+            % tool.setMaskColor(hsv(30))
             
             if ischar(maskColor)
                 switch maskColor
@@ -911,10 +938,18 @@ classdef imtool3D < handle
         end
         
         function maskColor = getMaskColor(tool)
+            % maskColor = tool.getMaskColor()
             maskColor = tool.maskColor;
         end
         
         function setImage(tool, varargin)
+            % tool.setImage(I) replace currently loaded images with I (image or cellarray images)
+            % tool.setImage(I, [], [], range) set range at the same time
+            % tool.setImage(I, [], [], range, tools) sync slider with other
+            %                                        tools objects
+            % tool.setImage(I, [], [], range, tools, mask) use a mask
+            % tool.setImage(I, [], [], range, tools, mask,  enableHist) use
+            %                                    Histogram function? Slower...
             [I, position, h, range, tools, mask, enablehist] = parseinputs(varargin{:});
             
             if isempty(I)
@@ -1088,6 +1123,8 @@ classdef imtool3D < handle
         end
         
         function I = getImage(tool,all)
+            % I = tool.getImage() get currently viewing image
+            % I = tool.getImage(1) get all images loaded in the tool
             if nargin<2, all=false; end
             if all
                 I=tool.I;
@@ -1097,14 +1134,19 @@ classdef imtool3D < handle
         end
         
         function Nvol = getNvol(tool)
+            % Nvol = tool.getNvol() get the currently displayed image
+            % number
             Nvol=tool.Nvol;
         end
 
         function NvolMax = getNvolMax(tool)
+            % NvolMax = tool.getNvolMax() get the number of images loaded
             NvolMax=length(tool.I);
         end
 
         function setNvol(tool,Nvol,saveClim)
+            % tool.setNvol(Nvol) sets the image to display
+            
             if ~exist('saveClim','var'), saveClim = true; end % save Clim by default
 
             % save window and level
@@ -1151,14 +1193,19 @@ classdef imtool3D < handle
         end
         
         function setlabel(tool,label)
+            % tool.label = label; set the text displayed on top of images
+            % tool.label = {'MRI'}; 
             tool.label = label;
         end
         
         function r = getrange(tool)
+            % r = tool.getrange() get the max - min of the current image
             r=diff(tool.range{tool.Nvol});
         end
         
         function setClimits(tool,range)
+            % tool.setClimits(range) set the range of the display
+            % tool.setClimits([0 255])
             if iscell(range)
                 tool.setDisplayRange(range{tool.getNvol})
                 tool.NvolOpts.Climits = range;
@@ -1169,28 +1216,36 @@ classdef imtool3D < handle
         end
         
         function Climits = getClimits(tool)
+            % Climits = tool.getClimits()
             Climits = tool.NvolOpts.Climits;
         end
         
         function Nt = getNtime(tool)
+            % Nt = tool.getNtime()
             Nt=tool.Ntime;
         end
         
         function m = max(tool)
+            % m = tool.max() max of the current image
             m = max(tool.I{tool.getNvol}(:));
         end
         
         function m = min(tool)
+            % m = tool.min() min of the current image
             m = min(tool.I{tool.getNvol}(:));
         end
         
         function handles=getHandles(tool)
+            % h=tool.getHandles() get handles to all objects in imtool3D
+            % ex: 
+            %   set(h.Panels.ROItools,'Visible','off') % hides the ROItools
             handles=tool.handles;
         end
         
         function aspectRatio = getAspectRatio(tool)
             %This gets the aspect ratio of the viewer for cases
             %where you have non-square pixels
+            %  aspectRatio = tool.getAspectRatio()
             switch tool.viewplane
                 case 1
                     aspectRatio = tool.aspectRatio([2 3 1]);
@@ -1204,9 +1259,15 @@ classdef imtool3D < handle
         function setAspectRatio(tool,psize)
             %This sets the proper aspect ratio of the viewer for cases
             %where you have non-square pixels
+            % tool.setAspectRatio(psize)
+            % ex: tool.setAspectRatio([1 1 2.5])
             tool.aspectRatio = psize;
             aspectRatio = getAspectRatio(tool);
             set(tool.handles.Axes,'DataAspectRatio',aspectRatio)
+        end
+        
+        function dim = getviewplane(tool)
+            dim = tool.viewplane;
         end
         
         function setviewplane(tool,dim)
@@ -1290,6 +1351,8 @@ classdef imtool3D < handle
         end
         
         function setOpacity(tool,O, hObject)
+            % tool.setOpacity(Opac) set opacity of current image
+            % ex: tool.setOpacity(0.2)
             if ~exist('hObject','var') || isempty(hObject)
                 hObject = tool.handles.Tools.O; 
             else
@@ -1331,14 +1394,21 @@ classdef imtool3D < handle
         end
         
         function setCurrentSlice(tool,slice)
+            % tool.setCurrentSlice(slice)
+            % ex: (set slice to 3/4th)
+            %     S = tool.getImageSize();
+            %     dim = tool.getviewplane;
+            %     tool.setCurrentSlice(ceil(S(dim)*3/4))
             showSlice(tool,slice)
         end
         
         function slice = getCurrentSlice(tool)
+            % slice = tool.getCurrentSlice()
             slice=round(get(tool.handles.Slider,'value'));
         end
         
         function mask = getCurrentMaskSlice(tool,all)
+            % mask = tool.getCurrentMaskSlice(all?)
             if ~exist('all','var'), all=0; end
             slice = getCurrentSlice(tool);
             switch tool.viewplane
