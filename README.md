@@ -94,7 +94,7 @@ use left/right arrows to move through image frames
 use shift+right for fast forward (10-by-10 frames)  
 
 # Demo
-[GBM tumor segmentation](https://www.dailymotion.com/embed/video/x7okm8h)  
+[Brain tumor segmentation](https://www.dailymotion.com/embed/video/x7okm8h)  
 [Integration in qMRLab](https://qmrlab.readthedocs.io/en/master/gui_usage.html#data-viewer)
 
 # what is new in this fork? 
