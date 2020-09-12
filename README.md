@@ -62,12 +62,22 @@ peak = peak(:,end:-1:1,:,:);
 
 %% Open imtool3D and display
 tool = imtool3D(repmat(fa0,[1 1 1 3]).*abs(peak));
+
 % use RGB mode
 tool.isRGB = 1;
 tool.RGBdim = 4;
 tool.RGBindex = [1 2 3];
 % move to slice 63
 tool.setCurrentSlice(63)
+````
+````matlab
+% Optional: add vectors
+u = peak(:,:,63,1);
+v = peak(:,:,63,2);
+fa0slice = fa0(:,:,63);
+[X,Y] = meshgrid(1:size(peak,2),1:size(peak,1));
+h = quiver(tool.getHandles.Axes(tool.getNvol()), X(:),Y(:),-v(:).*fa0slice(:)*2,u(:).*fa0slice(:)*2);
+h.ButtonDownFcn = tool.getHandles.I.ButtonDownFcn;
 ````
 <p align="center">
   <img src="CaptureRGBmode.PNG" width="400">

@@ -111,6 +111,28 @@ classdef imtool3D < handle
     % Note: use left/right arrows to move through image frames  
     %       use shift+right for fast forward (10-by-10 frames)  
     %
+    % ## Compare two images
+    % A = imread('cameraman.tif');
+    % B = imrotate(A,5,'bicubic','crop');
+    % tool = imtool3D({A,B})
+    % % Option 1: fuse both images in grayscale
+    % tool.setNvol(2); % show top image (B)
+    % tool.setOpacity(.5) % set opacity of current image (B)
+    % % Option 2: fuse both images with false colors
+    % tool.setNvol(1);
+    % tool.changeColormap('red');
+    % tool.setNvol(2);
+    % tool.changeColormap('green')
+    % tool.setOpacity(.5) % set opacity of current image (B)
+    % % Option 3: alternate both images
+    % tool = imtool3D({A,B})
+    % tool.grid = 1;
+    % for loop=1:10
+    %   tool.setNvol(mod(loop,2)+1);
+    %   pause(.5)
+    % end
+    % 
+    %
     %----------------------------------------------------------------------
     %Methods:
     %
@@ -278,6 +300,7 @@ classdef imtool3D < handle
         upsample = false;
         upsampleMethod = 'lanczos3'; %Can be any of {'bilinear','bicubic','box','triangle','cubic','lanczos2','lanczos3'}
         Visible = true;              %lets the user hide the imtool3D panel
+        grid    = false;
         brushsize = 5; % default size of the brush
         gamma = 1; % gamma correction
         isRGB        = false; % colored image?
@@ -1809,6 +1832,17 @@ classdef imtool3D < handle
             end
         end
         
+        function set.grid(tool,Visible)
+            set(tool.handles.Tools.Grid,'Value',logical(Visible))
+            if logical(Visible)
+                if ~ishandle(tool.handles.grid), setupGrid(tool); end
+                set(tool.handles.grid,'Visible','on')
+            else
+                set(tool.handles.grid,'Visible','off')
+            end
+            tool.grid = logical(Visible);
+        end
+        
         function shortcutCallback(tool,evnt)
             switch evnt.Key
                 case 'space'
@@ -2698,12 +2732,7 @@ try
     warning on
 end
 
-if get(hObject,'Value')
-    if ~ishandle(tool.handles.grid), setupGrid(tool); end
-    set(tool.handles.grid,'Visible','on')
-else
-    set(tool.handles.grid,'Visible','off')
-end
+tool.grid = get(hObject,'Value');
 end
 
 function toggleMask(hObject,eventdata,tool)
