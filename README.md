@@ -49,7 +49,38 @@ tool.setImage(D)
 tool.setAspectRatio([1 1 2.5]) % set voxel size to 1mm x 1mm x 2.5mm
 ````
 
-## open in RGB mode 
+## show RGB image
+#### Display a Grayscale Image
+````matlab
+corn_gray = imread('corn.tif',3); % load the gray version
+imtool3D(corn_gray)
+````
+#### Display an Indexed Image
+````matlab
+corn_RGB = imread('corn.tif',2); % load RGB version
+tool=imtool3D(corn_RGB);
+tool.isRGB = 1;
+````
+#### Display an RGB Image
+````matlab
+[corn_indexed,map] = imread('corn.tif',1); % load indexed version
+tool = imtool3D(corn_indexed);
+h = tool.getHandles;
+colormap(h.Axes(tool.getNvol),map)
+colormap(h.HistImageAxes,map)
+tool.setClimits([0 255])
+````
+
+## play a video
+````matlab
+v = VideoReader('xylophone.mp4');
+tool = imtool3D(v.read([1 Inf]));
+tool.isRGB = 1;
+````
+use left/right arrows to move through image frames  
+use shift+right for fast forward (10-by-10 frames)  
+## show RGB volume
+For this example, we will display color-coded nerve direction of the brain.  
 Download HCP Diffusion MRI Template http://brain.labsolver.org/diffusion-mri-templates/hcp-842-hcp-1021
 ````matlab
 %% load HCP Diffusion MRI Template
@@ -79,19 +110,34 @@ fa0slice = fa0(:,:,63);
 h = quiver(tool.getHandles.Axes(tool.getNvol()), X(:),Y(:),-v(:).*fa0slice(:)*2,u(:).*fa0slice(:)*2);
 h.ButtonDownFcn = tool.getHandles.I.ButtonDownFcn;
 ````
+
+<p align="center">
+  Brain nerve bundles color-coded by direction: 
+</p>
+<p align="center">  
+(red: left-right, green: antero-posterior, blue: superior-inferior)
+</p>
 <p align="center">
   <img src="CaptureRGBmode.PNG" width="400">
 </p>
 Use button bellow left slider ('R' on the screenshot) to turn between RGB and grayscale and to select active color channel 
 
-## play a video
+## Overlay image
+For this example we will display a map of brain activation extracted from an FMRI dataset.  
+Download fmri dataset: http://www2.bcs.rochester.edu/sites/raizada/Matlab/fMRI/speech_brain_images.mat
 ````matlab
-v = VideoReader('xylophone.mp4');
-tool = imtool3D(v.read([1 Inf]));
-tool.isRGB = 1;
+tool = imtool3D({subj_3danat speech_Tmap});
+tool.setNvol(2); % show top image (brain activation for speech task)
+tool.setClimits([1 7]); % threshold activation >1
+tool.changeColormap('hot')
+tool.setOpacity(.3)
 ````
-use left/right arrows to move through image frames  
-use shift+right for fast forward (10-by-10 frames)  
+<p align="center">
+  Brain activation during a speech task:
+</b>
+<p align="center">
+  <img src="https://user-images.githubusercontent.com/7785316/93019813-af8a3480-f5d9-11ea-9423-6bc3d7a489df.png" width="400">  
+</p>
 
 # Demo
 [Brain tumor segmentation](https://www.dailymotion.com/embed/video/x7okm8h) using `imtool3D_nii_3planes.m` or `imtool3D_3planes.m`  
