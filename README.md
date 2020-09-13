@@ -126,6 +126,7 @@ Use button bellow left slider ('R' on the screenshot) to turn between RGB and gr
 For this example we will display a map of brain activation extracted from an FMRI dataset.  
 Download fmri dataset: http://www2.bcs.rochester.edu/sites/raizada/Matlab/fMRI/speech_brain_images.mat
 ````matlab
+load('speech_brain_images.mat'); % load dataset
 tool = imtool3D({subj_3danat speech_Tmap});
 tool.setNvol(2); % show top image (brain activation for speech task)
 tool.setClimits([1 7]); % threshold activation >1
