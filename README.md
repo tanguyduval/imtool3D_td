@@ -55,13 +55,13 @@ tool.setAspectRatio([1 1 2.5]) % set voxel size to 1mm x 1mm x 2.5mm
 corn_gray = imread('corn.tif',3); % load the gray version
 imtool3D(corn_gray)
 ````
-#### Display an Indexed Image
+#### Display an RGB Image
 ````matlab
 corn_RGB = imread('corn.tif',2); % load RGB version
 tool=imtool3D(corn_RGB);
 tool.isRGB = 1;
 ````
-#### Display an RGB Image
+#### Display an Indexed Image
 ````matlab
 [corn_indexed,map] = imread('corn.tif',1); % load indexed version
 tool = imtool3D(corn_indexed);
