@@ -301,6 +301,7 @@ classdef imtool3D < handle
         upsampleMethod = 'lanczos3'; %Can be any of {'bilinear','bicubic','box','triangle','cubic','lanczos2','lanczos3'}
         Visible = true;              %lets the user hide the imtool3D panel
         grid    = false;
+        montage = false;
         brushsize = 5; % default size of the brush
         gamma = 1; % gamma correction
         isRGB        = false; % colored image?
@@ -598,7 +599,7 @@ classdef imtool3D < handle
             icon_profile = makeToolbarIconFromPNG('icon_montage.png');
             set(tool.handles.Tools.montage ,'Cdata',icon_profile)
             lp=lp+w+buff;
-            fun=@(hObject,evnt) showSlice(tool,12+(1-get(hObject,'Value'))*(round(size(tool.I{tool.Nvol},tool.viewplane)/2)-12)); % show 12 slices by default
+            fun=@(hObject,evnt) toggleMontage(hObject,[],tool); % show 12 slices by default
             set(tool.handles.Tools.montage,'Callback',fun)
             
             %Create Help Button
@@ -1833,6 +1834,7 @@ classdef imtool3D < handle
         end
         
         function set.grid(tool,Visible)
+            % set.grid(tool,Visible)
             set(tool.handles.Tools.Grid,'Value',logical(Visible))
             if logical(Visible)
                 if ~ishandle(tool.handles.grid), setupGrid(tool); end
@@ -1841,6 +1843,14 @@ classdef imtool3D < handle
                 set(tool.handles.grid,'Visible','off')
             end
             tool.grid = logical(Visible);
+        end
+        
+        function set.montage(tool,montagemode)
+            % set.montage(tool,montagemode)
+            % set.montage(tool,True)
+            tool.montage = logical(montagemode);
+            set(tool.handles.Tools.montage,'Value',tool.montage)
+            showSlice(tool,12+(1-get(tool.handles.Tools.montage,'Value'))*(round(size(tool.I{tool.Nvol},tool.viewplane)/2)-12)); % show 12 slices by default
         end
         
         function shortcutCallback(tool,evnt)
@@ -2733,6 +2743,19 @@ try
 end
 
 tool.grid = get(hObject,'Value');
+end
+
+function toggleMontage(hObject,eventdata,tool)
+% unselect button to prevent activation with spacebar
+try
+    warning off
+    set(hObject, 'Enable', 'off');
+    drawnow;
+    set(hObject, 'Enable', 'on');
+    warning on
+end
+
+tool.montage = get(hObject,'Value');
 end
 
 function toggleMask(hObject,eventdata,tool)
