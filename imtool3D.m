@@ -778,11 +778,13 @@ classdef imtool3D < handle
             try
                 % Add Drag and Drop feature
                 %             txt_drop = annotation(tool.handles.Panels.Image,'textbox','Visible','off','EdgeColor','none','FontSize',25,'String','DROP!','Position',[0.5 0.5 0.6 0.1],'FitBoxToText','on','Color',[1 0 0]);
+                wrn = warning('off','MATLAB:ui:javaframe:PropertyToBeRemoved');
                 jFrame = get(tool.handles.fig, 'JavaFrame');
                 jAxis = jFrame.getAxisComponent();
                 dndcontrol.initJava();
                 dndobj = dndcontrol(jAxis);
                 dndobj.DropFileFcn = @(s, e)onDrop(tool, s, e); %,'DragEnterFcn',@(s,e) setVis(txt_drop,1),'DragExitFcn',@(s,e) setVis(txt_drop,0));
+                warning(wrn);
             catch err
                 warning(err.message)
             end
