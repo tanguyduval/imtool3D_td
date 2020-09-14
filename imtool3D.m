@@ -2069,7 +2069,7 @@ classdef imtool3D < handle
                     else
                         Mask = nii_load(fullfile(PathName,FileName));
                     end
-                    Mask = Mask{1};
+                    if iscell(Mask), Mask = Mask{1}; end
                 case '.mat'
                     load(fullfile(PathName,FileName));
                 case '.tif'

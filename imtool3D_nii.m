@@ -75,7 +75,8 @@ if ~isempty(maskfname)
     if isnumeric(maskfname)
         mask = maskfname;
     else
-        mask = nii_load({hdr,maskfname},untouch); mask = mask{1};
+        mask = nii_load({hdr,maskfname},untouch); 
+        if iscell(mask),    mask = mask{1}; end
     end
 else
     mask = [];
