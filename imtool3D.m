@@ -1005,7 +1005,7 @@ classdef imtool3D < handle
                     phantom3 = cast(phantom3*255,'uint8');
                     label = 'Shepp-Logan phantom';
                 end
-                I=uint8(cat(4,randn([S(1) S(2) S(3) 1 size(phantom3,5)])*.0*255,randn([S(1) S(2) S(3) 19 size(phantom3,5)])*.01*255))+repmat(phantom3,[1 1 1 20 1]);
+                I=phantom3;
                 tool.setAspectRatio(pixdim);
             end
             
@@ -2327,7 +2327,7 @@ classdef imtool3D < handle
             try
                 delete(tool.handles.grid)
             end
-            nGrid=7;
+            nGrid=4;
             nMinor=4;
             posdim = setdiff(1:3,tool.viewplane);
             x=linspace(1,size(tool.I{tool.Nvol},posdim(2)),nGrid);
