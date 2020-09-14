@@ -71,6 +71,18 @@ colormap(h.HistImageAxes,map)
 tool.setClimits([0 255])
 ````
 
+## show montage
+````matlab
+tool = imtool3D;
+tool.montage = 1;
+````
+<p align="center">
+  Brain montage: 
+</p>
+<p align="center">
+  <img src="https://user-images.githubusercontent.com/7785316/93062018-a4381700-f674-11ea-9d7c-684a406fa85a.png" width="400">
+</p>
+
 ## play a video
 ````matlab
 v = VideoReader('xylophone.mp4');
