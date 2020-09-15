@@ -12,11 +12,31 @@ imtool3D is used heavily by several other projects:
 * [imquest](https://gitlab.oit.duke.edu/railabs/SameiResearchGroup/imquest)
 * [lesionTool](https://gitlab.oit.duke.edu/railabs/SameiResearchGroup/lesionTool)
 
+# Documentation
+
+* [Dependencies](#dependencies)
+* [Demo](#demo)
+* [Tutorial](#tutorial)
+* [Authors](#authors)
+
 # Dependencies
 * Matlab's image processing toolbox (ROI tools are disabled otherwise)
 * [dicm2nii](https://github.com/xiangruili/dicm2nii) (if NIFTI images are used)
 
-# Tuto
+# Demo
+[Brain tumor segmentation](https://www.dailymotion.com/embed/video/x7okm8h) using `imtool3D_nii_3planes.m` or `imtool3D_3planes.m`  
+[Integration in qMRLab](https://qmrlab.readthedocs.io/en/master/gui_usage.html#data-viewer)
+## Mouse control
+![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_mouse.gif)  
+## Multi-label mask (ROI)
+### edit mask
+![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_roi.gif)  
+### Smart brush
+![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_smartbrush.gif)
+### Polygon tool
+![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_polygon.gif)
+
+# Tutorial
 ## open a 5D volume
 ````matlab
 A = rand(100,100,30,10,3);
@@ -151,10 +171,6 @@ tool.setOpacity(.3)
 <p align="center">
   <img src="https://user-images.githubusercontent.com/7785316/93019813-af8a3480-f5d9-11ea-9423-6bc3d7a489df.png" width="400">  
 </p>
-
-# Demo
-[Brain tumor segmentation](https://www.dailymotion.com/embed/video/x7okm8h) using `imtool3D_nii_3planes.m` or `imtool3D_3planes.m`  
-[Integration in qMRLab](https://qmrlab.readthedocs.io/en/master/gui_usage.html#data-viewer)
 
 # what is new in this fork? 
 * Support for 5D volumes (scroll through time and volumeS with arrows)
