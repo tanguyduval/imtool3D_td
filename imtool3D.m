@@ -3593,7 +3593,7 @@ if ~isdeployed
             tdir = [tmp 'imtool3D_td-master/'];
         catch me
             errordlg(['Error in updating: ' me.message], mfile);
-            web(webUrl, '-browser');
+            web(url, '-browser');
             return;
         end
     end
