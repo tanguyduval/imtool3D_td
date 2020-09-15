@@ -95,9 +95,9 @@ for ff=1:length(list)
     end
     
     dat(end+1:end+size(nii(:,:,:,:,:),5)) = mat2cell(nii(:,:,:,:,:),size(nii,1),size(nii,2),size(nii,3),size(nii,4),ones(1,size(nii(:,:,:,:,:),5)));
-    if length(dat)==1
-        dat = dat{1};
-    end
+end
+if length(dat)==1
+    dat = dat{1};
 end
 
 
