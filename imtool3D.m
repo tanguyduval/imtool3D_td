@@ -2327,8 +2327,8 @@ classdef imtool3D < handle
             try
                 delete(tool.handles.grid)
             end
-            nGrid=4;
-            nMinor=4;
+            nGrid=5;
+            nMinor=5;
             posdim = setdiff(1:3,tool.viewplane);
             x=linspace(1,size(tool.I{tool.Nvol},posdim(2)),nGrid);
             y=linspace(1,size(tool.I{tool.Nvol},posdim(1)),nGrid);
