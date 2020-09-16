@@ -27,11 +27,23 @@ imtool3D is used heavily by several other projects:
 [Brain tumor segmentation](https://www.dailymotion.com/embed/video/x7okm8h) using `imtool3D_nii_3planes.m` or `imtool3D_3planes.m`  
 [Integration in qMRLab](https://qmrlab.readthedocs.io/en/master/gui_usage.html#data-viewer)
 ## Mouse control
+| Mouse control | action |
+|---------------------|--------|
+| Middle (shift+) Click and drag | Zoom in/out |
+| Left Click and drag | Contrast/Brightness |
+| Right (ctrl+) Click and drag | Pan |
+| Scroll wheel | Change slice |
+
 ![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_mouse.gif)  
 ## Multi-label mask (ROI)
 ### edit mask
+| Brush tool controls | action |
+|---------------------|--------|
+| Middle click and drag | Change brush diameter |
+| Right click | erase |
+| double click (smart brush only)| Toggle between bright or dark segmentation |
+
 ![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_roi.gif)  
-### Smart brush
 ![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_smartbrush.gif)
 ### Polygon tool
 ![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_polygon.gif)
