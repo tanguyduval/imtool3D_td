@@ -73,7 +73,9 @@ imtool3D is used heavily by several other projects:
 ![](https://user-images.githubusercontent.com/7785316/93666003-0335cb80-fa7b-11ea-8863-9001c2ea5a54.gif)  
 ## Histogram, colormap and statistics
 * Colorbar button on top left to show current slice histogram and colorbar
-![](https://user-images.githubusercontent.com/7785316/93665176-b64ef680-fa74-11ea-8ac9-5e07c41576f5.gif)
+
+![](https://user-images.githubusercontent.com/7785316/93665176-b64ef680-fa74-11ea-8ac9-5e07c41576f5.gif)  
+
 * Use histogram button on the right to get volume statistics
 
 # Tutorial
