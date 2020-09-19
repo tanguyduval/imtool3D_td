@@ -16,7 +16,21 @@ imtool3D is used heavily by several other projects:
 
 * [Dependencies](#dependencies)
 * [Demo](#demo)
+  * [Mouse Control](#mouse-control)
+  * [Multi-label mask (ROI) tools](#multi-label-mask-roi-tools)
+  * [Measurement tools](#measurement-tools)
+  * [Histogram, colormap and statistics](#histogram-colormap-and-statistics) 
 * [Tutorial](#tutorial)
+  * [open a 5D volume](#open-a-5d-volume)
+  * [open an MRI volume](#open-an-mri-volume)
+  * [include imtool3D in a GUI](#include-in-a-gui)
+  * [show RGB image](#show-rgb-image)
+  * [show montage](#show-montage)
+  * [play a video](#play-a-video)
+  * [show RGB volume](#show-rgb-volume)
+  * [Overlay an image](#overlay-image)
+  
+## open a 5D volume
 * [Authors](#authors)
 
 # Dependencies
@@ -35,8 +49,7 @@ imtool3D is used heavily by several other projects:
 | Scroll wheel | Change slice |
 
 ![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_mouse.gif)  
-## Multi-label mask (ROI)
-### edit mask
+## Multi-label mask (ROI) tools
 | Brush tool controls | action |
 |---------------------|--------|
 | Middle click and drag | Change brush diameter |
@@ -45,8 +58,19 @@ imtool3D is used heavily by several other projects:
 
 ![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_roi.gif)  
 ![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_smartbrush.gif)
+## Measurement tools
 ### Polygon tool
+* Measure area  
+* Get stats in this area
 ![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_polygon.gif)
+### Line tool
+* Show intensity profile  
+* Measure distance in pixels
+* Symmetrize the mask (replicate mask with respect to the line)
+* Split the mask in two parts
+## Histogram, colormap and statistics
+* Colorbar button on top left to show current slice histogram and colorbar
+* Use histogram button on the right to get volume statistics
 
 # Tutorial
 ## open a 5D volume
