@@ -70,6 +70,7 @@ imtool3D is used heavily by several other projects:
 * Split the mask in two parts
 ## Histogram, colormap and statistics
 * Colorbar button on top left to show current slice histogram and colorbar
+![](https://user-images.githubusercontent.com/7785316/93665176-b64ef680-fa74-11ea-8ac9-5e07c41576f5.gif)
 * Use histogram button on the right to get volume statistics
 
 # Tutorial
