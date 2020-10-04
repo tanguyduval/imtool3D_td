@@ -1133,8 +1133,7 @@ classdef imtool3D < handle
             ylim(tool.handles.Axes,get(tool.handles.Axes(1),'YLim'))
 
             %Show the first slice
-            tool.Nvol = 1;
-            showSlice(tool)
+            tool.setNvol(1);
             
             %Broadcast that the image has been updated
             notify(tool,'newImage')
