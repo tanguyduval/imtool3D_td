@@ -7,12 +7,7 @@ This tool is written using the object-oriented features of matlab. This means th
   <img src="Capture.PNG" width="600">
 </p>
   
-imtool3D is used heavily by several other projects:
-* [qMRLab](https://github.com/qMRLab/qMRLab)
-* [imquest](https://gitlab.oit.duke.edu/railabs/SameiResearchGroup/imquest)
-* [lesionTool](https://gitlab.oit.duke.edu/railabs/SameiResearchGroup/lesionTool)
-
-# Documentation
+imtool3D is used heavily by several other projects: [qMRLab](https://github.com/qMRLab/qMRLab), [imquest](https://gitlab.oit.duke.edu/railabs/SameiResearchGroup/imquest), [lesionTool](https://gitlab.oit.duke.edu/railabs/SameiResearchGroup/lesionTool)
 
 * [Dependencies](#dependencies)
 * [Demo](#demo)
@@ -29,8 +24,6 @@ imtool3D is used heavily by several other projects:
   * [play a video](#play-a-video)
   * [show RGB volume](#show-rgb-volume)
   * [Overlay an image](#overlay-image)
-  
-## open a 5D volume
 * [Authors](#authors)
 
 # Dependencies
