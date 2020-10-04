@@ -16,7 +16,21 @@ imtool3D is used heavily by several other projects:
 
 * [Dependencies](#dependencies)
 * [Demo](#demo)
+  * [Mouse Control](#mouse-control)
+  * [Multi-label mask (ROI) tools](#multi-label-mask-roi-tools)
+  * [Measurement tools](#measurement-tools)
+  * [Histogram, colormap and statistics](#histogram-colormap-and-statistics) 
 * [Tutorial](#tutorial)
+  * [open a 5D volume](#open-a-5d-volume)
+  * [open an MRI volume](#open-an-mri-volume)
+  * [include imtool3D in a GUI](#include-in-a-gui)
+  * [show RGB image](#show-rgb-image)
+  * [show montage](#show-montage)
+  * [play a video](#play-a-video)
+  * [show RGB volume](#show-rgb-volume)
+  * [Overlay an image](#overlay-image)
+  
+## open a 5D volume
 * [Authors](#authors)
 
 # Dependencies
@@ -27,14 +41,42 @@ imtool3D is used heavily by several other projects:
 [Brain tumor segmentation](https://www.dailymotion.com/embed/video/x7okm8h) using `imtool3D_nii_3planes.m` or `imtool3D_3planes.m`  
 [Integration in qMRLab](https://qmrlab.readthedocs.io/en/master/gui_usage.html#data-viewer)
 ## Mouse control
+| Mouse control | action |
+|---------------------|--------|
+| Middle (shift+) Click and drag | Zoom in/out |
+| Left Click and drag | Contrast/Brightness |
+| Right (ctrl+) Click and drag | Pan |
+| Scroll wheel | Change slice |
+
 ![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_mouse.gif)  
-## Multi-label mask (ROI)
-### edit mask
+## Multi-label mask (ROI) tools
+| Brush tool controls | action |
+|---------------------|--------|
+| Middle click and drag | Change brush diameter |
+| Right click | erase |
+| double click (smart brush only)| Toggle between bright or dark segmentation |
+
 ![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_roi.gif)  
-### Smart brush
 ![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_smartbrush.gif)
+## Measurement tools
 ### Polygon tool
+* Measure area  
+* Get stats in this area
+
 ![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_polygon.gif)
+### Line tool
+* Show intensity profile  
+* Measure distance in pixels
+* Symmetrize the mask (replicate mask with respect to the line)
+* Split the mask in two parts
+
+![](https://user-images.githubusercontent.com/7785316/93666003-0335cb80-fa7b-11ea-8863-9001c2ea5a54.gif)  
+## Histogram, colormap and statistics
+* Colorbar button on top left to show current slice histogram and colorbar
+
+![](https://user-images.githubusercontent.com/7785316/93665176-b64ef680-fa74-11ea-8ac9-5e07c41576f5.gif)  
+
+* Use histogram button on the right to get volume statistics
 
 # Tutorial
 ## open a 5D volume

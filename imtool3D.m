@@ -3677,7 +3677,7 @@ else
         case 'append'
             for ii=1:length(tool)
                 tool(ii).setImage([tool(ii).getImage(1) dat]);
-                tool(ii).setlabel([tool(ii).label data]);
+                tool(ii).setlabel([tool(ii).label(:); data]);
             end
         case 'replace'     
             for ii=1:length(tool)
