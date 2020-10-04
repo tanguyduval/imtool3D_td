@@ -73,7 +73,7 @@ end
 
 
 [dat, hdr, list] = nii_load(dat,1);
-tool = tool3P.getTool();
+tool = tool3P;
 for ii=1:length(tool)
     tool(ii).setImage(dat);
     tool(ii).setAspectRatio(hdr.pixdim(2:4));
