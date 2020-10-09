@@ -1860,12 +1860,36 @@ classdef imtool3D < handle
                     else
                         tool.Ntime = max(tool.Ntime-1,1);
                     end
+                    % Change color channel in RGB mode
+                    if tool.RGBdim == 4
+                        ColorChannel = get(tool.handles.SliderColor,'String');
+                        switch ColorChannel
+                            case 'R'
+                                tool.RGBindex(1) = tool.Ntime;
+                            case 'G'
+                                tool.RGBindex(2) = tool.Ntime;
+                            case 'B'
+                                tool.RGBindex(3) = tool.Ntime;
+                        end
+                    end
                     showSlice(tool);
                 case 'rightarrow'
                     if isprop(evnt,'Modifier') && ~isempty(evnt.Modifier) && any(strcmp(evnt.Modifier,'shift'))
                         tool.Ntime = min(tool.Ntime+10,size(tool.I{tool.Nvol},4));
                     else
                         tool.Ntime = min(tool.Ntime+1,size(tool.I{tool.Nvol},4));
+                    end
+                    % Change color channel in RGB mode
+                    if tool.RGBdim == 4
+                        ColorChannel = get(tool.handles.SliderColor,'String');
+                        switch ColorChannel
+                            case 'R'
+                                tool.RGBindex(1) = tool.Ntime;
+                            case 'G'
+                                tool.RGBindex(2) = tool.Ntime;
+                            case 'B'
+                                tool.RGBindex(3) = tool.Ntime;
+                        end
                     end
                     showSlice(tool);
                 case 'uparrow'
@@ -2298,6 +2322,7 @@ classdef imtool3D < handle
                 set(tool.handles.Slider,'Callback',@(h,e) cellfun(@(x) feval(x,h,e), {@(h,e) set(tool.handles.Slider, 'Enable', 'off'),...
                                                                    @(h,e) drawnow,...
                                                                    @(h,e) set(tool.handles.Slider, 'Enable', 'on'),...
+                                                                   @(h,e) setRGBindex3(tool),...
                                                                    fun}));
             end
             set(tool.handles.Slider,'min',1,'max',size(tool.I{tool.Nvol},tool.viewplane));
@@ -2307,6 +2332,22 @@ classdef imtool3D < handle
                 currentslice = get(tool.handles.Slider,'value');
             end
             set(tool.handles.Slider,'value',currentslice)
+        end
+        
+        function setRGBindex3(tool)
+            % Change color channel in RGB mode
+            if tool.RGBdim == 3
+                ColorChannel = get(tool.handles.SliderColor,'String');
+                currentslice = round(max(1,get(tool.handles.Slider,'value')));
+                switch ColorChannel
+                    case 'R'
+                        tool.RGBindex(1) = currentslice;
+                    case 'G'
+                        tool.RGBindex(2) = currentslice;
+                    case 'B'
+                        tool.RGBindex(3) = currentslice;
+                end
+            end    
         end
         
         function setupGrid(tool)
