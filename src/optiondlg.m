@@ -238,7 +238,11 @@ classdef optiondlg < handle
         end
         
         function setCallback(opt,Name,CB)
-            set(opt.handles.buttons.(genvarname_v2(Name)),'Callback',CB)
+            if strcmp(get(opt.handles.buttons.(genvarname_v2(Name)),'Type'),'uitable')
+                set(opt.handles.buttons.(genvarname_v2(Name)),'CellEditCallback',CB)
+            else
+                set(opt.handles.buttons.(genvarname_v2(Name)),'Callback',CB)
+            end
         end
         
         function delete(opt)
@@ -389,7 +393,7 @@ for ii = 1:N
 
              widthpx = getpixelposition(PanelHandle)*Width; widthpx = floor(widthpx(3))-2; % ?
 
-             if size(opts{2*ii},2)<5, set(handle.(tag),'ColumnName',''); set(handle.(tag),'ColumnWidth',repmat({widthpx/size(opts{2*ii},2)},[1 size(opts{2*ii},2)])); end
+             if size(opts{2*ii},2)<5, set(handle.(tag),'ColumnName',''); set(handle.(tag),'ColumnWidth',repmat({widthpx/size(opts{2*ii},2)/1.5},[1 size(opts{2*ii},2)])); end
 
     elseif strcmp(opts{2*ii},'pushbutton') % This creates a button.
 
