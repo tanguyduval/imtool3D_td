@@ -1133,7 +1133,8 @@ classdef imtool3D < handle
             ylim(tool.handles.Axes,get(tool.handles.Axes(1),'YLim'))
 
             %Show the first slice
-            tool.setNvol(1);
+            tool.Nvol = 1;
+            showSlice(tool)
             
             %Broadcast that the image has been updated
             notify(tool,'newImage')
@@ -1511,22 +1512,7 @@ classdef imtool3D < handle
                         order = [1 2 3 4 5 6 7];
                         im = tool.I{tool.Nvol};
                 end
-                switch tool.RGBdim
-                    case 3
-                        rgbslice = slice;
-                    case 4
-                        rgbslice = tool.Ntime;
-                    case 5
-                        rgbslice = tool.Nvol;
-                end
-                switch ColorChannel
-                    case 'R'
-                        tool.RGBindex(1) = rgbslice;
-                    case 'G'
-                        tool.RGBindex(2) = rgbslice;
-                    case 'B'
-                        tool.RGBindex(3) = rgbslice;
-                end
+
                 switch tool.RGBdim
                     case 3
                         im = im(:,:,min(tool.RGBindex,end),min(end,tool.Ntime));
@@ -1707,6 +1693,7 @@ classdef imtool3D < handle
         end
         
         function delete(tool)
+            tool.I = [];
             try
                 delete(tool.handles.Panels.Large)
                 set(tool.handles.fig,'WindowButtonMotionFcn',[]);
@@ -1807,6 +1794,7 @@ classdef imtool3D < handle
         
         function set.RGBindex(tool,index)
             tool.RGBindex = index;
+            tool.showSlice();
         end
         
         function set.RGBdim(tool,dim)
@@ -3293,21 +3281,26 @@ switch h
             'upsample', tool.upsample, ...
             'gamma', tool.gamma, ...
             'is RGB image?',tool.isRGB,...
-            'PANEL','RGB image',3,...
+            'PANEL','RGB image',4,...
             'RGB dimension', {3,4,5}, ...
+            'RGB index',tool.RGBindex,...
             'decorrelation stretch', tool.RGBdecorrstretch, ...
             'align RGB histograms', tool.RGBalignhisto, ...
             'windowSpeed', tool.windowSpeed};
-        tool.optdlg = optiondlg(buttons);
-        tool.optdlg.setValue('RGB image_RGB dimension',tool.RGBdim-2)
-        H = tool.optdlg.getHandles();
-        % figure position
-        CurrentPos = get(H.fig, 'Position');
+        
+        h = figure('opt' * 256.^(1:3)');
+        set(h,'Name','Preferences','NumberTitle','off');
+        set(h,'Toolbar','none','Menubar','none','NextPlot','new')
+        set(h,'Units','Pixels');
         set(tool.handles.fig,'Units','Pixels')
         CallerPos = get(tool.handles.fig, 'Position');
         screensize = get(0,'ScreenSize');
         NewPos = [min(screensize(3)-250,CallerPos(1)+CallerPos(3)), CallerPos(2), 250, CallerPos(4)];
-        set(H.fig, 'Position', NewPos);
+        set(h, 'Position', NewPos);
+
+        tool.optdlg = optiondlg(buttons,h);
+        tool.optdlg.setValue('RGB image_RGB dimension',tool.RGBdim-2)
+        H = tool.optdlg.getHandles();
         
         % delete if main is deleted
         figfun = get(tool.handles.fig,'CloseRequestFcn');
@@ -3332,7 +3325,9 @@ switch h
         tool.optdlg.setCallback('RGB image_RGB dimension', @(src,evnt) assignval(tool,'RGBdim',str2num(src.String{src.Value})))
         tool.optdlg.setCallback('RGB image_decorrelation stretch', @(src,evnt) assignval(tool,'RGBdecorrstretch',src.Value))
         tool.optdlg.setCallback('RGB image_align RGB histograms', @(src,evnt) assignval(tool,'RGBalignhisto',src.Value))
+        tool.optdlg.setCallback('RGB image_RGB index', @(src,evnt) assignval(tool,'RGBindex',src.Data))
         tool.optdlg.setCallback('windowSpeed', @(src,evnt) assignval(tool,'windowSpeed',str2num(src.String)))
+
         
 end
 
@@ -3636,7 +3631,7 @@ imformatlist = imformats;
 
 % Get back the dropped data
 data = evtArg.Data;
-
+data = sort(data);
 % Is it transferable as a list of files
 if length(data)==1 && isdir(data{1})
     imlist = dir(fullfile(data{1},'*.png'));
@@ -3653,23 +3648,31 @@ if length(data)==1 && isdir(data{1})
     end
 else
     [~,~,ext] = fileparts(data{1});
-    switch lower(ext)
-        case {'.nii','.gz'}
-            [dat, hdr] = nii_load(data);
-        case cellfun(@(x) ['.' x], [imformatlist.ext], 'UniformOutput', false)
-            for id = 1:length(data)
-                dat{id} = imread(data{id});
-            end
-            hdr.pixdim = [1 1 1 1];
-        case '.mat'
-            for id = 1:length(data)
-                tmp = load(data{id});
-                ff = fieldnames(tmp);
-                dat{id} = tmp.(ff{1});
-            end
-            hdr.pixdim = [1 1 1 1];
-        otherwise
-            error('unknown format %s',ext)
+    if exist(['imread' lower(ext(2:end)) '.m'],'file')
+        fun = str2func(['imread' lower(ext(2:end))]);
+        for id = 1:length(data)
+            dat{id} = fun(data{id});
+        end
+        hdr.pixdim = [1 1 1 1];
+    else
+        switch lower(ext)
+            case {'.nii','.gz'}
+                [dat, hdr] = nii_load(data);
+            case cellfun(@(x) ['.' x], [imformatlist.ext], 'UniformOutput', false)
+                for id = 1:length(data)
+                    dat{id} = imread(data{id});
+                end
+                hdr.pixdim = [1 1 1 1];
+            case '.mat'
+                for id = 1:length(data)
+                    tmp = load(data{id});
+                    ff = fieldnames(tmp);
+                    dat{id} = tmp.(ff{1});
+                end
+                hdr.pixdim = [1 1 1 1];
+            otherwise
+                error('unknown format %s',ext)
+        end
     end
     rep = questdlg('','','replace','append','replace');
     switch rep
