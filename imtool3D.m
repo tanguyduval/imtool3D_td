@@ -1947,6 +1947,7 @@ classdef imtool3D < handle
             end
             if ext ~= 2 % Current slice
                 I=get(h.I,'CData');
+                if iscell(I), I = I{tool.Nvol}; end
                 viewtype = get(tool.handles.Axes(tool.Nvol),'View');
                 if viewtype(1)==-90, I=rot90(I);  end
                 if size(I,3)==1
@@ -1999,10 +2000,10 @@ classdef imtool3D < handle
                     filters = {'*.nii.gz;*.nii';'*.mat';'*.tif'};
                 end
                 [FileName,PathName] = uiputfile(filters,'Save Mask',maskfname);
-                [~,~,ext] = fileparts(FileName);
                 if isequal(FileName,0)
                     return;
                 end
+                [~,~,ext] = fileparts(FileName);
                 FileName = strrep(FileName,'.gz','.nii.gz');
                 FileName = strrep(FileName,'.nii.nii','.nii');
                 switch lower(ext)
@@ -2085,7 +2086,7 @@ classdef imtool3D < handle
                     if iscell(Mask), Mask = Mask{1}; end
                 case '.mat'
                     load(fullfile(PathName,FileName));
-                case '.tif'
+                case {'.tif','.tiff'}
                     info = imfinfo(fullfile(PathName,FileName));
                     num_images = numel(info);
                     for k = 1:num_images
@@ -3699,6 +3700,15 @@ else
         switch lower(ext)
             case {'.nii','.gz'}
                 [dat, hdr] = nii_load(data);
+            case {'.tif', '.tiff'}
+                for id = 1:length(data)
+                    info = imfinfo(data{id});
+                    num_images = numel(info);
+                    for k = 1:num_images
+                        dat{id}(:,:,k) = imread(data{id}, k);
+                    end
+                end
+                hdr.pixdim = [1 1 1 1];
             case cellfun(@(x) ['.' x], [imformatlist.ext], 'UniformOutput', false)
                 for id = 1:length(data)
                     dat{id} = imread(data{id});
