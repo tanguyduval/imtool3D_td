@@ -1952,7 +1952,7 @@ classdef imtool3D < handle
                 if viewtype(1)==-90, I=rot90(I);  end
                 if size(I,3)==1
                     lims=get(h.Axes(tool.Nvol),'CLim');
-                    I = uint8(max(0,min(1,(I-lims(1))/diff(lims)))*(size(cmap,1)-1));
+                    I = uint8(max(0,min(1,(double(I)-lims(1))/diff(lims)))*(size(cmap,1)-1));
                     imwrite(cat(2,I,repmat(round(linspace(size(cmap,1),0,size(I,1)))',[1 round(size(I,2)/50)])),cmap,[PathName FileName])
                 else
                     imwrite(I,fullfile(PathName, FileName))
