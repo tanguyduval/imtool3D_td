@@ -94,8 +94,8 @@ classdef imtool3DROI_rect < imtool3DROI
             
             %Define the context menu options (i.e., what happens when you
             %right click on the ROI)
-            menuLabels = {'Export stats','Fix Aspect Ratio','Hide Text','Delete','poly2mask'};
-            if ~exist('tool','var') || isempty(tool), menuLabels(end) = []; tool = []; end
+            menuLabels = {'Export stats','Fix Aspect Ratio','Hide Text','Delete','poly2mask','crop'};
+            if ~exist('tool','var') || isempty(tool), menuLabels(end-1:end) = []; tool = []; end
             menuFunction = @contextMenuCallback;
             
             %create the ROI object from the superclass
@@ -534,6 +534,15 @@ switch get(source,'Label')
         combine = true;
         tool.setCurrentMaskSlice(masknew,combine);
         notify(tool,'maskChanged')
+        case 'crop'
+            [x, y] = getPoly(ROI);
+            I = tool.getImage(1);
+
+            x = max(1,round(x));
+            y = max(1,round(y));
+            I = cellfun(@(X) X(min(end,min(y)):min(end,max(y)),min(end,min(x)):min(end,max(x)),:,:,:,:),I,'uni',0);
+            tool.setImage(I);
+            delete(ROI);
 end
 
 
