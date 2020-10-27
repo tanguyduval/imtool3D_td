@@ -2745,7 +2745,7 @@ switch nargout
                 axesPixels = pos(3:end);
                 imagePixels = [diff(xlims) diff(ylims)];
                 scale = imagePixels./axesPixels;
-                scale = scale(1);
+                scale = max(scale);
                 setptr(tool.handles.fig,'closedhand');
                 fun=@(src,evnt) adjustPanMouse(src,evnt,bp,tool.handles.Axes,xlims,ylims,scale);
                 fun2=@(src,evnt) buttonUpFunction(src,evnt,tool,WBMF_old,WBUF_old);
