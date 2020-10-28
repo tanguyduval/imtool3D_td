@@ -1,4 +1,4 @@
-    
+
 classdef imtool3D < handle
     %This is a image slice viewer with built in scroll, contrast, zoom and
     %ROI tools.
@@ -6,13 +6,13 @@ classdef imtool3D < handle
     %   Use this class to place a self-contained image viewing panel within
     %   a GUI (or any figure). 
     %
-    %   Similar to imtool but with slice scrolling and mouse controls.
-    %   Always open in grayscale (intensity) images by default. Use button
-    %   bellow the left scrollbar to turn into RGB and control color channels.
-    %   Use the mouse to control how the image is displayed. A left click 
-    %   allows window and leveling, a right click is for panning, and a middle 
-    %   click is for zooming. Also the scroll wheel can be used to scroll through
-    %   slices.
+    %   Similar to imtool but with slice scrolling, mouse controls, and 
+    %   drag&drop image files feature. Always open in grayscale (intensity) 
+    %   images by default. Use button below the left scrollbar to turn into RGB 
+    %   and control color channels. Use the mouse to control how the image is 
+    %   displayed. A left click allows window and leveling, a right click is 
+    %   for panning, and a middle click is for zooming. Also the scroll wheel 
+    %   can be used to scroll through slices.
     %   Drag and drop one or multiple images on the viewer to open them.
     %   Switch between multiple images using the up or down arrows.
     %   Go across time frame (4th dim) using left/right arrows
@@ -115,16 +115,24 @@ classdef imtool3D < handle
     % A = imread('cameraman.tif');
     % B = imrotate(A,5,'bicubic','crop');
     % tool = imtool3D({A,B})
+    %
     % % Option 1: fuse both images in grayscale
     % tool.setNvol(2); % show top image (B)
     % tool.setOpacity(.5) % set opacity of current image (B)
+    %
     % % Option 2: fuse both images with false colors
     % tool.setNvol(1);
     % tool.changeColormap('red');
     % tool.setNvol(2);
     % tool.changeColormap('green')
     % tool.setOpacity(.5) % set opacity of current image (B)
-    % % Option 3: alternate both images
+    %
+    % % Option 3: distribute images in different RGB channels
+    % tool.isRGB = 1;
+    % tool.RGBdim = 5; % different images are stacked in the 5th dimension
+    % tool.RGBindex = [1 2 2]; % red for the 1st image, blue and green for the 2nd
+    %
+    % % Option 4: alternate both images
     % tool = imtool3D({A,B})
     % tool.grid = 1;
     % for loop=1:10
