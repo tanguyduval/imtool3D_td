@@ -15,6 +15,7 @@ imtool3D is used heavily by several other projects: [qMRLab](https://github.com/
   * [Multi-label mask (ROI) tools](#multi-label-mask-roi-tools)
   * [Measurement tools](#measurement-tools)
   * [Histogram, colormap and statistics](#histogram-colormap-and-statistics) 
+  * [Drag and Drop files](#drag-and-drop-files) 
 * [Tutorial](#tutorial)
   * [open a 5D volume](#open-a-5d-volume)
   * [open an MRI volume](#open-an-mri-volume)
@@ -67,9 +68,27 @@ imtool3D is used heavily by several other projects: [qMRLab](https://github.com/
 ## Histogram, colormap and statistics
 * Colorbar button on top left to show current slice histogram and colorbar
 
-![](https://user-images.githubusercontent.com/7785316/93665176-b64ef680-fa74-11ea-8ac9-5e07c41576f5.gif)  
+<p align="left">
+  <img src="https://user-images.githubusercontent.com/7785316/93665176-b64ef680-fa74-11ea-8ac9-5e07c41576f5.gif" width="600">
+</p>  
 
-* Use histogram button on the right to get volume statistics
+* Use histogram button on the right to get statistics and interactive histogram plot in the different ROI
+
+## Drag and Drop files
+* Drag and drop files on the viewer to load them
+* Create your own open function for your specific file extention `imreadext.m`. For example (.png file):
+````matlab
+function I = imreadpng(pngfile)
+I = imread(pngfile);
+````
+* Append in the volume (5th) dimension or replace already loaded data 
+
+<p align="left">
+  <img src="https://user-images.githubusercontent.com/7785316/97681108-0e2b4500-1a98-11eb-90f1-138552097029.gif" width="600">
+</p>  
+<p align="left">
+  <img src="https://user-images.githubusercontent.com/7785316/97682747-82fe7f00-1a98-11eb-9087-5dabc2904e1b.gif" width="600">
+</p>  
 
 # Tutorial
 ## open a 5D volume
