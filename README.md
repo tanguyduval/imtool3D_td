@@ -12,10 +12,11 @@ imtool3D is used heavily by several other projects: [qMRLab](https://github.com/
 * [Dependencies](#dependencies)
 * [Demo](#demo)
   * [Mouse Control](#mouse-control)
-  * [Multi-label mask (ROI) tools](#multi-label-mask-roi-tools)
+  * [Segmentation tools](#segmentation-tools)
   * [Measurement tools](#measurement-tools)
   * [Histogram, colormap and statistics](#histogram-colormap-and-statistics) 
   * [Drag and Drop files](#drag-and-drop-files) 
+  * [Three planes display (Axial, sagittal and coronal)](#three-planes-display) 
 * [Tutorial](#tutorial)
   * [open a 5D volume](#open-a-5d-volume)
   * [open an MRI volume](#open-an-mri-volume)
@@ -32,7 +33,6 @@ imtool3D is used heavily by several other projects: [qMRLab](https://github.com/
 * [dicm2nii](https://github.com/xiangruili/dicm2nii) (if NIFTI images are used)
 
 # Demo
-[Brain tumor segmentation](https://www.dailymotion.com/embed/video/x7okm8h) using `imtool3D_nii_3planes.m` or `imtool3D_3planes.m`  
 [Integration in qMRLab](https://qmrlab.readthedocs.io/en/master/gui_usage.html#data-viewer)
 ## Mouse control
 | Mouse control | action |
@@ -43,7 +43,10 @@ imtool3D is used heavily by several other projects: [qMRLab](https://github.com/
 | Scroll wheel | Change slice |
 
 ![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_mouse.gif)  
-## Multi-label mask (ROI) tools
+## Segmentation tools
+imtool3D features 3D multi-label mask (ROI) that can be loaded, edited and saved.  
+See the demo for [Brain tumor segmentation](https://www.dailymotion.com/embed/video/x7okm8h) using `imtool3D_nii_3planes.m` or `imtool3D_3planes.m`
+
 | Brush tool controls | action |
 |---------------------|--------|
 | Middle click and drag | Change brush diameter |
@@ -52,6 +55,16 @@ imtool3D is used heavily by several other projects: [qMRLab](https://github.com/
 
 ![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_roi.gif)  
 ![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_smartbrush.gif)
+
+| Mask controls | action |
+|---------------------|--------|
+| ![](https://user-images.githubusercontent.com/7785316/97859893-8779a080-1d01-11eb-9e48-6b241b8a21dd.png) | select label number |
+| ![](https://github.com/tanguyduval/imtool3D_td/blob/master/src/icon_lock.png) | protect or overwrite other labels? |
+| ![](https://user-images.githubusercontent.com/7785316/97860889-31a5f800-1d03-11eb-889c-bb8b348f0479.png) | undo last operation (Z) |
+| ![](https://github.com/tanguyduval/imtool3D_td/blob/master/src/icon_interpmask.png) | slice interpolation (segment a few non-consecutive slices to enable this feature) |
+| ![](https://github.com/tanguyduval/imtool3D_td/blob/master/src/icon_activecontour.png) | active contour (adjust contrast with mouse control and repeat until satisfied) |
+| ![](https://github.com/tanguyduval/imtool3D_td/blob/master/src/icon_smooth3.png) | smooth mask borders in 3D (segment a few consecutive slices to enable this feature) |
+
 ## Measurement tools
 ### Polygon tool
 * Measure area  
@@ -88,6 +101,13 @@ I = imread(pngfile);
 </p>  
 <p align="left">
   <img src="https://user-images.githubusercontent.com/7785316/97682747-82fe7f00-1a98-11eb-9087-5dabc2904e1b.gif" width="600">
+</p>  
+
+## Three planes display 
+Use imtool3D_3planes.m to display the three orientation planes.
+
+<p align="left">
+  <img src="https://user-images.githubusercontent.com/7785316/97868402-e6dead00-1d0f-11eb-9158-d6233ea8002a.png" width="600">
 </p>  
 
 # Tutorial
