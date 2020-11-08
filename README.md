@@ -49,6 +49,9 @@ imtool3D features 3D multi-label mask (ROI) that can be loaded, edited and saved
 Segmentation strategy in imtool3D consists in adjusting contrast to reveal the targeted structure, and alternating between (1) manual *smart* brush segmentation, (2) active contour, (3) slice interpolation, (4) 3D smoothing of the mask and (5) plane orientation (axial, sagittal or coronal).  
 See the demo for [Brain tumor segmentation](https://www.dailymotion.com/embed/video/x7okm8h) using `imtool3D_nii_3planes.m` or `imtool3D_3planes.m`
 
+![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_roi.gif)  
+![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_smartbrush.gif)  
+
 | Mask controls | shortcut | action |
 |:-------------:|----------|--------|
 | ![](https://user-images.githubusercontent.com/7785316/97859893-8779a080-1d01-11eb-9e48-6b241b8a21dd.png) | 1, 2.. | select label number <br />right click on button to delete label. right click on button [5] to set a custom label value. <br />Hover your pointer to get statistics about the label (area, mean value, standard deviation) |
@@ -76,9 +79,6 @@ See the demo for [Brain tumor segmentation](https://www.dailymotion.com/embed/vi
 | ![](src/icon_smooth3.png) | smooth mask borders in 3D (segment a few consecutive slices to enable this feature) |
 | ![](src/icon_activecontour.png) | active contour <br />Operates slice-by-slice. switch orientation (axial, sagittal or coronal) if necessary. <br />Adjust contrast with mouse control to expand or reduce the mask. <br />Repeat operation until satisfied. Might take a few seconds to run.) |  
 | <img width=120/> | <img width=700/> |
-  
-![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_roi.gif)  
-![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_smartbrush.gif)  
 
 ## Measurement tools
 ### Polygon tool
