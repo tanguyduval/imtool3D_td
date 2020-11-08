@@ -45,32 +45,37 @@ imtool3D is used heavily by several other projects: [qMRLab](https://github.com/
 ![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_mouse.gif)  
 ## Segmentation tools
 imtool3D features 3D multi-label mask (ROI) that can be loaded, edited and saved.  
+
 Segmentation strategy in imtool3D consists in adjusting contrast to reveal the targeted structure, and alternating between (1) manual *smart* brush segmentation, (2) active contour, (3) slice interpolation, (4) 3D smoothing of the mask and (5) plane orientation (axial, sagittal or coronal).  
 See the demo for [Brain tumor segmentation](https://www.dailymotion.com/embed/video/x7okm8h) using `imtool3D_nii_3planes.m` or `imtool3D_3planes.m`
 
 | Mask controls | shortcut | action |
-|---------------|----------|--------|
+|:-------------:|----------|--------|
 | ![](https://user-images.githubusercontent.com/7785316/97859893-8779a080-1d01-11eb-9e48-6b241b8a21dd.png) | 1, 2.. | select label number <br />right click on button to delete label. right click on button [5] to set a custom label value. <br />Hover your pointer to get statistics about the label (area, mean value, standard deviation) |
 | ![](src/icon_lock.png) | L | protect or overwrite other labels? |
 | ![](https://user-images.githubusercontent.com/7785316/97860889-31a5f800-1d03-11eb-889c-bb8b348f0479.png) | Z | undo last operation |
+| <img width=70/> | <img width=50/> | <img width=700/> |
 
-| 2D segmentation tools | shortcut | action |
-|-----------------------|----------|--------|
+| 2D tools | shortcut | action |
+|:--------:|----------|--------|
 | ![](https://user-images.githubusercontent.com/7785316/98463306-9ad1b380-21ba-11eb-9b81-21a4f92de91e.png) | B | Brush |
 | ![](src/tool_data_brush_smart.png) | S | Smart brush <br />Segment brush area in two parts using Otsu. <br />Adjust contrast for better results. |
 | ![](src/icon_activecontour.png) |  | Active contour <br />adjust contrast with mouse control to expand or reduce the mask. <br />Repeat operation until satisfied. Might take a few seconds to run.) |
+| <img width=70/> | <img width=50/> | <img width=700/> |
 
 | Brush tool controls | action |
-|---------------------|--------|
+|:-------------------:|--------|
 | Middle click and drag | Change brush diameter |
 | Right click | erase |
 | double click (smart brush only)| Toggle between bright or dark segmentation |
+| <img width=120/> | <img width=700/> |
 
-| 3D segmentation tools| action |
-|---------------------|--------|
+| 3D tools| action |
+|:-------:|--------|
 | ![](src/icon_interpmask.png) | slice interpolation for current label (segment a few non-consecutive slices to enable this feature) |
 | ![](src/icon_smooth3.png) | smooth mask borders in 3D (segment a few consecutive slices to enable this feature) |
 | ![](src/icon_activecontour.png) | active contour <br />Operates slice-by-slice. switch orientation (axial, sagittal or coronal) if necessary. <br />Adjust contrast with mouse control to expand or reduce the mask. <br />Repeat operation until satisfied. Might take a few seconds to run.) |  
+| <img width=120/> | <img width=700/> |
   
 ![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_roi.gif)  
 ![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_smartbrush.gif)  
