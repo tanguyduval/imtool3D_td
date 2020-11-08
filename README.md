@@ -26,6 +26,7 @@ imtool3D is used heavily by several other projects: [qMRLab](https://github.com/
   * [play a video](#play-a-video)
   * [show RGB volume](#show-rgb-volume)
   * [Overlay an image](#overlay-image)
+  * [Segment multiple images with a loop](#segment-multiple-images-with-a-loop)
 * [Authors](#authors)
 
 # Dependencies
@@ -260,6 +261,25 @@ tool.setOpacity(.3)
 <p align="center">
   <img src="https://user-images.githubusercontent.com/7785316/93019813-af8a3480-f5d9-11ea-9423-6bc3d7a489df.png" width="400">  
 </p>
+
+## Segment multiple images with a loop
+````matlab
+% list your images
+imlist = dir(fullfile(toolboxdir('images'),'imdata','BrainMRILabeled','images','vol_*.mat'));
+for ii=1:5
+    % load image 
+    load(fullfile(imlist(ii).folder,imlist(ii).name))
+    % display image in imtool3D
+    tool = imtool3D(vol);
+    % wait for closing imtool3D figure
+    waitfor(tool.getHandles.fig);
+    % get Mask
+    Mask = tool.getMask(1);
+    % save Mask
+    save(['Mask' num2str(ii) '.mat'],'Mask')
+end
+````
+
 
 # what is new in this fork? 
 * Support for 5D volumes (scroll through time and volumeS with arrows)
