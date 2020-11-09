@@ -371,8 +371,8 @@ classdef imtool3D < handle
                 
                 %set minimal size
                 screensize = get(0,'ScreenSize');
-                pos(3)=min(max(600,pos(3)),screensize(3));
-                pos(4)=min(max(500,pos(4)),screensize(4));
+                pos(3)=min(max(700,pos(3)),screensize(3)*.9);
+                pos(4)=min(max(500,pos(4)),screensize(4)*.9);
                 
                 %make sure the figure is centered
                 pos(1) = ceil((screensize(3)-pos(3))/2);
@@ -612,7 +612,7 @@ classdef imtool3D < handle
             
             %Create Help Button
             pos = get(tool.handles.Panels.Tools,'Position');
-            tool.handles.Tools.Help             =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'Help','Settings'},'Position',[pos(3)-2.5*w buff 4*w w],'TooltipString','Help with imtool3D','BackgroundColor',[0, 0.65, 1]);
+            tool.handles.Tools.Help             =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'Help','Settings','Dock figure'},'Position',[pos(3)-2.5*w buff 4*w w],'TooltipString','Help with imtool3D','BackgroundColor',[0, 0.65, 1]);
 %             icon_profile = makeToolbarIconFromPNG([MATLABicondir 'icon_setting.png']);
 %             set(tool.handles.Tools.Help,'Cdata',icon_profile)
             fun=@(hObject,evnt) displayHelp(hObject,evnt,tool);
@@ -3075,7 +3075,8 @@ for iax = 1:length(h.Axes), isax = isax | isequal(h.Axes(iax),current_object); e
 for iI = 1:length(h.I), isax = isax | isequal(h.I(iI),current_object); end
 
 if ~isax && ~isequal(h.mask,current_object)
-    set(h.Info,'String','(x,y) val')
+    S = tool.getImageSize(1);
+    set(h.Info,'String',sprintf('(%d,%d,%d) val',S(1),S(2),S(3)))
     return
 end
 
@@ -3321,6 +3322,9 @@ if h == 1
     '[2]                        Select mask label 2',...
     '[...]'};
 h = questdlg(msg,'imtool3D','OK','Preferences','Update','OK');
+elseif h==3
+    set(tool.handles.fig,'WindowStyle','docked');
+    set(hObject,'Value',1);
 end
 switch h
     case 'Update'
