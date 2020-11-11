@@ -223,15 +223,6 @@ tool.RGBindex = [1 2 3];
 % move to slice 63
 tool.setCurrentSlice(63)
 ````
-````matlab
-% Optional: add vectors
-u = peak(:,:,63,1);
-v = peak(:,:,63,2);
-fa0slice = fa0(:,:,63);
-[X,Y] = meshgrid(1:size(peak,2),1:size(peak,1));
-h = quiver(tool.getHandles.Axes(tool.getNvol()), X(:),Y(:),-v(:).*fa0slice(:)*2,u(:).*fa0slice(:)*2);
-h.ButtonDownFcn = tool.getHandles.I.ButtonDownFcn;
-````
 
 <p align="center">
   Brain nerve bundles color-coded by direction: 
