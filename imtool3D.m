@@ -846,7 +846,11 @@ classdef imtool3D < handle
                     end
                     tool.mask=uint8(maskOld);
                 else
-                    tool.mask=uint8(mask);
+                    if max(mask(:))>255
+                        tool.mask=uint16(mask);
+                    else
+                        tool.mask=uint8(mask);
+                    end
                 end
             end
             
