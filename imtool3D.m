@@ -2184,7 +2184,6 @@ classdef imtool3D < handle
                     S = S([2 1]);
                 end
                 newAspectRatio = size(In)./[S(1) S(2)];
-                maskn = uint8(maskn);
                 set(tool.handles.Tools.montage,'UserData',[Mrows Mcols Indices(:)']);
                 set(tool.handles.Axes,'DataAspectRatio',tool.getAspectRatio.*[newAspectRatio 1]);
             else
@@ -3112,9 +3111,9 @@ posdim = setdiff(1:3, tool.viewplane);
 if pos(1)>0 && pos(1)<=size(tool.I{tool.Nvol},posdim(2)) && pos(2)>0 && pos(2)<=size(tool.I{tool.Nvol},posdim(1))
     switch tool.viewplane
         case 1
-            set(h.Info,'String',['(' num2str(n) ',' num2str(pos(2)) ',' num2str(pos(1)) ') ' num2str(tool.I{tool.Nvol}(n,pos(2),pos(1),min(end,tool.Ntime)))])
+            set(h.Info,'String',['(' num2str(n) ',' num2str(pos(2)) ',' num2str(pos(1)) ') value=' num2str(tool.I{tool.Nvol}(n,pos(2),pos(1),min(end,tool.Ntime))) ' label=' num2str(tool.mask(n,pos(2),pos(1)))])
         case 2
-            set(h.Info,'String',['(' num2str(pos(2)) ',' num2str(n) ',' num2str(pos(1)) ') ' num2str(tool.I{tool.Nvol}(pos(2),n,pos(1),min(end,tool.Ntime)))])
+            set(h.Info,'String',['(' num2str(pos(2)) ',' num2str(n) ',' num2str(pos(1)) ') value=' num2str(tool.I{tool.Nvol}(pos(2),n,pos(1),min(end,tool.Ntime))) ' label=' num2str(tool.mask(pos(2),n,pos(1)))])
         case 3
             if tool.isRGB
                 switch tool.RGBdim
@@ -3127,11 +3126,11 @@ if pos(1)>0 && pos(1)<=size(tool.I{tool.Nvol},posdim(2)) && pos(2)>0 && pos(2)<=
                                   tool.I{min(tool.RGBindex(2),end)}(pos(2),pos(1),n,min(end,tool.Ntime)),...
                                   tool.I{min(tool.RGBindex(3),end)}(pos(2),pos(1),n,min(end,tool.Ntime))];
                 end
-                values = sprintf('[%.1d,%.1d,%.1d]',values(1),values(2),values(3));
+                values = ['[' num2str(values(1)) ',' num2str(values(2)) ',' num2str(values(2)) '] label=' num2str(tool.mask(pos(2),pos(1),n))];
             else
-                values = num2str(tool.I{tool.Nvol}(pos(2),pos(1),n,min(end,tool.Ntime)));
+                values = [num2str(tool.I{tool.Nvol}(pos(2),pos(1),n,min(end,tool.Ntime))) ' label=' num2str(tool.mask(pos(2),pos(1),n))];
             end
-            set(h.Info,'String',['(' num2str(pos(2)) ',' num2str(pos(1)) ',' num2str(n) ') ' values])
+            set(h.Info,'String',['(' num2str(pos(2)) ',' num2str(pos(1)) ',' num2str(n) ') value=' values])
     end
     notify(tool,'newMousePos')
 else
