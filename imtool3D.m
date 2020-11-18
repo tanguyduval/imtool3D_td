@@ -370,7 +370,11 @@ classdef imtool3D < handle
                 end
                 
                 %set minimal size
-                screensize = get(0,'ScreenSize');
+                %screensize = get(0,'ScreenSize');
+                %https://undocumentedmatlab.com/articles/working-with-non-standard-dpi-displays
+                ScreenSizeW = java.awt.Toolkit.getDefaultToolkit.getScreenSize.getWidth;
+                ScreenSizeH = java.awt.Toolkit.getDefaultToolkit.getScreenSize.getHeight;
+                screensize=[0 0 ScreenSizeW ScreenSizeH];
                 pos(3)=min(max(700,pos(3)),screensize(3)*.9);
                 pos(4)=min(max(500,pos(4)),screensize(4)*.9);
                 
