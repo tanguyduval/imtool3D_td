@@ -14,15 +14,18 @@ if ~isdeployed
         error('Dependency to Xiangrui Li NIFTI tools is missing. http://www.mathworks.com/matlabcentral/fileexchange/42997');
     end
 end
+
+% open image in imtool3D
 nii = nii_tool('load',filename);
-tool = imtool3D_3planes(nii.img);
-for ii=1:3
-tool(ii).setAspectRatio(nii.hdr.pixdim(2:4));
-end
-RECTS = imtool3D_3planes_rect(tool);
+tool = imtool3D_nii_3planes(nii);
 
-waitfor(tool(ii).getHandles.fig);
+% add synchronized rectangles
+RECTS = imtool3D_3planes_rect(tool.getTool);
 
+% wait for user to close figure
+waitfor(tool.getHandles.fig);
+
+% get Rectrangles positions and crop
 pos = RECTS(1).getPosition();
 cut_from_L = floor(pos(2)-pos(4)/2);
 cut_from_R = floor(pos(2)+pos(4)/2);
@@ -38,6 +41,7 @@ nii.img = nii.img( max(1,cut_from_L+1) : min(end,cut_from_R), ...
 			   :,:,:,:,:);
      
 
+% adapt the quaternion
 b = nii.hdr.quatern_b;
 c = nii.hdr.quatern_c;
 d = nii.hdr.quatern_d;
@@ -73,4 +77,6 @@ nii.hdr.srow_z(4) = nii.hdr.srow_z(4) + ...
                     nii.hdr.srow_z(1)*cut_from_L + ...
                     nii.hdr.srow_z(2)*cut_from_P + ...
                     nii.hdr.srow_z(3)*cut_from_I;
+                
+% Save into NIFTI file with suffix _crop
 nii_tool('save',nii,[strrep(strrep(filename,'.nii.gz',''),'.nii','') '_crop.nii'])

@@ -3,10 +3,9 @@ function tool = imtool3D_nii(filename,viewplane,maskfname, parent, range)
 %
 % INPUT
 %   filename            String or cell of string with nifti filenames
-%   viewplane           1x1, 1x2 or 1x3 Matrix of integer. 
-%                        Example: 
-%                        3: slices are in the third dimension (axial view)
-%                        [3 2 1]: Axial, saggital and coronal views
+%                       First filename is used as spatial reference
+%                       Other nifti are resliced to this spatial reference
+%   viewplane           String. 'axial', 'sagittal' or 'coronal'
 %   maskfname           String. filename of the mask in NIFTI
 %   parent              Handle to a figure or panel
 %   range               1x2 or cell of 1x2 float numbers (min and max intensity)
@@ -29,8 +28,9 @@ if ~exist('parent','var'), parent=[]; end
 if ~exist('viewplane','var'), viewplane=[]; end
 if isempty(viewplane), untouch = true; viewplane=3; else, untouch = false; end
 if ~exist('range','var'), range=[]; end
-
 if ~exist('maskfname','var'), maskfname=[]; end
+
+% LOAD IMAGE
 if ~isempty(filename)
     if isnumeric(filename)
         filename = nii_tool('init',filename);
@@ -70,6 +70,7 @@ else
     untouch = false;
 end
 
+% LOAD MASK
 if iscell(maskfname), maskfname = maskfname{1}; end
 if ~isempty(maskfname)
     if isnumeric(maskfname)
@@ -82,12 +83,14 @@ else
     mask = [];
 end
 
-if length(viewplane)>1
+% OPEN IMTOOL3D
+if isnumeric(viewplane) && length(viewplane)>1
     % Call imtool3D_3planes
-    tool = imtool3D_3planes(dat,mask,parent,range);
-    tool = tool.getTool;
+    tool3P = imtool3D_3planes(dat,mask,parent,range);
+    tool = tool3P.getTool;
 else
     tool = imtool3D(dat,[],parent,range,[],mask);
+    tool.setviewplane(viewplane);
 end
 
 
@@ -166,6 +169,8 @@ dndcontrol.initJava();
 dndobj = dndcontrol(jAxis);
 dndobj.DropFileFcn = @(s, e)onDrop(tool, s, e, HeaderButton); %,'DragEnterFcn',@(s,e) setVis(txt_drop,1),'DragExitFcn',@(s,e) setVis(txt_drop,0));
 warning(wrn);
+
+if exist('tool3P','var'), tool = tool3P; end
 
 function loadImage(hObject,tool, HeaderButton)
 hdr = get(HeaderButton,'UserData');
