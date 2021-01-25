@@ -619,7 +619,7 @@ classdef imtool3D < handle
             
             %Create Help Button
             pos = get(tool.handles.Panels.Tools,'Position');
-            tool.handles.Tools.Help             =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'Help','Settings','Dock figure'},'Position',[pos(3)-2.5*w buff 4*w w],'TooltipString','Help with imtool3D','BackgroundColor',[0, 0.65, 1]);
+            tool.handles.Tools.Help             =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'Help','Settings','Dock figure','Export imtool object'},'Position',[pos(3)-2.5*w buff 4*w w],'TooltipString','Help with imtool3D','BackgroundColor',[0, 0.65, 1]);
 %             icon_profile = makeToolbarIconFromPNG([MATLABicondir 'icon_setting.png']);
 %             set(tool.handles.Tools.Help,'Cdata',icon_profile)
             fun=@(hObject,evnt) displayHelp(hObject,evnt,tool);
@@ -3333,7 +3333,18 @@ if h == 1
     '[...]'};
 h = questdlg(msg,'imtool3D','OK','Preferences','Update','OK');
 elseif h==3
-    set(tool.handles.fig,'WindowStyle','docked');
+    switch get(tool.handles.fig,'WindowStyle')
+        case 'docked'
+            set(tool.handles.fig,'WindowStyle','normal');
+        otherwise
+            set(tool.handles.fig,'WindowStyle','docked');
+    end
+    set(hObject,'Value',1);
+elseif h==4
+    name = inputdlg('Enter variable name','',1,{'tool'});
+    if isempty(name); return; end
+    name=name{1};
+    assignin('base', name, tool)
     set(hObject,'Value',1);
 end
 switch h
