@@ -29,6 +29,7 @@ imtool3D is used heavily by several other projects: [qMRLab](https://github.com/
   * [show montage](#show-montage)
   * [play a video](#play-a-video)
   * [show RGB volume](#show-rgb-volume)
+  * [Show a multi-label mask](#show-a-multi-label-mask)
   * [Overlay an image](#overlay-image)
   * [Segment multiple images with a loop](#segment-multiple-images-with-a-loop)
 * [Authors](#authors)
@@ -206,7 +207,6 @@ tool.isRGB = 1;
 use left/right arrows to move through image frames  
 use shift+right for fast forward (10-by-10 frames)  
 ## show RGB volume
-### Brain Diffusion MRI
 For this example, we will display color-coded nerve direction of the brain.  
 Download HCP Diffusion MRI Template http://brain.labsolver.org/diffusion-mri-templates/hcp-842-hcp-1021
 ````matlab
@@ -240,7 +240,7 @@ tool.setCurrentSlice(63)
 </p>
 Use button bellow left slider ('R' on the screenshot) to turn between RGB and grayscale and to select active color channel 
 
-### Mouse brain atlas
+## Show a multi-label mask
 In this example, we display the mouse brain atlas [from Allen Institute Website](http://help.brain-map.org/display/mouseconnectivity/API#API-DownloadAtlas3-DReferenceModels)
   
 ````matlab
