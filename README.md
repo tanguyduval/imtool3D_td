@@ -206,6 +206,7 @@ tool.isRGB = 1;
 use left/right arrows to move through image frames  
 use shift+right for fast forward (10-by-10 frames)  
 ## show RGB volume
+### Brain Diffusion MRI
 For this example, we will display color-coded nerve direction of the brain.  
 Download HCP Diffusion MRI Template http://brain.labsolver.org/diffusion-mri-templates/hcp-842-hcp-1021
 ````matlab
@@ -238,6 +239,29 @@ tool.setCurrentSlice(63)
   <img src="CaptureRGBmode.PNG" width="400">
 </p>
 Use button bellow left slider ('R' on the screenshot) to turn between RGB and grayscale and to select active color channel 
+
+### Brain Diffusion MRI
+In this example, we display the mouse brain atlas [from Allen Institute Website](http://help.brain-map.org/display/mouseconnectivity/API#API-DownloadAtlas3-DReferenceModels)
+  
+````matlab
+% read template and mask
+[AVGT, metaAVGT] = nrrdread('average_template_25.nrrd');
+[ANO, metaANO] = nrrdread('annotation_25.nrrd');
+% renumbering of labels
+ic = unique(ANO(:));
+for ii=1:length(ic)
+    ANO(ANO==ic(ii))=ii;
+end
+
+% display
+tool = imtool3D(permute(AVGT(end:-1:1,:,:),[3 2 1]));
+tool.setMask(permute(ANO(end:-1:1,:,:),[3 2 1]))
+tool.setMaskColor(jet(length(ic)))
+tool.setAlpha(.1)
+````
+<p align="left">
+  <img src="https://user-images.githubusercontent.com/7785316/98848340-e18d0b00-2451-11eb-8eb9-921547af9b43.gif" width="600">
+</p>  
 
 ## Overlay image
 For this example we will display a map of brain activation extracted from an FMRI dataset.  
