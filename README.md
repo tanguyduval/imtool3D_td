@@ -240,7 +240,7 @@ tool.setCurrentSlice(63)
 </p>
 Use button bellow left slider ('R' on the screenshot) to turn between RGB and grayscale and to select active color channel 
 
-### Brain Diffusion MRI
+### Mouse brain atlas
 In this example, we display the mouse brain atlas [from Allen Institute Website](http://help.brain-map.org/display/mouseconnectivity/API#API-DownloadAtlas3-DReferenceModels)
   
 ````matlab
