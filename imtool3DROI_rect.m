@@ -54,6 +54,7 @@ classdef imtool3DROI_rect < imtool3DROI
                     delete(h);
                 case 2 %user inputs both the parent handle and a position
                     imageHandle = varargin{1};
+                    parent = get(imageHandle,'Parent');
                     position = varargin{2};
                 case 3
                     imageHandle = varargin{1};
@@ -251,7 +252,6 @@ classdef imtool3DROI_rect < imtool3DROI
         
         function BB = getBoundingBox(ROI)
             %BB = [rowMin rowMax; colMin ColMax];
-            lims = size(get(ROI.imageHandle,'CData'));
             
             BB=zeros(2);
             
@@ -264,12 +264,16 @@ classdef imtool3DROI_rect < imtool3DROI
                 colMin = 1;
             end
             rowMax = floor(ROI.position(2) + ROI.position(4)/2 - 1);
-            if rowMax > lims(1)
-                rowMax = lims(1);
-            end
             colMax = floor(ROI.position(1) + ROI.position(3)/2 - 1);
-            if colMax > lims(2)
-                colMax = lims(2);
+
+            try
+                lims = size(get(ROI.imageHandle,'CData'));
+                if rowMax > lims(1)
+                    rowMax = lims(1);
+                end
+                if colMax > lims(2)
+                    colMax = lims(2);
+                end
             end
             BB = [rowMin rowMax; colMin colMax];
             
@@ -488,6 +492,7 @@ end
 function ButtonUpFunction(src,evnt,ROI,WBMF_old,WBUF_old)
 fig = ROI.figureHandle;
 set(fig,'WindowButtonMotionFcn',WBMF_old,'WindowButtonUpFcn',WBUF_old);
+notify(ROI,'newROIPositionUp');
 end
 
 function contextMenuCallback(source,callbackdata,ROI, tool)
