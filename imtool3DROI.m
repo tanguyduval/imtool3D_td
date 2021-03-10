@@ -19,6 +19,7 @@ classdef imtool3DROI < handle
     events
         ROIdeleted
         newROIPosition
+        newROIPositionUp
     end
     
     methods
