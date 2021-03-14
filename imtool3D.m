@@ -3133,7 +3133,7 @@ if pos(1)>0 && pos(1)<=size(tool.I{tool.Nvol},posdim(2)) && pos(2)>0 && pos(2)<=
                                   tool.I{min(tool.RGBindex(2),end)}(pos(2),pos(1),n,min(end,tool.Ntime)),...
                                   tool.I{min(tool.RGBindex(3),end)}(pos(2),pos(1),n,min(end,tool.Ntime))];
                 end
-                values = ['[' num2str(values(1)) ',' num2str(values(2)) ',' num2str(values(2)) '] label=' num2str(tool.mask(pos(2),pos(1),n))];
+                values = ['[' num2str(values(1)) ',' num2str(values(2)) ',' num2str(values(3)) '] label=' num2str(tool.mask(pos(2),pos(1),n))];
             else
                 values = [num2str(tool.I{tool.Nvol}(pos(2),pos(1),n,min(end,tool.Ntime))) ' label=' num2str(tool.mask(pos(2),pos(1),n))];
             end
