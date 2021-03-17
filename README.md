@@ -48,15 +48,15 @@ imtool3D is used heavily by several other projects: [qMRLab](https://github.com/
 | Right (ctrl+) Click and drag | Pan |
 | Scroll wheel | Change slice |
 
-![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_mouse.gif)  
+![](https://user-images.githubusercontent.com/7785316/111432633-8fa90a00-86fd-11eb-855c-9be63e1834ed.gif)  
 ## Segmentation tools
 imtool3D features 3D multi-label mask (ROI) that can be loaded, edited and saved.  
 
 Segmentation strategy in imtool3D consists in adjusting contrast to reveal the targeted structure, and alternating between (1) manual *smart* brush segmentation, (2) active contour, (3) slice interpolation, (4) 3D smoothing of the mask and (5) plane orientation (axial, sagittal or coronal).  
 See the demo for [Brain tumor segmentation](https://www.dailymotion.com/embed/video/x7okm8h) using `imtool3D_nii_3planes.m` or `imtool3D_3planes.m`
 
-![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_roi.gif)  
-![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_smartbrush.gif)  
+![](https://user-images.githubusercontent.com/7785316/111432628-8e77dd00-86fd-11eb-82e2-6178cbb78fde.gif)  
+![](https://user-images.githubusercontent.com/7785316/111432623-8d46b000-86fd-11eb-8aed-7294fa4dfd6f.gif)  
 
 | Mask controls | shortcut | action |
 |:-------------:|----------|--------|
@@ -91,7 +91,7 @@ See the demo for [Brain tumor segmentation](https://www.dailymotion.com/embed/vi
 * Measure area  
 * Get stats in this area
 
-![](https://github.com/qMRLab/qMRLab/blob/master/docs/source/_static/imtool3D/imtool3D_polygon.gif)
+![](https://user-images.githubusercontent.com/7785316/111433007-047c4400-86fe-11eb-837b-e6ccd39c39c3.gif)
 ### Line tool
 * Show intensity profile  
 * Measure distance in pixels
