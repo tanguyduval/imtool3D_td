@@ -3642,6 +3642,8 @@ catch
     cols = ceil(nz/rows);
     Ipad = cat(3,I(:,:,indices),zeros(size(I,1),size(I,2),cols*rows-nz));
     M = reshape(Ipad,[size(I,1)*rows size(I,2)*cols]);
+    M = squeeze(mat2cell(Ipad,size(I,1),size(I,2),ones(cols*rows,1)));
+    M =cell2mat(reshape(M,[rows cols]));
 end
 end
 
