@@ -1936,6 +1936,7 @@ classdef imtool3D < handle
         end
         
         function saveImage(tool,hObject, Filename)
+            persistent imformats
             if exist('hObject','var') && ~isempty(hObject) && any(ishandle(hObject))
                 % unselect button to prevent activation with spacebar
                 set(hObject, 'Enable', 'off');
@@ -1945,14 +1946,15 @@ classdef imtool3D < handle
             
             h = tool.getHandles;
             cmap = colormap(h.Tools.Color.String{h.Tools.Color.Value});
+            if isempty(imformats)
+                imformats = {'*.tif';'*.jpg';'*.bmp';'*.gif';'*.hdf'; ...
+                    '*.jp2';'*.pbm';'*.pcx';'*.pgm'; ...
+                    '*.pnm';'*.ppm';'*.ras';'*.xwd'};
+                imformats = cat(2,imformats,cellfun(@(X) sprintf('Current slice (%s)',X),imformats,'uni',0));
+                imformats = cat(1,{'*.png','Current slice (*.png)';
+                    '*.tif','Whole stack (*.tif)'},imformats);
+            end
             
-            imformats = {'*.tif';'*.jpg';'*.bmp';'*.gif';'*.hdf'; ...
-                '*.jp2';'*.pbm';'*.pcx';'*.pgm'; ...
-                '*.pnm';'*.ppm';'*.ras';'*.xwd'};
-            imformats = cat(2,imformats,cellfun(@(X) sprintf('Current slice (%s)',X),imformats,'uni',0));
-            imformats = cat(1,{'*.png','Current slice (*.png)';
-                '*.tif','Whole stack (*.tif)'},imformats);
-
             if exist('Filename','var')
                 [PathName,FileName, ext] = fileparts(Filename);
                 FileName = [FileName,ext];
@@ -1964,8 +1966,11 @@ classdef imtool3D < handle
             if isequal(FileName,0)
                 return;
             end
-            if ext ~= 2 % Current slice
-                I=get(h.I,'CData');
+            imformats = imformats([ext,setdiff(1:end,ext)],:);
+            ext = 1;
+            
+            if strfind(imformats{ext,2},'slice') % Current slice
+                try, I = getframe(h.Axes(tool.Nvol)); I = I.cdata; catch I=get(h.I,'CData'); end
                 if iscell(I), I = I{tool.Nvol}; end
                 viewtype = get(tool.handles.Axes(tool.Nvol),'View');
                 if viewtype(1)==-90, I=rot90(I);  end
@@ -1974,7 +1979,16 @@ classdef imtool3D < handle
                     I = uint8(max(0,min(1,(double(I)-lims(1))/diff(lims)))*(size(cmap,1)-1));
                     imwrite(cat(2,I,repmat(round(linspace(size(cmap,1),0,size(I,1)))',[1 round(size(I,2)/50)])),cmap,[PathName FileName])
                 else
-                    imwrite(I,fullfile(PathName, FileName))
+                    if strfind(imformats{ext,1},'gif')
+                        [I,cm] = rgb2ind(I,256); 
+                        if ~exist(fullfile(PathName, FileName),'file')
+                            imwrite(I,cm,fullfile(PathName, FileName),'gif','Loopcount',inf);
+                        else
+                            imwrite(I,cm,fullfile(PathName, FileName),'gif','WriteMode','append');
+                        end
+                    else
+                        imwrite(I,fullfile(PathName, FileName))
+                    end
                 end
             else
                 lims=get(h.Axes(tool.Nvol),'CLim');
