@@ -2255,11 +2255,17 @@ classdef imtool3D < handle
             
             % apply gamma correction
             if tool.gamma ~= 1
+                range = tool.range{tool.Nvol};
                 switch class(In)
                     case 'uint8' % gamma between 0 and 255
-                        In = cast((double(In)/255).^tool.gamma*255,'uint8');
+                        lut = uint8(linspace(0,1,256).^tool.gamma*255);
+                        In(:) = lut(In(:)+1);
+                    case 'uint16' % gamma between range(1) and range(2)
+                        range = round(range);
+                        lut = uint16(linspace(0,1,diff(range)).^tool.gamma*diff(range));
+                        lut = [zeros(1,range(1)-1,'uint16'), lut, range(2)*ones(1,2^16-range(2)+1,'uint16')];
+                        In(:) = lut(In(:)+1);
                     otherwise % gamma between range(1) and range(2)
-                        range = tool.range{tool.Nvol};
                         In = (max(0,double(In)-range(1))/diff(range)).^tool.gamma*diff(range)+range(1);
                 end
             end
@@ -3650,6 +3656,8 @@ catch
     cols = ceil(nz/rows);
     Ipad = cat(3,I(:,:,indices),zeros(size(I,1),size(I,2),cols*rows-nz));
     M = reshape(Ipad,[size(I,1)*rows size(I,2)*cols]);
+    M = squeeze(mat2cell(Ipad,size(I,1),size(I,2),ones(cols*rows,1)));
+    M =cell2mat(reshape(M,[rows cols]));
 end
 end
 

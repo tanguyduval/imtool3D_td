@@ -81,8 +81,8 @@ classdef imtool3DROI_poly < imtool3DROI
             
             %Define the context menu options (i.e., what happens when you
             %right click on the ROI)
-            menuLabels = {'Export stats','Hide Text','Delete','poly2mask'};
-            if ~exist('tool','var'), menuLabels(end) = []; tool = []; end
+            menuLabels = {'Export stats','Hide Text','Delete','poly2mask', 'open line'};
+            if ~exist('tool','var'), menuLabels(4) = []; tool = []; end
             menuFunction = @contextMenuCallback;
             
             %create the ROI object from the superclass
@@ -123,6 +123,9 @@ classdef imtool3DROI_poly < imtool3DROI
 
         function newPosition(ROI,markerPosition)
             
+            isopen = double(~isequal(markerPosition(end,:),markerPosition(1,:)));
+            if isopen, ROI.curveindex(1) = 0; end
+            
             %set the markerPosition property of the ROI
             ROI.markerPosition = markerPosition;
             
@@ -130,14 +133,18 @@ classdef imtool3DROI_poly < imtool3DROI
             graphicsHandles = ROI.graphicsHandles;
                                     
             %compute spline
-            markerPos = markerPosition(1:end-1,:)';
+            markerPos = markerPosition(1:end-1+isopen,:)';
             Npts = size(markerPos,2);
             if any(ROI.curveindex) && ~all(ROI.curveindex)
                 % circshift index to put a non-curved marker at the beginning
                 indnotcurv = find(~ROI.curveindex);
                 Ncirc = -(indnotcurv(1)-1);
                 markerPos = circshift(markerPos,Ncirc,2);
-                ROI.markerPosition = markerPos(:,[1:end 1])';
+                if isopen
+                    ROI.markerPosition = markerPos';
+                else
+                    ROI.markerPosition = markerPos(:,[1:end 1])';
+                end
                 ROI.curveindex = circshift(ROI.curveindex,Ncirc);
                 
                 indcurv = find(ROI.curveindex);
@@ -170,8 +177,11 @@ classdef imtool3DROI_poly < imtool3DROI
                     positiontmp = cat(2,positiontmp,markerPos(:,start:min(indi)-1),yy(:,2:end-1));
                 end
                 positiontmp = cat(2,positiontmp,markerPos(:,max(indi)+1:end));
-                ROI.position = positiontmp(:,[1:end 1])';
-
+                if isopen
+                    ROI.position = positiontmp';
+                else
+                    ROI.position = positiontmp(:,[1:end 1])';
+                end
             elseif all(ROI.curveindex)
                 markerDist = sqrt(sum((circshift(markerPos,-1,2)-markerPos).^2,1));
                 markerDist = [markerDist markerDist markerDist];
@@ -202,6 +212,9 @@ classdef imtool3DROI_poly < imtool3DROI
             str = {['Mean: ' num2str(stats.mean,'%+.2f')], ...
                    ['STD:     ' num2str(stats.STD,'%.2f')],...
                    ['Area:     ' num2str(stats.area,'%i') 'px']};
+            if ~isequal(markerPosition(1,:),markerPosition(end,:))
+                str = {['Length:     ' num2str(sum(sqrt(sum(diff(stats.position,1,1).^2,2))),'%.2f') 'px']};
+            end
             set(ROI.textHandle,'String',str,'Position',[x y]);
             
             
@@ -251,6 +264,9 @@ classdef imtool3DROI_poly < imtool3DROI
 end
 
 function [x,y] = getPolygonCentroid(position)
+if ~isequal(position(end,:),position(1,:))
+    position(end+1,:) = position(1,:);
+end
 %get the vectors I need
 xi = position(1:end-1,1); xip1 = position(2:end,1);
 yi = position(1:end-1,2); yip1 = position(2:end,2);
@@ -315,6 +331,9 @@ op = get(ROI.axesHandle,'CurrentPoint'); op=[op(1,1) op(1,2)];
 %get the original position of the ROI
 position_old = getMarkerPosition(ROI);
 
+% open line or closed polygon?
+isopen = ~isequal(position_old(end,:),position_old(1,:));
+
 %get the type of click
 click = get(ROI.figureHandle,'SelectionType');
 if strcmp(click,'alt') %  right click to get menu
@@ -327,7 +346,7 @@ if n == 2 || n == 4  %User clicked on a vertice to move it (or delete it)
     %find closest vertice to click
     dist = sqrt((position_old(:,1)-op(1)).^2 + (position_old(:,2)-op(2)).^2 );
     [~, ind] = min(dist);
-    if ind == length(dist)
+    if ind == length(dist) && ~isopen
         ind = 1;
     end
     if strcmp(click,'open') %user wants to convert to curve
@@ -335,7 +354,7 @@ if n == 2 || n == 4  %User clicked on a vertice to move it (or delete it)
         ROI.curveindex(setdiff(ind,Npts)) = ~ROI.curveindex(setdiff(ind,Npts));
         newPosition(ROI,position_old)
     end
-    if strcmp(click,'extend') && size(position_old,1)>4 %user wants to delete the vertice
+    if strcmp(click,'extend') && ((~isopen && size(position_old,1)>4) || (isopen && size(position_old,1)>2)) %user wants to delete the vertice
         switch ind
             case 1
                 %remove first and last points
@@ -399,13 +418,13 @@ end
 
 function ButtonMotionFunction(src,evnt,ROI,n,op,position_old,ind)
 cp = get(ROI.axesHandle,'CurrentPoint'); cp=[cp(1,1) cp(1,2)];
-
+isopen = ~isequal(position_old(end,:),position_old(1,:));
 switch n
     case {2,4}      %user clicked on a vertice. Will move just that vertice
         position = getMarkerPosition(ROI);
         position(ind,1) = cp(1);
         position(ind,2) = cp(2);
-        if ind ==1
+        if ind ==1 && ~isopen
             position(end,1) = cp(1);
             position(end,2) = cp(2);
         end
@@ -466,6 +485,10 @@ switch get(source,'Label')
          combine = true;
          tool.setCurrentMaskSlice(masknew,combine)
          notify(tool,'maskChanged')
+    case 'open line'
+        ROI.curveindex = ROI.curveindex(1:end-1);
+        MarkerPosition = ROI.getMarkerPosition;
+        newPosition(ROI,MarkerPosition(1:end-1,:));
 end
 
 
