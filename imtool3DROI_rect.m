@@ -158,13 +158,15 @@ classdef imtool3DROI_rect < imtool3DROI
             set(graphicsHandles(10),'Xdata',position(1),'Ydata',pos(2)+pos(4));
             
             %get the ROI measurements
-            stats = getMeasurements(ROI);
-            
-            %set the textbox
-            str = {['Mean: ' num2str(stats.mean,'%+.2f')], ...
-                   ['STD:     ' num2str(stats.STD,'%.2f')],...
-                   ['Area:    ' num2str(stats.area,'%.2f')]};
-            set(ROI.textHandle,'String',str);
+            if ROI.textVisible
+                stats = getMeasurements(ROI);
+                
+                %set the textbox
+                str = {['Mean: ' num2str(stats.mean,'%+.2f')], ...
+                    ['STD:     ' num2str(stats.STD,'%.2f')],...
+                    ['Area:    ' num2str(stats.area,'%.2f')]};
+                set(ROI.textHandle,'String',str);
+            end
             
             V = get(gca,'View');
             if V(1)==-90
