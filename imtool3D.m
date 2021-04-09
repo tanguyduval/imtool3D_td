@@ -530,7 +530,7 @@ classdef imtool3D < handle
                 set(tool.handles.Histrange(3),'ButtonDownFcn',fun);
                 
                 %Create histogram checkbox
-                tool.handles.Tools.Hist     =   uicontrol(tool.handles.Panels.Tools,'Style','ToggleButton','String','','Position',[buff buff w w],'TooltipString','Show Colorbar');
+                tool.handles.Tools.Hist     =   uicontrol(tool.handles.Panels.Tools,'Style','ToggleButton','String','','Position',[buff buff w w],'TooltipString','Show Colorbar and histogram of current slice');
                 MATLABicondir = fullfile(toolboxdir('matlab'), 'icons');
                 icon_colorbar = makeToolbarIconFromPNG(fullfile(MATLABicondir,'tool_colorbar.png'));
                 set(tool.handles.Tools.Hist,'CData',icon_colorbar)
@@ -547,10 +547,10 @@ classdef imtool3D < handle
             
             %% TOOLBAR ON TOP
             %Create window and level boxes
-            tool.handles.Tools.TL       =   uicontrol(tool.handles.Panels.Tools,'Style','text','String','L','Position',[lp+buff buff w w],'BackgroundColor','k','ForegroundColor','w','TooltipString',sprintf('Intensity Window Lower Bound\n(left click and drag on the image to control window width and level)'));
-            tool.handles.Tools.L        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String','0','Position',[lp+buff+w buff 2*w w],'TooltipString',sprintf('Intensity Window Lower Bound\n(left click and drag on the image to control window width and level)'),'BackgroundColor',[.2 .2 .2],'ForegroundColor','w');
-            tool.handles.Tools.TU       =   uicontrol(tool.handles.Panels.Tools,'Style','text','String','U','Position',[lp+2*buff+3*w buff w w],'BackgroundColor','k','ForegroundColor','w','TooltipString',sprintf('Intensity Window Upper Bound\n(left click and drag on the image to control window width and level)'));
-            tool.handles.Tools.U        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String','1','Position',[lp+2*buff+4*w buff 2*w w],'TooltipString',sprintf('Intensity Window Upper Bound\n(left click and drag on the image to control window width and level)'),'BackgroundColor',[.2 .2 .2],'ForegroundColor','w');
+            tool.handles.Tools.TL       =   uicontrol(tool.handles.Panels.Tools,'Style','text','String','L','Position',[lp+buff buff w w],'BackgroundColor','k','ForegroundColor','w','TooltipString',sprintf('Intensity Window Lower Bound\nRight Click to set current window to all volumes\n(left click and drag on the image to control window width and level)'));
+            tool.handles.Tools.L        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String','0','Position',[lp+buff+w buff 2*w w],'TooltipString',sprintf('Intensity Window Lower Bound\nRight Click to set current window to all volumes\n(left click and drag on the image to control window width and level)'),'BackgroundColor',[.2 .2 .2],'ForegroundColor','w');
+            tool.handles.Tools.TU       =   uicontrol(tool.handles.Panels.Tools,'Style','text','String','U','Position',[lp+2*buff+3*w buff w w],'BackgroundColor','k','ForegroundColor','w','TooltipString',sprintf('Intensity Window Upper Bound\nRight Click to set current window to all volumes\n(left click and drag on the image to control window width and level)'));
+            tool.handles.Tools.U        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String','1','Position',[lp+2*buff+4*w buff 2*w w],'TooltipString',sprintf('Intensity Window Upper Bound\nRight Click to set current window to all volumes\n(left click and drag on the image to control window width and level)'),'BackgroundColor',[.2 .2 .2],'ForegroundColor','w');
             tool.handles.Tools.TO       =   uicontrol(tool.handles.Panels.Tools,'Style','text','String','O','Position',[lp+2*buff+6*w buff w w],'BackgroundColor','k','ForegroundColor','w','TooltipString',sprintf('Opacity'));
             tool.handles.Tools.O        =   uicontrol(tool.handles.Panels.Tools,'Style','Edit','String','1','Position',[lp+2*buff+7*w buff w w],'TooltipString',sprintf('Opacity'),'BackgroundColor',[.2 .2 .2],'ForegroundColor','w');
             tool.handles.Tools.SO       =   uicontrol(tool.handles.Panels.Tools,'Style','Slider','Position',[lp+2*buff+8*w buff w/2 w],'TooltipString',sprintf('Opacity'),'Min',0,'Max',1,'Value',1,'SliderStep',[.1 .1]);
@@ -559,8 +559,9 @@ classdef imtool3D < handle
             
             %Creat window and level callbacks
             fun=@(hobject,evnt) WindowLevel_callback(hobject,evnt,tool);
-            set(tool.handles.Tools.L,'Callback',fun);
-            set(tool.handles.Tools.U,'Callback',fun);
+            funRightClick = @(src,evnt) tool.setClimits(repmat({get(tool.handles.Axes(tool.Nvol),'Clim')},[1 length(tool.I)]));
+            set(tool.handles.Tools.L,'Callback',fun,'ButtonDownFcn',funRightClick); % right click set the same range for all volumes
+            set(tool.handles.Tools.U,'Callback',fun,'ButtonDownFcn',funRightClick); 
             fun=@(hobject,evnt) setOpacity(tool,[], hobject);
             set(tool.handles.Tools.O,'Callback',fun);
             set(tool.handles.Tools.SO,'Callback',fun);
@@ -733,7 +734,7 @@ classdef imtool3D < handle
             set(tool.handles.Tools.maskLock ,'Callback',@(hObject,evnt) setlockMask(tool))
             
             % mask statistics
-            tool.handles.Tools.maskStats        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','Position',[buff pos(4)-(islct+2)*w w w], 'Value', 1, 'TooltipString', 'Statistics');
+            tool.handles.Tools.maskStats        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','Position',[buff pos(4)-(islct+2)*w w w], 'Value', 1, 'TooltipString', sprintf('Statistics in the different ROI\n(or in the whole volume if mask empty)'));
             icon_hist = makeToolbarIconFromPNG('plottype-histogram.png');
             icon_hist = min(1,max(0,imresize_noIPT(icon_hist,[16 16])));
             set(tool.handles.Tools.maskStats ,'Cdata',icon_hist)
