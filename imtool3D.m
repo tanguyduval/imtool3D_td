@@ -1580,6 +1580,7 @@ classdef imtool3D < handle
                 n = find(strcmp(cmap,maps));
             end
             set(tool.handles.Tools.Color,'Value',n);
+            if ~isnumeric(cmap)
             switch cmap
                 case 'red'
                     cmap = [linspace(0,1,256)' zeros(256,2)];
@@ -1587,6 +1588,7 @@ classdef imtool3D < handle
                     cmap = [zeros(256,1) linspace(0,1,256)' zeros(256,1)];
                 case 'blue'
                     cmap = [zeros(256,2) linspace(0,1,256)'];
+            end
             end
             h = tool.getHandles;
             colormap(h.Axes(tool.Nvol),cmap)
