@@ -292,6 +292,7 @@ classdef imtool3D < handle
         mask         %Indexed mask that can be overlaid on the image data
         maskHistory  %History of mask  for undo
         maskSelected %Index of the selected mask color
+        maskUpdated=1%Recompute stats in mask?
         lockMask     %Lock other mask colors
         maskColor    %Nx3 vector specifying the RGB color of the overlaid mask. Default is red (i.e., [1 0 0]);
         handles      %Structured variable with all the handles
@@ -340,9 +341,9 @@ classdef imtool3D < handle
             [I, position, h, range, tools, mask, enableHist] = parseinputs(varargin{:});
             
             % display figure
-            try, Orient = uigetpref('imtool3D','rot90','Set orientation','How to display the first dimension of the matrix?',{'Vertically (Photo)','Horizontally (Medical)'},'CheckboxState',1,'HelpString','Help','HelpFcn','helpdlg({''If this option is wrongly set, image will be rotated by 90°.'', ''Horizontal orientation is used in NIFTI Medical format'', '''', ''This preference can be reset in the help button.'', '''', ''Orientation can also be changed while viewing an image using the command: tool.setOrient(''''vertical'''')''})'); 
+            try, Orient = uigetpref('imtool3D','rot90','Set orientation','How to display the first dimension of the matrix?',{'Vertically (Photo)','Horizontally (Medical)'},'CheckboxState',1,'HelpString','Help','HelpFcn','helpdlg({''If this option is wrongly set, image will be rotated by 90 degree.'', ''Horizontal orientation is usually used in Medical (first dimension is Left-Right)'', '''', ''This preference can be reset in the Settings menu (<about> button).'', '''', ''Orientation can also be changed while viewing an image using the command: tool.setOrient(''''vertical'''')''})'); 
             catch
-            Orient = 'horizontal';    
+            Orient = 'vertical';    
             end
             if isempty(h)
                 
@@ -475,7 +476,8 @@ classdef imtool3D < handle
             %tool.handles.LabelText=uicontrol(tool.handles.Panels.Info,'Style','text','Units','Normalized','Position',[.25 .1 .3 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Center');
             tool.handles.LabelText=annotation(tool.handles.Panels.Image,'textbox','EdgeColor','none','String','','Position',[0 0 1 0.05],'Color',[1 1 1],'Interpreter','none');
             tool.handles.SliceText=uicontrol(tool.handles.Panels.Info,'Style','text','String','','Units','Normalized','Position',[.5 .1 .43 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Right', 'TooltipString', 'Use arrows to navigate through time (4th dim) and volumes (5th dim)');
-            
+            % Help Annotation when cursor hover Help Button
+            tool.handles.HelpAnnotation = [];
             %Set up mouse button controls
             fun=@(hObject,eventdata) imageButtonDownFunction(hObject,eventdata,tool);
             set(tool.handles.mask,'ButtonDownFcn',fun)
@@ -605,13 +607,13 @@ classdef imtool3D < handle
             set(tool.handles.Tools.Save,'TooltipString','Save Image')
             
             %Create viewplane button
-            tool.handles.Tools.ViewPlane    =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'Axial','Sagittal','Coronal'},'Position',[lp buff 3.5*w w],'Value',4-tool.viewplane);
+            tool.handles.Tools.ViewPlane    =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'Axial','Sagittal','Coronal'},'Position',[lp buff 3.5*w w],'Value',4-tool.viewplane,'TooltipString','Select slicing plane orientation (for 3D volume)');
             lp=lp+3.5*w+buff;
             fun=@(hObject,evnt) setviewplane(tool,hObject);
             set(tool.handles.Tools.ViewPlane,'Callback',fun)
             
             %Create montage button
-            tool.handles.Tools.montage    =   uicontrol(tool.handles.Panels.Tools,'Style','togglebutton','Position',[lp buff w w],'Value',0);
+            tool.handles.Tools.montage    =   uicontrol(tool.handles.Panels.Tools,'Style','togglebutton','Position',[lp buff w w],'Value',0,'TooltipString','display multiple slices as montage');
             icon_profile = makeToolbarIconFromPNG('icon_montage.png');
             set(tool.handles.Tools.montage ,'Cdata',icon_profile)
             lp=lp+w+buff;
@@ -620,11 +622,14 @@ classdef imtool3D < handle
             
             %Create Help Button
             pos = get(tool.handles.Panels.Tools,'Position');
-            tool.handles.Tools.Help             =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'Help','Settings','Dock figure','Export imtool object'},'Position',[pos(3)-2.5*w buff 4*w w],'TooltipString','Help with imtool3D','BackgroundColor',[0, 0.65, 1]);
-%             icon_profile = makeToolbarIconFromPNG([MATLABicondir 'icon_setting.png']);
-%             set(tool.handles.Tools.Help,'Cdata',icon_profile)
-            fun=@(hObject,evnt) displayHelp(hObject,evnt,tool);
+            tool.handles.Tools.Help             =   uicontrol(tool.handles.Panels.Tools,'Style','checkbox','String','Help','Position',[pos(3)-5*w buff 3*w-buff w],'BackgroundColor',[0, 0.65, 1],'ForegroundColor',[1 1 1],'FontWeight','bold');
+            fun = @(hObject,evnt) showhelpannotation(tool);
             set(tool.handles.Tools.Help,'Callback',fun)
+            tool.handles.Tools.About             =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'about','Settings','Dock figure','Export imtool object'},'Position',[pos(3)-2*w-buff buff 4*w w],'TooltipString','Help with imtool3D');
+            icon_profile = makeToolbarIconFromPNG('pref.png');
+            set(tool.handles.Tools.About,'Cdata',icon_profile)
+            fun=@(hObject,evnt) displayHelp(hObject,evnt,tool);
+            set(tool.handles.Tools.About,'Callback',fun)
             
             %% MASK TOOLBAR ON RIGHT
             %Create mask2poly button
@@ -728,7 +733,7 @@ classdef imtool3D < handle
             end
             
             % lock mask
-            tool.handles.Tools.maskLock        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','Position',[buff pos(4)-(islct+1)*w w w], 'Value', 1, 'TooltipString', 'Lock all colors except selected one');
+            tool.handles.Tools.maskLock        = uicontrol(tool.handles.Panels.ROItools,'Style','togglebutton','Position',[buff pos(4)-(islct+1)*w w w], 'Value', 1, 'TooltipString', 'Protect other labels (except selected one)');
             icon_profile = makeToolbarIconFromPNG('icon_lock.png');
             set(tool.handles.Tools.maskLock ,'Cdata',icon_profile)
             set(tool.handles.Tools.maskLock ,'Callback',@(hObject,evnt) setlockMask(tool))
@@ -2107,7 +2112,7 @@ classdef imtool3D < handle
             if exist('hdr','var')
                 path=fullfile(fileparts(hdr.file_name),'Mask.nii.gz');
             else
-                path = 'Mask.nii.gz';
+                path = 'Mask.tif';
             end
             [FileName,PathName] = uigetfile('*','Load Mask',path);
             if isequal(FileName,0), return; end
@@ -2284,7 +2289,7 @@ classdef imtool3D < handle
             end
             tool.Nvol = Nvol;
             if numel(maskn)>10e7 || ~any(maskn(:))
-                maskrgb = maskn*255;
+                maskrgb = maskn*100; % gray level mask if too big
             else
                 maskrgb = ind2rgb8(maskn,tool.maskColor);
             end
@@ -2420,6 +2425,9 @@ classdef imtool3D < handle
             end
             tool.handles.grid(end+1)=scatter(.5+size(tool.I,posdim(2))/2,.5+size(tool.I{tool.Nvol},posdim(1))/2,'r','filled','Parent',tool.handles.Axes(1));
             
+            fun=@(hObject,eventdata) imageButtonDownFunction(hObject,eventdata,tool);
+            set(tool.handles.grid,'ButtonDownFcn',fun,'Hittest','on')
+
             if get(tool.handles.Tools.Grid,'Value')
                 set(tool.handles.grid,'Visible','on')
             else
@@ -2470,25 +2478,20 @@ classdef imtool3D < handle
             if ~exist('evnt','var') || strcmp(evnt.EventName,'maskChanged')
                 tool.setmaskHistory(tool.getMask(true));
             end
+            
+            tool.maskUpdated = true;
         end
         
         function setmaskstatistics(tool,current_object)
-            persistent counter
             
             % if Mouse over Mask Selection button
             if ishandle(current_object) && strcmp(get(current_object,'Tag'),'MaskSelected')
-                % Prevent too many calls: Limit to 1 call a second
-                if isempty(counter)
-                    counter = tic;
-                else
-                    t = toc(counter);
-                    if t<1
-                        return;
-                    else
-                        counter = tic;
-                    end
+                % Prevent too many calls: Limit to 1 call every 10 seconds
+                if ~tool.maskUpdated
+                    return;
                 end
-                
+                tool.maskUpdated = false;
+                set(tool.handles.Tools.maskSelected,'TooltipString','Computing stats...')
                 % Get statistics
                 I = tool.getImage;
                 for ii=1:length(tool.handles.Tools.maskSelected)
@@ -2509,9 +2512,39 @@ classdef imtool3D < handle
 
                     set(tool.handles.Tools.maskSelected(max(1,min(5,ii))),'TooltipString',str)
                 end
+                
             end
         end
- 
+        
+        function showhelpannotation(tool)
+            set(tool.handles.Tools.Help, 'Enable', 'off');
+            drawnow;
+            set(tool.handles.Tools.Help, 'Enable', 'on');
+            if get(tool.handles.Tools.Help,'Value')
+                a = rectangle(tool.handles.Axes(end),'Position',[0 0 1e12 1e12], ...
+                    'FaceColor',[0 0 0 .7]);
+                a(2) = annotation(tool.handles.Panels.Image,'textarrow',[0.1 0], [0.9 1],...
+                    'String','Colorbar & Histogram','Color',[1 1 1]);
+                a(3) = annotation(tool.handles.Panels.Image,'textarrow',[0.5 0.5], [0.8 1],...
+                    'String','Display Options','Color',[1 1 1]);
+                a(4) = annotation(tool.handles.Panels.Image,'textarrow',[0.9 1], [0.85 .85],...
+                    'String',sprintf('3D Mask (Multi-label ROI)\n- Select label number\n- Fill with Paint brush\n- Hover label for stats\n- Right-click to delete'),'Color',[1 1 1]);
+                a(5) = annotation(tool.handles.Panels.Image,'textarrow',[0.9 1], [0.25 .25],...
+                    'String','ROI and measurement tools','Color',[1 1 1]);
+                a(6) = annotation(tool.handles.Panels.Image,'textarrow',[0.7 .7], [0.08 0],...
+                    'String',sprintf('Use arrows to navigate through\nTime (4th) or Volume (5th) dimension'),'Color',[1 1 1],'HorizontalAlignment','left');
+                a(7) = annotation(tool.handles.Panels.Image,'textarrow',[0.1 0], [0.1 0.02],...
+                    'String',sprintf('RGB mode:\nSwitch between RGB\nor Grayscale mode\nand select active\nchannel (R,G or B)'),'Color',[1 1 1],'HorizontalAlignment','left');
+                a(8) = annotation(tool.handles.Panels.Image,'textarrow',[0.1 0], [0.5 0.5],...
+                    'String',sprintf('Use scroll wheel to navigate\nthrough slices (3rd dim)'),'Color',[1 1 1],'HorizontalAlignment','left');
+                a(9) = annotation(tool.handles.Panels.Image,'textbox',[0.4 0.3 .4 .4],'FitBoxToText','on',...
+                    'String',sprintf('Left-click for contrast/brightness\n\nRight-click to pan\n\nMiddle-click + up to zoom\n\nDrag&Drop image files HERE\n\nHover cursor over any button\nfor help\n\nSee <about> for Keyboard shortcuts\n\n'),'Color',[1 1 1],'EdgeColor',[1 1 1],'HorizontalAlignment','left');
+                tool.handles.HelpAnnotation = a;
+            else
+                delete(tool.handles.HelpAnnotation)
+            end
+        end
+        
         function setmaskHistory(tool,mask)
             if ~isequal(mask,tool.maskHistory{end})
                 tool.maskHistory{1} = mask;
@@ -3098,20 +3131,25 @@ set(src,'WindowButtonMotionFcn',WBMF_old,'WindowButtonUpFcn',WBUF_old);
 end
 
 function getImageInfo(src,evnt,tool)
+current_object = hittest(tool.handles.fig);
 % if Mouse over Mask Selection button
-current_object = hittest;
 setmaskstatistics(tool,current_object)
 
 h = tool.getHandles;
 isax = false;
 for iax = 1:length(h.Axes), isax = isax | isequal(h.Axes(iax),current_object); end
 for iI = 1:length(h.I), isax = isax | isequal(h.I(iI),current_object); end
+for ian = 1:length(h.HelpAnnotation), isax = isax | isequal(h.HelpAnnotation(ian),current_object); end
 
 if ~isax && ~isequal(h.mask,current_object)
     S = tool.getImageSize(1);
     set(h.Info,'String',sprintf('(%d,%d,%d) val',S(1),S(2),S(3)))
     return
 end
+
+% if Mouse outside Help button, hide help
+set(tool.handles.Tools.Help,'Value',0)
+delete(tool.handles.HelpAnnotation)
 
 pos=get(h.Axes(tool.Nvol),'CurrentPoint');
 rot90on = get(h.Axes(tool.Nvol),'view'); rot90on = rot90on(1);
@@ -3194,8 +3232,8 @@ try
     buff=(w-wbutt)/2;
     
     pos = get(tool.handles.Panels.Tools,'Position');
-    set(hh.Tools.Help,'Position',[pos(3)-2.5*wbutt buff 4*wbutt wbutt]);
-    
+    set(hh.Tools.Help,'Position',[pos(3)-5*wbutt buff 3*wbutt-buff wbutt]);
+    set(hh.Tools.About,'Position',[pos(3)-2*wbutt-buff buff 4*wbutt wbutt]);
     pos=get(hh.Panels.ROItools,'Position');
     for islct=1:5
         set(hh.Tools.maskSelected(islct),'Position',[buff pos(4)-buff-islct*wbutt wbutt wbutt]);
@@ -3655,10 +3693,7 @@ try
     M = images.internal.createMontage(I, [size(I,1) size(I,2)],...
         [rows cols], [0 0], [], indices, []);
 catch
-    rows = 1;
-    cols = ceil(nz/rows);
     Ipad = cat(3,I(:,:,indices),zeros(size(I,1),size(I,2),cols*rows-nz));
-    M = reshape(Ipad,[size(I,1)*rows size(I,2)*cols]);
     M = squeeze(mat2cell(Ipad,size(I,1),size(I,2),ones(cols*rows,1)));
     M =cell2mat(reshape(M,[rows cols]));
 end

@@ -55,7 +55,14 @@ else
     load mri % example mri image provided by MATLAB
     dat = D;
     dat = squeeze(dat);
-    dat = permute(dat(end:-1:1,:,:),[2 1 3]); % LPI orientation
+    try
+        isLPI = strfind(uigetpref('imtool3D','rot90','Set orientation','How to display the first dimension of the matrix?',{'Vertically (Photo)','Horizontally (Medical)'},'CheckboxState',1,'HelpString','Help','HelpFcn','helpdlg({''If this option is wrongly set, image will be rotated by 90 degree.'', ''Horizontal orientation is usually used in Medical (first dimension is Left-Right)'', '''', ''This preference can be reset in the Settings menu (<about> button).'', '''', ''Orientation can also be changed while viewing an image using the command: tool.setOrient(''''vertical'''')''})'),'hor');
+    catch
+        isLPI = 1;
+    end
+    if isLPI
+        dat = permute(dat(end:-1:1,:,:),[2 1 3]); % LPI orientation
+    end
     list = {'MRI EXAMPLE'};
     if ~isdeployed
         A = which('nii_tool');
@@ -92,7 +99,6 @@ else
     tool = imtool3D(dat,[],parent,range,[],mask);
     tool.setviewplane(viewplane);
 end
-
 
 % Set Labels
 for ii=1:length(tool)

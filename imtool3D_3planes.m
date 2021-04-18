@@ -22,6 +22,7 @@ classdef imtool3D_3planes < handle
     properties (SetAccess = private, GetAccess = private)
         tool  % 1x3 imtool3D objects
         cross % cross structure
+        HelpAnnotation
     end
     
     properties
@@ -159,6 +160,7 @@ classdef imtool3D_3planes < handle
             % move buttons from first to third panel for cosmetic reason
             hp = tool(3).getHandles.Panels.Tools;
             set(get(hp,'Children'),'Visible','off')
+            set(tool(1).getHandles.Tools.About,'Parent',hp)
             set(tool(1).getHandles.Tools.Help,'Parent',hp)
             buts2move = {'Grid','Mask','Color','montage','Save'};
             buff = 5; xpos = buff;
@@ -220,8 +222,7 @@ classdef imtool3D_3planes < handle
             for ii=1:3
                 set(tool(ii).getHandles.Slider,'TooltipString',sprintf('Change Slice (use the scroll wheel)\nAlso, use and hold the [X] key to navigate in the volume based on mouse location)'));
             end
-            
-            
+                        
             % Add mouse/keyboard interactions
             h = tool(1).getHandles.fig;
             set(h,'WindowScrollWheelFcn',@(src, evnt) scrollWheel(src, evnt, tool) )
@@ -234,6 +235,11 @@ classdef imtool3D_3planes < handle
             addlistener(tool(1).getHandles.Tools.U,'String','PostSet',@(x,y) setWL(tool));
             
             tool3P.tool = tool;
+            
+            % change Help
+            fun = @(hObject,evnt) showhelpannotation(tool3P);
+            set(tool(1).getHandles.Tools.Help,'Callback',fun)
+
         end
         
         function tool = getTool(tool3P,plane)
@@ -506,5 +512,42 @@ timer=tic;
 
 for ii=setdiff(1:3,ic)
     tool(ii).setMask(tool(ic).getMask(1));
+end
+end
+
+function showhelpannotation(tool3P)
+tool = tool3P.tool;
+set(tool(1).getHandles.Tools.Help, 'Enable', 'off');
+drawnow;
+set(tool(1).getHandles.Tools.Help, 'Enable', 'on');
+if get(tool.getHandles.Tools.Help,'Value')
+    a = rectangle(tool(1).getHandles.Axes(end),'Position',[0 0 1e12 1e12], ...
+        'FaceColor',[0 0 0 .7]);
+    a(2) = annotation(tool(1).getHandles.Panels.Image,'textarrow',[0.1 0], [0.9 1],...
+        'String','Colorbar & Histogram','Color',[1 1 1]);
+    a(3) = annotation(tool(1).getHandles.Panels.Image,'textarrow',[0.5 0.5], [0.8 1],...
+        'String','Display Options','Color',[1 1 1]);
+    a(4) = annotation(tool(3).getHandles.Panels.Image,'textarrow',[0.9 1], [0.85 .85],...
+        'String',sprintf('3D Mask (Multi-label ROI)\n- Select label number\n- Fill with Paint brush\n- Hover label for stats\n- Right-click to delete'),'Color',[1 1 1]);
+    a(5) = annotation(tool(1).getHandles.Panels.Image,'textarrow',[0.9 1], [0.25 .25],...
+        'String',sprintf('ROI and measurement tools\nfor this slicing plane'),'Color',[1 1 1]);
+    a(6) = annotation(tool(3).getHandles.Panels.Image,'textarrow',[0.7 .7], [0.08 0],...
+        'String',sprintf('Use arrows to navigate through\nTime (4th) or Volume (5th) dimension'),'Color',[1 1 1],'HorizontalAlignment','left');
+    a(7) = annotation(tool(1).getHandles.Panels.Image,'textarrow',[0.1 0], [0.1 0.02],...
+        'String',sprintf('RGB mode:\nSwitch between RGB\nor Grayscale mode\nand select active\nchannel (R,G or B)'),'Color',[1 1 1],'HorizontalAlignment','left');
+    a(8) = annotation(tool(1).getHandles.Panels.Image,'textarrow',[0.1 0], [0.5 0.5],...
+        'String',sprintf('Use scroll wheel to navigate\nthrough slices'),'Color',[1 1 1],'HorizontalAlignment','left');
+    a(9) = annotation(tool(2).getHandles.Panels.Image,'textbox',[0.05 0.1 .9 .4],'FitBoxToText','off',...
+        'String',sprintf('Left-click for contrast/brightness\n\nRight-click to pan\n\nMiddle-click + up to zoom\n\nDrag&Drop image files HERE\n\nHover cursor over any button\nfor help\n\nSee <about> for Keyboard shortcuts\n\n'),'Color',[1 1 1],'EdgeColor',[1 1 1],'HorizontalAlignment','left');
+    a(10) = rectangle(tool(2).getHandles.Axes(end),'Position',[0 0 1e12 1e12], ...
+        'FaceColor',[0 0 0 .7]);
+    a(11) = rectangle(tool(3).getHandles.Axes(end),'Position',[0 0 1e12 1e12], ...
+        'FaceColor',[0 0 0 .7]);
+    a(12) = annotation(tool(2).getHandles.Panels.Image,'textarrow',[0.5 0.5], [0.8 1],'HorizontalAlignment','left',...
+        'String',sprintf('Three ways to go through slices:\n- use scroll wheel on each slicing plane\n- Position cursor on the image and press the [X] key.\n- Select cursor mode here and click on the image.'),'Color',[1 1 1]);
+
+    tool3P.HelpAnnotation = a;
+else
+    delete(tool3P.HelpAnnotation)
 end
 end
