@@ -626,8 +626,6 @@ classdef imtool3D < handle
             fun = @(hObject,evnt) showhelpannotation(tool);
             set(tool.handles.Tools.Help,'Callback',fun)
             tool.handles.Tools.About             =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'about','Settings','Dock figure','Export imtool object'},'Position',[pos(3)-2*w-buff buff 4*w w],'TooltipString','Help with imtool3D');
-            icon_profile = makeToolbarIconFromPNG('pref.png');
-            set(tool.handles.Tools.About,'Cdata',icon_profile)
             fun=@(hObject,evnt) displayHelp(hObject,evnt,tool);
             set(tool.handles.Tools.About,'Callback',fun)
             
