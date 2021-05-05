@@ -446,8 +446,16 @@ classdef imtool3D < handle
             butString = {'.','R','G','B'};
             tool.handles.SliderColor = uicontrol(tool.handles.Panels.Slider,'Style','pushbutton','String',butString{1},'Position',[max(0,w-wbutt) 0 wbutt wbutt],'TooltipString',sprintf('Color channel used by slider:\n.  channels are split\nR  slider control red\nG  slider control green\nB  slider control Blue'));
             fun=@(src,evnt)SelectSliderColor(tool);
-            set(tool.handles.SliderColor,'Callback',fun)
-            
+            c = uicontextmenu(tool.handles.fig);
+            set(tool.handles.SliderColor,'Callback',fun,'UIContextMenu',c)
+            tool.handles.uimenu.RGB(1) = uimenu('Parent',c,'Label','switch to RGB/Monochrome','Callback',@(src,evnt) assignval(tool,'isRGB',~tool.isRGB));
+            tool.handles.uimenu.RGB(2) = uimenu('Parent',c,'Label','RGB dimension');
+            tool.handles.uimenu.RGB(3) = uimenu('Parent',tool.handles.uimenu.RGB(2) ,'Label','slice (3rd)','Callback',@(src,evnt) assignval(tool,'RGBdim',3),'Checked','on');
+            tool.handles.uimenu.RGB(4) = uimenu('Parent',tool.handles.uimenu.RGB(2),'Label','time (4th)','Callback',@(src,evnt) assignval(tool,'RGBdim',4));
+            tool.handles.uimenu.RGB(5) = uimenu('Parent',tool.handles.uimenu.RGB(2),'Label','volume (5th)','Callback',@(src,evnt) assignval(tool,'RGBdim',5));
+            tool.handles.uimenu.RGB(6) = uimenu('Parent',c,'Label','RGB index','Callback',@(src,evnt) dlgsetRGBindex(tool));
+            tool.handles.uimenu.RGB(7) = uimenu('Parent',c,'Label','align RGB bands','Callback',@(src,evnt) assignval(tool,'RGBalignhisto',~tool.RGBalignhisto));
+
             %Create Slider for scrolling through image stack
             tool.handles.Slider         =   uicontrol(tool.handles.Panels.Slider,'Style','Slider','Position',[0 wbutt w pos(4)-2*w-wbutt],'TooltipString','Change Slice (can use scroll wheel also)');
             fun=@(scr,evnt)multipleScrollWheel(scr,evnt,[tool tools]);
@@ -475,7 +483,14 @@ classdef imtool3D < handle
             set(tool.handles.fig,'WindowButtonMotionFcn',fun);
             %tool.handles.LabelText=uicontrol(tool.handles.Panels.Info,'Style','text','Units','Normalized','Position',[.25 .1 .3 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Center');
             tool.handles.LabelText=annotation(tool.handles.Panels.Image,'textbox','EdgeColor','none','String','','Position',[0 0 1 0.05],'Color',[1 1 1],'Interpreter','none');
-            tool.handles.SliceText=uicontrol(tool.handles.Panels.Info,'Style','text','String','','Units','Normalized','Position',[.5 .1 .43 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Right', 'TooltipString', 'Use arrows to navigate through time (4th dim) and volumes (5th dim)');
+            c = uicontextmenu(tool.handles.fig);
+            tool.handles.SliceText=uicontrol(tool.handles.Panels.Info,'Style','text','UIContextMenu',c,'String','','Units','Normalized','Position',[.5 .1 .43 .8],'BackgroundColor','k','ForegroundColor','w','FontSize',12,'HorizontalAlignment','Right', 'TooltipString', 'Use arrows to navigate through time (4th dim) and volumes (5th dim)');
+            uimenu('Parent',c,'Label','100%','Callback',@(s,h) assignval(tool, 'rescaleFactor',1))
+            uimenu('Parent',c,'Label','10%','Callback',@(s,h) assignval(tool, 'rescaleFactor',.1))
+            uimenu('Parent',c,'Label','50%','Callback',@(s,h) assignval(tool, 'rescaleFactor',.5))
+            uimenu('Parent',c,'Label','200%','Callback',@(s,h) assignval(tool, 'rescaleFactor',2))
+            uimenu('Parent',c,'Label','400%','Callback',@(s,h) assignval(tool, 'rescaleFactor',4))
+
             % Help Annotation when cursor hover Help Button
             tool.handles.HelpAnnotation = [];
             %Set up mouse button controls
@@ -561,9 +576,14 @@ classdef imtool3D < handle
             
             %Creat window and level callbacks
             fun=@(hobject,evnt) WindowLevel_callback(hobject,evnt,tool);
-            funRightClick = @(src,evnt) tool.setClimits(repmat({get(tool.handles.Axes(tool.Nvol),'Clim')},[1 length(tool.I)]));
-            set(tool.handles.Tools.L,'Callback',fun,'ButtonDownFcn',funRightClick); % right click set the same range for all volumes
-            set(tool.handles.Tools.U,'Callback',fun,'ButtonDownFcn',funRightClick); 
+            funSameWL = @(src,evnt) tool.setClimits(repmat({get(tool.handles.Axes(tool.Nvol),'Clim')},[1 length(tool.I)]));
+            funAutoRange = @(src,evnt) tool.setClimits(double(range_outlier(tool.I{tool.Nvol}(:),5)));
+            c = uicontextmenu(tool.handles.fig);
+            set(tool.handles.Tools.L,'Callback',fun,'UIContextMenu',c); % right click set the same range for all volumes
+            set(tool.handles.Tools.U,'Callback',fun,'UIContextMenu',c); 
+            uimenu('Parent',c,'Label','Auto window level','Callback',funAutoRange)
+            uimenu('Parent',c,'Label','Same window level for all volumes','Callback',funSameWL)
+
             fun=@(hobject,evnt) setOpacity(tool,[], hobject);
             set(tool.handles.Tools.O,'Callback',fun);
             set(tool.handles.Tools.SO,'Callback',fun);
@@ -604,7 +624,7 @@ classdef imtool3D < handle
             set(tool.handles.Tools.Save,'CData',icon_save);
             fun=@(hObject,evnt) saveImage(tool,hObject);
             set(tool.handles.Tools.Save,'Callback',fun)
-            set(tool.handles.Tools.Save,'TooltipString','Save Image')
+            set(tool.handles.Tools.Save,'TooltipString','Save screenshot')
             
             %Create viewplane button
             tool.handles.Tools.ViewPlane    =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'Axial','Sagittal','Coronal'},'Position',[lp buff 3.5*w w],'Value',4-tool.viewplane,'TooltipString','Select slicing plane orientation (for 3D volume)');
@@ -1778,6 +1798,9 @@ classdef imtool3D < handle
                 set(tool.handles.Axes,'Ylim',[mid-(h-1)/2 mid+(h-1)/2])
             end
             
+            % update Text (bottom Right)
+            n = tool.getCurrentSlice;
+            set(tool.handles.SliceText,'String',['Vol: ' num2str(tool.Nvol) '/' num2str(length(tool.I)) '    Time: ' num2str(tool.Ntime) '/' num2str(size(tool.I{tool.Nvol},4)) '    Slice: ' num2str(n) '/' num2str(size(tool.I{tool.Nvol},tool.viewplane)) '    ' sprintf('%.1f%%',tool.rescaleFactor*100)])
         end
         
         function set.upsample(tool,upsample)
@@ -1815,6 +1838,7 @@ classdef imtool3D < handle
                 setWL(tool,diff(CL),mean(CL))
             end
             showSlice(tool);
+            set(tool.handles.uimenu.RGB(7),'Checked',tool.RGBalignhisto)
         end
         
         function set.RGBindex(tool,index)
@@ -1822,12 +1846,26 @@ classdef imtool3D < handle
             tool.showSlice();
         end
         
+        function dlgsetRGBindex(tool)
+            set(tool.handles.fig,'Units','Pixels')
+            CallerPos = get(tool.handles.fig, 'Position');
+            hrgbindex = figure(1.8392e9);
+            set(hrgbindex,'Position',[max(100,CallerPos(1)) max(100,CallerPos(2)) 300 75],'Toolbar','none','Menubar','none','NextPlot','new',...
+                'Name','Choose RGB channels','NumberTitle','off');
+            dlgrgbindex = optiondlg({'RGB index',tool.RGBindex,'apply','pushbutton'},hrgbindex);
+            dlgh = dlgrgbindex.getHandles;
+            dlgrgbindex.setCallback('apply', @(src,evnt) cellfun(@(fun) feval(fun,src) , {@(src) assignval(tool,'RGBindex',round(get(dlgh.buttons.RGBindex,'Data'))), @(src) set(src,'Value',0)}))
+        end
+
         function set.RGBdim(tool,dim)
             if ~ismember(dim,[3 4 5 6])
                 error('RGB is handled only along the 3rd, 4th, 5th or 6th dimension')
             end
             tool.RGBdim = dim;
             showSlice(tool);
+            set(tool.handles.uimenu.RGB(3),'Checked',dim==3)
+            set(tool.handles.uimenu.RGB(4),'Checked',dim==4)
+            set(tool.handles.uimenu.RGB(5),'Checked',dim==5)
         end
         
         function set.isRGB(tool,iscolor)
@@ -1837,6 +1875,7 @@ classdef imtool3D < handle
             else
                 SelectSliderColor(tool,'.')
             end
+            set(tool.handles.uimenu.RGB(1),'Checked',iscolor)
         end
         
         function set.Visible(tool,Visible)
@@ -2532,7 +2571,7 @@ classdef imtool3D < handle
                 a(6) = annotation(tool.handles.Panels.Image,'textarrow',[0.7 .7], [0.08 0],...
                     'String',sprintf('Use arrows to navigate through\nTime (4th) or Volume (5th) dimension'),'Color',[1 1 1],'HorizontalAlignment','left');
                 a(7) = annotation(tool.handles.Panels.Image,'textarrow',[0.1 0], [0.1 0.02],...
-                    'String',sprintf('RGB mode:\nSwitch between RGB\nor Grayscale mode\nand select active\nchannel (R,G or B)'),'Color',[1 1 1],'HorizontalAlignment','left');
+                    'String',sprintf('RGB mode:\nSwitch between RGB\nor Grayscale mode\nand select active\nchannel (R,G or B)\nRight-click for more options\n\n'),'Color',[1 1 1],'HorizontalAlignment','left');
                 a(8) = annotation(tool.handles.Panels.Image,'textarrow',[0.1 0], [0.5 0.5],...
                     'String',sprintf('Use scroll wheel to navigate\nthrough slices (3rd dim)'),'Color',[1 1 1],'HorizontalAlignment','left');
                 a(9) = annotation(tool.handles.Panels.Image,'textbox',[0.4 0.3 .4 .4],'FitBoxToText','on',...
@@ -3757,6 +3796,11 @@ end
 function assignval(tool, var,val)
 tool.(var) = val;
 end
+
+function var = assignind(var,ind,val)
+var(ind) = val;
+end
+
 
 function onDrop(tool, listener, evtArg)
 ht = wait_msgbox;
