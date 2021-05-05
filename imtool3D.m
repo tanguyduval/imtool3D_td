@@ -1838,7 +1838,9 @@ classdef imtool3D < handle
                 setWL(tool,diff(CL),mean(CL))
             end
             showSlice(tool);
-            set(tool.handles.uimenu.RGB(7),'Checked',tool.RGBalignhisto)
+            onoff = {'off','on'};
+            H = tool.getHandles;            
+            set(H.uimenu.RGB(7),'Checked',onoff{1+tool.RGBalignhisto});
         end
         
         function set.RGBindex(tool,index)
@@ -1863,9 +1865,11 @@ classdef imtool3D < handle
             end
             tool.RGBdim = dim;
             showSlice(tool);
-            set(tool.handles.uimenu.RGB(3),'Checked',dim==3)
-            set(tool.handles.uimenu.RGB(4),'Checked',dim==4)
-            set(tool.handles.uimenu.RGB(5),'Checked',dim==5)
+            onoff = {'off','on'};
+            H = tool.getHandles;
+            set(H.uimenu.RGB(3),'Checked',onoff{double(dim==3)+1});
+            set(H.uimenu.RGB(4),'Checked',onoff{double(dim==4)+1});
+            set(H.uimenu.RGB(5),'Checked',onoff{double(dim==5)+1});
         end
         
         function set.isRGB(tool,iscolor)
@@ -1875,7 +1879,9 @@ classdef imtool3D < handle
             else
                 SelectSliderColor(tool,'.')
             end
-            set(tool.handles.uimenu.RGB(1),'Checked',iscolor)
+            onoff = {'off','on'};
+            H = tool.getHandles;
+            set(H.uimenu.RGB(1),'Checked',onoff{iscolor+1});
         end
         
         function set.Visible(tool,Visible)
