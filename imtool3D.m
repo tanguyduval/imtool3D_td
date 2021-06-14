@@ -318,6 +318,7 @@ classdef imtool3D < handle
         RGBdim       = 3; % [3, 4 or 5] dimension along which RGB planes are extracted
         RGBdecorrstretch = false;
         RGBalignhisto = false;
+        registrationMode = false;
         label        = {''};
     end
     
@@ -1793,9 +1794,14 @@ classdef imtool3D < handle
             
             mid = mean(get(tool.handles.Axes(tool.Nvol),'Xlim'));
             if isfinite(mid+w+h)
-                set(tool.handles.Axes,'Xlim',[mid-(w-1)/2 mid+(w-1)/2])
+                if tool.registrationMode
+                    CurrentAxes = tool.handles.Axes(tool.Nvol);
+                else
+                    CurrentAxes = tool.handles.Axes;
+                end
+                set(CurrentAxes,'Xlim',[mid-(w-1)/2 mid+(w-1)/2])
                 mid = mean(get(tool.handles.Axes(tool.Nvol),'Ylim'));
-                set(tool.handles.Axes,'Ylim',[mid-(h-1)/2 mid+(h-1)/2])
+                set(CurrentAxes,'Ylim',[mid-(h-1)/2 mid+(h-1)/2])
             end
             
             % update Text (bottom Right)
@@ -2850,7 +2856,12 @@ switch nargout
                 bpA=get(tool.handles.Axes(tool.Nvol),'CurrentPoint');
                 bpA=[bpA(1,1) bpA(1,2)];
                 setptr(tool.handles.fig,'glass');
-                fun=@(src,evnt) adjustZoomMouse(src,evnt,bp,tool.handles.Axes,tool,xlims,ylims,bpA);
+                if tool.registrationMode % pan each volume independantly?
+                    CurrentAxes = tool.handles.Axes(tool.Nvol);
+                else
+                    CurrentAxes = tool.handles.Axes;
+                end
+                fun=@(src,evnt) adjustZoomMouse(src,evnt,bp,CurrentAxes,tool,xlims,ylims,bpA);
                 fun2=@(src,evnt) buttonUpFunction(src,evnt,tool,WBMF_old,WBUF_old);
                 set(tool.handles.fig,'WindowButtonMotionFcn',fun,'WindowButtonUpFcn',fun2)
             case 'alt' %pan
@@ -2864,7 +2875,12 @@ switch nargout
                 scale = imagePixels./axesPixels;
                 scale = max(scale);
                 setptr(tool.handles.fig,'closedhand');
-                fun=@(src,evnt) adjustPanMouse(src,evnt,bp,tool.handles.Axes,xlims,ylims,scale);
+                if tool.registrationMode % pan each volume independantly?
+                    CurrentAxes = tool.handles.Axes(tool.Nvol);
+                else
+                    CurrentAxes = tool.handles.Axes;
+                end
+                fun=@(src,evnt) adjustPanMouse(src,evnt,bp,CurrentAxes,xlims,ylims,scale);
                 fun2=@(src,evnt) buttonUpFunction(src,evnt,tool,WBMF_old,WBUF_old);
                 set(tool.handles.fig,'WindowButtonMotionFcn',fun,'WindowButtonUpFcn',fun2)
         end
