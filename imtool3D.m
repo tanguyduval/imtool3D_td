@@ -2638,12 +2638,25 @@ else
     Color = tool.getMaskColor;
     Mask = tool.getMask(1);
 end
-f1 = StatsGUI(tool.I,Mask,[],Color);
+% use filename only if label is path:
+label = cellfun(@(X) X{end},cellfun(@(X) strsplit(X,filesep), tool.label, 'UniformOutput', false), 'UniformOutput', false);
+EmptyFields = cellfun(@(x) ['vol #' x],strsplit(num2str(1:length(tool.I))),'uni',0);
+label(cellfun(@(X) isempty(X), label)) = EmptyFields(cellfun(@(X) isempty(X), label));
+
+% Open Stats figure
+f1 = StatsGUI(tool.I,Mask,label(end:-1:1),Color);
+% Open Histogram figure
 f2 = HistogramGUI(tool.getImage(0),Mask,Color);
 
 pos = get(f1,'Position');
+name = 'Statistics';
+if length(tool.I)>1, name = [name ' in each volume']; end
+if tool.isRGB && tool.RGBdim == 3, name = [name ' in the channels RGB']; else
+if any(Mask(:)) name = [name ' in the different ROI']; end
+end
+set(f1,'Name',name)
 pos(1) = pos(1)+pos(3);
-set(f2,'Position',pos)
+set(f2,'Position',pos,'Name',['Histrogram of ' label{tool.Nvol}])
 end
 
 function PaintBrushCallback(hObject,evnt,tool,style)
