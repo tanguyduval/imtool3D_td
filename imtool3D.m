@@ -459,8 +459,8 @@ classdef imtool3D < handle
 
             %Create Slider for scrolling through image stack
             tool.handles.Slider         =   uicontrol(tool.handles.Panels.Slider,'Style','Slider','Position',[0 wbutt w pos(4)-2*w-wbutt],'TooltipString','Change Slice (can use scroll wheel also)');
-            fun=@(scr,evnt)multipleScrollWheel(scr,evnt,[tool tools]);
-            set(tool.handles.fig,'WindowScrollWheelFcn',fun);
+            scrollfun = getpref('imtool3D','ScrollWheelFcn','slice');
+            tool.setScrollWheelFun(scrollfun,0,tools);
             
             %Create image axis
             tool.handles.Axes           =   axes('Position',[0 0 1 1],'Parent',tool.handles.Panels.Image,'Color','none');
@@ -1669,6 +1669,20 @@ classdef imtool3D < handle
                     tool.Orient = -90;
                 case 'vertical'
                     tool.Orient = 0;
+            end
+        end
+        
+        function setScrollWheelFun(tool,scrollfun,savepref,tools)
+            if ~exist('tools','var'), tools = []; end
+            switch lower(scrollfun)
+                case 'zoom'
+                    fun=@(scr,evnt) adjustZoomScroll(evnt,tool);
+                case 'slice'
+                    fun=@(scr,evnt)multipleScrollWheel(scr,evnt,[tool tools]);
+            end
+            set(tool.handles.fig,'WindowScrollWheelFcn',fun);
+            if savepref
+                setpref('imtool3D','ScrollWheelFcn',scrollfun)
             end
         end
         
@@ -3181,6 +3195,43 @@ set(tool.handles.SliceText,'String',['Vol: ' num2str(tool.Nvol) '/' num2str(leng
 
 end
 
+function adjustZoomScroll(evnt,tool)
+
+xlims=get(tool.handles.Axes(tool.Nvol),'Xlim');
+ylims=get(tool.handles.Axes(tool.Nvol),'Ylim');
+
+zfactor = 1.2; %zoom percentage per change in screen pixels
+resize = 100 + sign(evnt.VerticalScrollCount)*abs(evnt.VerticalScrollCount)^zfactor;   %zoom percentage
+
+% old center
+cold = [xlims(1)+diff(xlims)/2 ylims(1)+diff(ylims)/2];
+pfactor = 100; %zoom percentage at which clicked point becomes the new center
+%get the zoom factor
+cp = get(tool.handles.Axes(tool.Nvol),'CurrentPoint');
+cp = cp(1,1:2);
+dir = cold - cp;
+dir = (dir*((resize-100)/pfactor));
+%get the new center
+cx = cold(1) + dir(1);
+cy = cold(2) + dir(2);
+
+%get the new width
+newXwidth = diff(xlims)* (resize/100);
+newYwidth = diff(ylims)* (resize/100);
+
+%set the new axis limits
+xlims = [cx-newXwidth/2 cx+newXwidth/2];
+ylims = [cy-newYwidth/2 cy+newYwidth/2];
+if resize > 0
+    set(tool.handles.Axes,'Xlim',xlims,'Ylim',ylims)
+end
+
+% update Text
+n = tool.getCurrentSlice;
+set(tool.handles.SliceText,'String',['Vol: ' num2str(tool.Nvol) '/' num2str(length(tool.I)) '    Time: ' num2str(tool.Ntime) '/' num2str(size(tool.I{tool.Nvol},4)) '    Slice: ' num2str(n) '/' num2str(size(tool.I{tool.Nvol},tool.viewplane)) '    ' sprintf('%.1f%%',tool.rescaleFactor*100)])
+
+end
+
 function adjustPanMouse(src,evnt,bp,hObject,xlims,ylims,scale)
 cp = get(0,'PointerLocation');
 V = get(hObject,'View'); if iscell(V), V = V{1}; end
@@ -3486,6 +3537,7 @@ switch h
     case {'Preferences',2}
         %%
         buttons = {'Orientation', {'Vertical (Photo)','Horizontal (Medical)'}, ...
+            'Scrool wheel function', {'Slice','Zoom'},...
             'upsample', tool.upsample, ...
             'gamma', tool.gamma, ...
             'is RGB image?',tool.isRGB,...
@@ -3522,6 +3574,7 @@ switch h
         Orient = getOrient(tool);
         if abs(Orient)>45, tool.optdlg.setValue('Orientation',2); end
         tool.optdlg.setCallback('Orientation',@(src,evnt) tool.setOrient(src.String{src.Value},true))
+        tool.optdlg.setCallback('Scrool wheel function',@(src,evnt) tool.setScrollWheelFun(src.String{src.Value},true));
         tool.optdlg.setCallback('upsample', @(src,evnt) assignval(tool,'upsample',src.Value))
         tool.optdlg.setCallback('gamma', @(src,evnt) assignval(tool,'gamma',str2num(src.String)))
         H = tool.optdlg.getHandles();
