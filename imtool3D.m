@@ -3200,8 +3200,8 @@ function adjustZoomScroll(evnt,tool)
 xlims=get(tool.handles.Axes(tool.Nvol),'Xlim');
 ylims=get(tool.handles.Axes(tool.Nvol),'Ylim');
 
-zfactor = 1.2; %zoom percentage per change in screen pixels
-resize = 100 + sign(evnt.VerticalScrollCount)*abs(evnt.VerticalScrollCount)^zfactor;   %zoom percentage
+zfactor = 1.1; %zoom percentage per change in screen pixels
+resize = 100 * (zfactor * min(2,abs(evnt.VerticalScrollCount))) ^ sign(evnt.VerticalScrollCount);  %zoom percentage
 
 % old center
 cold = [xlims(1)+diff(xlims)/2 ylims(1)+diff(ylims)/2];
