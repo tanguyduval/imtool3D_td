@@ -346,6 +346,9 @@ classdef imtool3D < handle
             catch
             Orient = 'vertical';    
             end
+            if ~ispref('imtool3D','ScrollWheelFcn') && strcmpi(Orient,'vertical')
+                tool.setScrollWheelFun('zoom',1);
+            end
             if isempty(h)
                 
                 h=figure;
@@ -1092,13 +1095,18 @@ classdef imtool3D < handle
             if ~isempty(range)
                 tool.NvolOpts.Climits{1} = range;
             end
-            
+                        
             range = tool.NvolOpts.Climits{1};
 
             tool.Nvol = 1;
             
             tool.I=I;
             
+            % set RGB mode if third dim is 3 and photo mode
+            if getOrient(tool)<45 & size(I{1},3) == 3
+                tool.isRGB= 1;
+            end
+
             tool.setMask(mask);
             
             %Update the histogram
