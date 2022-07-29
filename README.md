@@ -14,14 +14,14 @@ This tool is written using the object-oriented features of matlab. This means th
 imtool3D is used heavily by several other projects: [qMRLab](https://github.com/qMRLab/qMRLab), [imquest](https://gitlab.oit.duke.edu/railabs/SameiResearchGroup/imquest), [lesionTool](https://gitlab.oit.duke.edu/railabs/SameiResearchGroup/lesionTool)
 
 * [Dependencies](#dependencies)
-* [Demo](#demo)
+* [Viewer Interface](#viewer-interface)
   * [Mouse Control](#mouse-control)
   * [Segmentation tools](#segmentation-tools)
   * [Measurement tools](#measurement-tools)
   * [Histogram, colormap and statistics](#histogram-colormap-and-statistics) 
-  * [Drag and Drop files](#drag-and-drop-files) 
+  * [Open files through Drag and Drop](#drag-and-drop-files) 
   * [Three planes display (Axial, sagittal and coronal)](#three-planes-display) 
-* [Tutorial](#tutorial)
+* [Programming Interface (API)](#api)
   * [open a 5D volume](#open-a-5d-volume)
   * [open an MRI volume](#open-an-mri-volume)
   * [include imtool3D in a GUI](#include-in-a-gui)
@@ -38,7 +38,7 @@ imtool3D is used heavily by several other projects: [qMRLab](https://github.com/
 * Matlab's image processing toolbox (ROI tools are disabled otherwise)
 * [dicm2nii](https://github.com/xiangruili/dicm2nii) (if NIFTI images are used)
 
-# Demo
+# Viewer Interface
 [Integration in qMRLab](https://qmrlab.readthedocs.io/en/master/gui_usage.html#data-viewer)
 ## Mouse control
 | Mouse control | action |
@@ -131,7 +131,7 @@ Use imtool3D_3planes.m to display the three orientation planes.
   <img src="https://user-images.githubusercontent.com/7785316/97868402-e6dead00-1d0f-11eb-9158-d6233ea8002a.png" width="600">
 </p>  
 
-# Tutorial
+# API
 ## open a 5D volume
 ````matlab
 A = rand(100,100,30,10,3);
