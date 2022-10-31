@@ -73,12 +73,9 @@ end
 
 
 [dat, hdr, list] = nii_load(dat,1);
-tool = tool3P;
-for ii=1:length(tool)
-    tool(ii).setImage(dat);
-    tool(ii).setAspectRatio(hdr.pixdim(2:4));
-    tool(ii).label = list;
-end
+tool3P.setImage(dat);
+tool3P.setAspectRatio(hdr.pixdim(2:4));
+tool3P.setlabel(list);
 if ishandle(ht), delete(ht); end
 
 function h = wait_msgbox
