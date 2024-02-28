@@ -2821,16 +2821,19 @@ switch nargout
                 fun2=@(src,evnt) buttonUpFunction(src,evnt,tool,WBMF_old,WBUF_old);
                 set(tool.handles.fig,'WindowButtonMotionFcn',fun,'WindowButtonUpFcn',fun2)
             case 'extend'  %Zoom
-                xlims=get(tool.handles.Axes(tool.Nvol),'Xlim');
-                ylims=get(tool.handles.Axes(tool.Nvol),'Ylim');
                 bpA=get(tool.handles.Axes(tool.Nvol),'CurrentPoint');
                 bpA=[bpA(1,1) bpA(1,2)];
                 setptr(tool.handles.fig,'glass');
                 if tool.registrationMode % pan each volume independantly?
+                    xlims=get(tool.handles.Axes(tool.Nvol),'Xlim');
+                    ylims=get(tool.handles.Axes(tool.Nvol),'Ylim');
                     CurrentAxes = tool.handles.Axes(tool.Nvol);
                 else
+                    xlims=get(tool.handles.Axes,'Xlim');
+                    ylims=get(tool.handles.Axes,'Ylim');
                     CurrentAxes = tool.handles.Axes;
                 end
+                if ~iscell(xlims), xlims = {xlims}; ylims = {ylims}; end 
                 fun=@(src,evnt) adjustZoomMouse(src,evnt,bp,CurrentAxes,tool,xlims,ylims,bpA);
                 fun2=@(src,evnt) buttonUpFunction(src,evnt,tool,WBMF_old,WBUF_old);
                 set(tool.handles.fig,'WindowButtonMotionFcn',fun,'WindowButtonUpFcn',fun2)
@@ -3100,11 +3103,11 @@ d=cp(2)-bp(2);  %
 zfactor = 1; %zoom percentage per change in screen pixels
 resize = 100 + d*zfactor;   %zoom percentage
 
-%get the old center point
 for ih = 1:length(hObject)
-    xlims2 = get(hObject(ih),'Xlim');
-    ylims2 = get(hObject(ih),'Ylim');
-    cold = [xlims2(1)+diff(xlims2)/2 ylims2(1)+diff(ylims2)/2];
+    %get the old center point
+    % xlims2 = get(hObject(ih),'Xlim');
+    % ylims2 = get(hObject(ih),'Ylim');
+    cold = [xlims{ih}(1)+diff(xlims{ih})/2 ylims{ih}(1)+diff(ylims{ih})/2];
 
     %get the direction vector from old center to the clicked point
     dir = cold-bpA;
@@ -3118,14 +3121,14 @@ for ih = 1:length(hObject)
     cy = cold(2) + dir(2);
 
     %get the new width
-    newXwidth = diff(xlims2)* (resize/100);
-    newYwidth = diff(ylims2)* (resize/100);
+    newXwidth = diff(xlims{ih})* (resize/100);
+    newYwidth = diff(ylims{ih})* (resize/100);
 
     %set the new axis limits
-    xlims = [cx-newXwidth/2 cx+newXwidth/2];
-    ylims = [cy-newYwidth/2 cy+newYwidth/2];
+    xlimsN = [cx-newXwidth/2 cx+newXwidth/2];
+    ylimsN = [cy-newYwidth/2 cy+newYwidth/2];
     if resize > 0
-        set(hObject(ih),'Xlim',xlims,'Ylim',ylims)
+        set(hObject(ih),'Xlim',xlimsN,'Ylim',ylimsN)
     end
 end
 % set to integer zooming factor if necessary
