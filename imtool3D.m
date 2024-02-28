@@ -345,7 +345,7 @@ classdef imtool3D < handle
             catch
             Orient = 'vertical';    
             end
-            if ~ispref('imtool3D','ScrollWheelFcn') && ~isempty(strfind(lower(Orient),'vertical')) 
+            if ~ispref('imtool3D','ScrollWheelFcn') && strfind(lower(Orient),'vertical')
                 setpref('imtool3D','ScrollWheelFcn','zoom')
             end
             if isempty(h)
@@ -619,16 +619,7 @@ classdef imtool3D < handle
             set(tool.handles.Tools.Color,'Callback',fun)
             set(tool.handles.Tools.Color,'TooltipString','Select a colormap')
             lp=lp+3.5*w+buff;
-            
-            %Create save button
-            tool.handles.Tools.Save           =   uicontrol(tool.handles.Panels.Tools,'Style','pushbutton','String','','Position',[lp buff w w]);
-            lp=lp+w+buff;
-            icon_save = makeToolbarIconFromPNG([MATLABicondir '/file_save.png']);
-            set(tool.handles.Tools.Save,'CData',icon_save);
-            fun=@(hObject,evnt) saveImage(tool,hObject);
-            set(tool.handles.Tools.Save,'Callback',fun)
-            set(tool.handles.Tools.Save,'TooltipString','Save screenshot')
-            
+                        
             %Create viewplane button
             tool.handles.Tools.ViewPlane    =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'Axial','Sagittal','Coronal'},'Position',[lp buff 3.5*w w],'Value',4-tool.viewplane,'TooltipString','Select slicing plane orientation (for 3D volume)');
             lp=lp+3.5*w+buff;
@@ -791,7 +782,15 @@ classdef imtool3D < handle
             end
             
             set(tool.handles.fig,'NextPlot','new')
-            
+            % delete if main is deleted
+            figfun = get(tool.handles.fig,'CloseRequestFcn');
+            if ischar(figfun)
+                set(tool.handles.fig,'CloseRequestFcn',@(src,evt) cellfun(@(x) feval(x), {figfun,@() delete(tool)}));
+            else
+                set(tool.handles.fig,'CloseRequestFcn',@(src,evt) cellfun(@(x) feval(x,src,evt), {figfun,@(h,e) delete(tool)}));
+            end
+
+
             %%
             % add shortcuts
             
@@ -823,9 +822,7 @@ classdef imtool3D < handle
                 wrn = warning('off','MATLAB:ui:javaframe:PropertyToBeRemoved');
                 jFrame = get(tool.handles.fig, 'JavaFrame');
                 jAxis = jFrame.getAxisComponent();
-                dndcontrol.initJava();
-                dndobj = dndcontrol(jAxis);
-                dndobj.DropFileFcn = @(s, e)onDrop(tool, s, e); %,'DragEnterFcn',@(s,e) setVis(txt_drop,1),'DragExitFcn',@(s,e) setVis(txt_drop,0));
+                java_dnd(jAxis, @(s, e)onDrop(tool, s, e))
                 warning(wrn);
             catch err
                 warning(err.message)
@@ -1037,11 +1034,9 @@ classdef imtool3D < handle
                             pixdim = [1 1 2.5];
                             label = {'BRAIN T1w contrast','BRAIN T2w contrast','BRAIN PDw contrast'};
                         case 0 % photo
-                            phantom3 = multibandread('paris.lan',[512, 512, 7],'uint8=>uint8',...
-                                128,'bil','ieee-le');
-                            S = size(phantom3);
+                            phantom3 = imread('ngc6543a.jpg');
                             pixdim = [1 1 1];
-                            label = 'Paris multispectral (7 bands) LandSat';
+                            label = 'ngc6543a.jpg: Cat''s Eye Nebula';
                     end
                 catch % mri file not available
                     S = [64 64 64];
@@ -1068,7 +1063,7 @@ classdef imtool3D < handle
                     end
                 end
             else
-                I = mat2cell(I,size(I,1),size(I,2),size(I,3),size(I,4),ones(1,size(I,5)),size(I,6));
+                I = squeeze(mat2cell(I,size(I,1),size(I,2),size(I,3),size(I,4),ones(1,size(I,5)),size(I,6)));
             end
             
             if islogical(I{1})
@@ -1199,6 +1194,24 @@ classdef imtool3D < handle
             
         end
         
+        function addImage(tool, I, label)
+            % addImage(tool, I) appends an image in the 5th dimension (volume)
+            % addImage(tool, I, label) attaches the label [str] to the
+            % volume
+            if isnumeric(I)
+                tool.setImage([tool.I(:)', {I}]);
+            else
+                tool.setImage([tool.I, I]);
+            end
+            tool.setNvol(tool.getNvolMax());
+            if exist('label', 'var')
+                if size(tool.label, 2) ~= tool.getNvolMax - 1
+                    tool.label(end+1:tool.getNvolMax - 1) = {""};
+                end
+                tool.setlabel(label);
+            end
+        end
+
         function I = getImage(tool,all)
             % I = tool.getImage() get currently viewing image
             % I = tool.getImage(1) get all images loaded in the tool
@@ -1764,6 +1777,8 @@ classdef imtool3D < handle
             try
                 delete(tool.handles.Panels.Large)
                 set(tool.handles.fig,'WindowButtonMotionFcn',[]);
+            end
+            try
                 H = tool.optdlg.getHandles();
                 delete(H.fig)
             end
@@ -2012,86 +2027,7 @@ classdef imtool3D < handle
             end
             %      disp(evnt.Key)
         end
-        
-        function saveImage(tool,hObject, Filename)
-            persistent imformats
-            if exist('hObject','var') && ~isempty(hObject) && any(ishandle(hObject))
-                % unselect button to prevent activation with spacebar
-                set(hObject, 'Enable', 'off');
-                drawnow;
-                set(hObject, 'Enable', 'on');
-            end
-            
-            h = tool.getHandles;
-            cmap = colormap(h.Tools.Color.String{h.Tools.Color.Value});
-            if isempty(imformats)
-                imformats = {'*.tif';'*.jpg';'*.bmp';'*.gif';'*.hdf'; ...
-                    '*.jp2';'*.pbm';'*.pcx';'*.pgm'; ...
-                    '*.pnm';'*.ppm';'*.ras';'*.xwd'};
-                imformats = cat(2,imformats,cellfun(@(X) sprintf('Current slice (%s)',X),imformats,'uni',0));
-                imformats = cat(1,{'*.png','Current slice (*.png)';
-                    '*.tif','Whole stack (*.tif)'},imformats);
-            end
-            
-            if exist('Filename','var')
-                [PathName,FileName, ext] = fileparts(Filename);
-                FileName = [FileName,ext];
-                PathName = [PathName filesep];
-                ext = find(cellfun(@(x) strcmp(x(2:end),ext),imformats(:,1)));
-            else
-                [FileName,PathName, ext] = uiputfile(imformats,'Save Image');
-            end
-            if isequal(FileName,0)
-                return;
-            end
-            imformats = imformats([ext,setdiff(1:end,ext)],:);
-            ext = 1;
-            
-            if strfind(imformats{ext,2},'slice') % Current slice
-                try, I = getframe(h.Axes(tool.Nvol)); I = I.cdata; catch I=get(h.I,'CData'); end
-                if iscell(I), I = I{tool.Nvol}; end
-                viewtype = get(tool.handles.Axes(tool.Nvol),'View');
-                if viewtype(1)==-90, I=rot90(I);  end
-                if size(I,3)==1
-                    lims=get(h.Axes(tool.Nvol),'CLim');
-                    I = uint8(max(0,min(1,(double(I)-lims(1))/diff(lims)))*(size(cmap,1)-1));
-                    imwrite(cat(2,I,repmat(round(linspace(size(cmap,1),0,size(I,1)))',[1 round(size(I,2)/50)])),cmap,[PathName FileName])
-                else
-                    if strfind(imformats{ext,1},'gif')
-                        [I,cm] = rgb2ind(I,256); 
-                        if ~exist(fullfile(PathName, FileName),'file')
-                            imwrite(I,cm,fullfile(PathName, FileName),'gif','Loopcount',inf);
-                        else
-                            imwrite(I,cm,fullfile(PathName, FileName),'gif','WriteMode','append');
-                        end
-                    else
-                        imwrite(I,fullfile(PathName, FileName))
-                    end
-                end
-            else
-                lims=get(h.Axes(tool.Nvol),'CLim');
                 
-                if FileName == 0
-                else
-                    I = tool.getImage;
-                    viewtype = get(tool.handles.Axes(tool.Nvol),'View');
-                    if viewtype(1)==-90, I=rot90(I);  end
-                    
-                    for z=1:size(I,tool.viewplane)
-                        switch tool.viewplane
-                            case 1
-                                Iz = I(z,:,:);
-                            case 2
-                                Iz = I(:,z,:);
-                            case 3
-                                Iz = I(:,:,z);
-                        end
-                        imwrite(gray2ind(mat2gray(Iz,lims),size(cmap,1)),cmap, fullfile(PathName,FileName), 'WriteMode', 'append',  'Compression','none');
-                    end
-                end
-            end
-        end
-        
         function saveMask(tool,hObject,hdr)
             if exist('hObject','var') && ~isempty(hObject)
                 % unselect button to prevent activation with spacebar
@@ -2899,17 +2835,18 @@ switch nargout
                 fun2=@(src,evnt) buttonUpFunction(src,evnt,tool,WBMF_old,WBUF_old);
                 set(tool.handles.fig,'WindowButtonMotionFcn',fun,'WindowButtonUpFcn',fun2)
             case 'alt' %pan
-                xlims=get(tool.handles.Axes(tool.Nvol),'Xlim');
-                ylims=get(tool.handles.Axes(tool.Nvol),'Ylim');
+                xlims=get(tool.handles.Axes,'Xlim'); if iscell(xlims), xlims = cell2mat(xlims); end
+                ylims=get(tool.handles.Axes,'Ylim'); if iscell(ylims), ylims = cell2mat(ylims); end
                 oldUnits =  get(tool.handles.Axes(tool.Nvol),'Units'); set(tool.handles.Axes,'Units','Pixels');
                 pos = get(tool.handles.Axes(tool.Nvol),'Position');
                 set(tool.handles.Axes,'Units',oldUnits);
                 axesPixels = pos(3:end);
-                imagePixels = [diff(xlims) diff(ylims)];
+                imagePixels = [diff(xlims(tool.Nvol,:)) diff(ylims(tool.Nvol,:))];
                 scale = imagePixels./axesPixels;
                 scale = max(scale);
                 setptr(tool.handles.fig,'closedhand');
                 if tool.registrationMode % pan each volume independantly?
+                    xlims = xlims(tool.Nvol,:); ylims = ylims(tool.Nvol,:); 
                     CurrentAxes = tool.handles.Axes(tool.Nvol);
                 else
                     CurrentAxes = tool.handles.Axes;
@@ -3164,30 +3101,33 @@ zfactor = 1; %zoom percentage per change in screen pixels
 resize = 100 + d*zfactor;   %zoom percentage
 
 %get the old center point
-cold = [xlims(1)+diff(xlims)/2 ylims(1)+diff(ylims)/2];
+for ih = 1:length(hObject)
+    xlims2 = get(hObject(ih),'Xlim');
+    ylims2 = get(hObject(ih),'Ylim');
+    cold = [xlims2(1)+diff(xlims2)/2 ylims2(1)+diff(ylims2)/2];
 
-%get the direction vector from old center to the clicked point
-dir = cold-bpA;
-pfactor = 100; %zoom percentage at which clicked point becomes the new center
+    %get the direction vector from old center to the clicked point
+    dir = cold-bpA;
+    pfactor = 100; %zoom percentage at which clicked point becomes the new center
 
-%rescale the dir vector according to ratio between resize and pfactor
-dir = (dir*((resize-100)/pfactor));
+    %rescale the dir vector according to ratio between resize and pfactor
+    dir = (dir*((resize-100)/pfactor));
 
-%get the new center
-cx = cold(1) + dir(1);
-cy = cold(2) + dir(2);
+    %get the new center
+    cx = cold(1) + dir(1);
+    cy = cold(2) + dir(2);
 
-%get the new width
-newXwidth = diff(xlims)* (resize/100);
-newYwidth = diff(ylims)* (resize/100);
+    %get the new width
+    newXwidth = diff(xlims2)* (resize/100);
+    newYwidth = diff(ylims2)* (resize/100);
 
-%set the new axis limits
-xlims = [cx-newXwidth/2 cx+newXwidth/2];
-ylims = [cy-newYwidth/2 cy+newYwidth/2];
-if resize > 0
-    set(hObject,'Xlim',xlims,'Ylim',ylims)
+    %set the new axis limits
+    xlims = [cx-newXwidth/2 cx+newXwidth/2];
+    ylims = [cy-newYwidth/2 cy+newYwidth/2];
+    if resize > 0
+        set(hObject(ih),'Xlim',xlims,'Ylim',ylims)
+    end
 end
-
 % set to integer zooming factor if necessary
 n = tool.getCurrentSlice;
 if abs(tool.rescaleFactor - round(tool.rescaleFactor))<0.05
@@ -3204,53 +3144,55 @@ end
 
 function adjustZoomScroll(evnt,tool)
 
-xlims=get(tool.handles.Axes(tool.Nvol),'Xlim');
-ylims=get(tool.handles.Axes(tool.Nvol),'Ylim');
+for ih = 1:length(tool.handles.Axes)
+    xlims=get(tool.handles.Axes(ih),'Xlim');
+    ylims=get(tool.handles.Axes(ih),'Ylim');
 
-zfactor = 1.1; %zoom percentage per change in screen pixels
-resize = 100 * (zfactor * min(2,abs(evnt.VerticalScrollCount))) ^ sign(evnt.VerticalScrollCount);  %zoom percentage
+    zfactor = 1.1; %zoom percentage per change in screen pixels
+    resize = 100 * (zfactor * min(2,abs(evnt.VerticalScrollCount))) ^ sign(evnt.VerticalScrollCount);  %zoom percentage
 
-% old center
-cold = [xlims(1)+diff(xlims)/2 ylims(1)+diff(ylims)/2];
-pfactor = 100; %zoom percentage at which clicked point becomes the new center
-%get the zoom factor
-cp = get(tool.handles.Axes(tool.Nvol),'CurrentPoint');
-cp = cp(1,1:2);
-dir = cold - cp;
-dir = (dir*((resize-100)/pfactor));
-%get the new center
-cx = cold(1) + dir(1);
-cy = cold(2) + dir(2);
+    % old center
+    cold = [xlims(1)+diff(xlims)/2 ylims(1)+diff(ylims)/2];
+    pfactor = 100; %zoom percentage at which clicked point becomes the new center
+    %get the zoom factor
+    cp = get(tool.handles.Axes(tool.Nvol),'CurrentPoint');
+    cp = cp(1,1:2);
+    if ih==1
+    dir = cold - cp;
+    dir = (dir*((resize-100)/pfactor));
+    end
+    %get the new center
+    cx = cold(1) + dir(1);
+    cy = cold(2) + dir(2);
 
-%get the new width
-newXwidth = diff(xlims)* (resize/100);
-newYwidth = diff(ylims)* (resize/100);
+    %get the new width
+    newXwidth = diff(xlims)* (resize/100);
+    newYwidth = diff(ylims)* (resize/100);
 
-%set the new axis limits
-xlims = [cx-newXwidth/2 cx+newXwidth/2];
-ylims = [cy-newYwidth/2 cy+newYwidth/2];
-if resize > 0
-    set(tool.handles.Axes,'Xlim',xlims,'Ylim',ylims)
+    %set the new axis limits
+    xlims = [cx-newXwidth/2 cx+newXwidth/2];
+    ylims = [cy-newYwidth/2 cy+newYwidth/2];
+    if resize > 0
+        set(tool.handles.Axes(ih),'Xlim',xlims,'Ylim',ylims)
+    end
 end
-
-% update Text
-n = tool.getCurrentSlice;
-set(tool.handles.SliceText,'String',['Vol: ' num2str(tool.Nvol) '/' num2str(length(tool.I)) '    Time: ' num2str(tool.Ntime) '/' num2str(size(tool.I{tool.Nvol},4)) '    Slice: ' num2str(n) '/' num2str(size(tool.I{tool.Nvol},tool.viewplane)) '    ' sprintf('%.1f%%',tool.rescaleFactor*100)])
 
 end
 
 function adjustPanMouse(src,evnt,bp,hObject,xlims,ylims,scale)
 cp = get(0,'PointerLocation');
-V = get(hObject,'View'); if iscell(V), V = V{1}; end
-d = scale*(bp-cp);
-if V(1)==-90
-    d(1) = -d(1);
-    d = d([2 1]);
-elseif V(1)==90
-    d(2) = -d(2);
-    d = d([2 1]);
+for ih = 1:length(hObject)
+    V = get(hObject(ih),'View');
+    d = scale*(bp-cp);
+    if V(1)==-90
+        d(1) = -d(1);
+        d = d([2 1]);
+    elseif V(1)==90
+        d(2) = -d(2);
+        d = d([2 1]);
+    end
+    set(hObject(ih),'Xlim',xlims(ih,:)+d(1),'Ylim',ylims(ih,:)-d(2))
 end
-set(hObject,'Xlim',xlims+d(1),'Ylim',ylims-d(2))
 end
 
 function buttonUpFunction(src,evnt,tool,WBMF_old,WBUF_old)
