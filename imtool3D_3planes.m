@@ -162,7 +162,7 @@ classdef imtool3D_3planes < handle
             set(get(hp,'Children'),'Visible','off')
             set(tool(1).getHandles.Tools.About,'Parent',hp)
             set(tool(1).getHandles.Tools.Help,'Parent',hp)
-            buts2move = {'Grid','Mask','Color','montage','Save'};
+            buts2move = {'Grid','Mask','Color','montage'};
             buff = 5; xpos = buff;
             for ibut = 1:length(buts2move)
                 butpos = get(tool(1).getHandles.Tools.(buts2move{ibut}),'Position');
