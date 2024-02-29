@@ -111,7 +111,7 @@ for ii=1:length(tool)
 end
 
 % add Header Info button
-Pos = get(tool(1).getHandles.Tools.Save,'Position');
+Pos = get(tool(1).getHandles.Tools.montage,'Position');
 Pos(1) = Pos(1)+2*Pos(3);
 Pos(3) = 20;
 HeaderButton           =   uicontrol(tool(1).getHandles.Panels.Tools,'Style','pushbutton','String','HDR','Position',Pos,'FontSize',6);
@@ -125,11 +125,11 @@ H = tool(1).getHandles;
 set(H.Tools.maskSave,'Callback',@(hObject,evnt)saveMask(tool(1),hObject,get(HeaderButton,'UserData')))
 set(H.Tools.maskLoad,'Callback',@(hObject,evnt)loadMask(tool(1),hObject,get(HeaderButton,'UserData')))
 
-if length(tool)==1
-Pos = get(tool(1).getHandles.Tools.ViewPlane,'Position');
-Pos(1) = Pos(1) + 30;
-set(tool(1).getHandles.Tools.ViewPlane,'Position',Pos);
-end
+% if length(tool)==1
+% Pos = get(tool(1).getHandles.Tools.ViewPlane,'Position');
+% Pos(1) = Pos(1) + 30;
+% set(tool(1).getHandles.Tools.ViewPlane,'Position',Pos);
+% end
 
 % add LPI labels
 if untouch
