@@ -638,6 +638,7 @@ classdef imtool3D < handle
             pos = get(tool.handles.Panels.Tools,'Position');
             tool.handles.Tools.Help             =   uicontrol(tool.handles.Panels.Tools,'Style','checkbox','String','Help','Position',[pos(3)-5*w buff 3*w-buff w],'BackgroundColor',[0, 0.65, 1],'ForegroundColor',[1 1 1],'FontWeight','bold');
             fun = @(hObject,evnt) showhelpannotation(tool);
+            if nargin==0, set(tool.handles.Tools.Help,'Value',1), showhelpannotation(tool); end
             set(tool.handles.Tools.Help,'Callback',fun)
             tool.handles.Tools.About             =   uicontrol(tool.handles.Panels.Tools,'Style','popupmenu','String',{'about','Settings','Dock figure','Export imtool object'},'Position',[pos(3)-2*w-buff buff 4*w w],'TooltipString','Help with imtool3D');
             fun=@(hObject,evnt) displayHelp(hObject,evnt,tool);
