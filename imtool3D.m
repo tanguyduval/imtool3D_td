@@ -345,7 +345,7 @@ classdef imtool3D < handle
             catch
             Orient = 'vertical';    
             end
-            if ~ispref('imtool3D','ScrollWheelFcn') && strfind(lower(Orient),'vertical')
+            if ~ispref('imtool3D','ScrollWheelFcn') & strfind(lower(Orient),'vertical')
                 setpref('imtool3D','ScrollWheelFcn','zoom')
             end
             if isempty(h)
